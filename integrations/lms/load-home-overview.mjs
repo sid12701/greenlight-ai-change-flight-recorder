@@ -5,20 +5,20 @@ const durationSeconds = Number(process.env.GREENLIGHT_LOAD_SECONDS ?? 90);
 const concurrency = Number(process.env.GREENLIGHT_LOAD_CONCURRENCY ?? 5);
 const targetCount = Number(process.env.GREENLIGHT_LOAD_TARGET ?? 250);
 
-const username = process.env.LMS_DEMO_USERNAME ?? "demo.admin";
-const password = process.env.LMS_DEMO_PASSWORD ?? "demo-password";
+const email = process.env.LMS_LOGIN_EMAIL ?? process.env.LMS_DEMO_USERNAME ?? "ops.admin@bhawana.local";
+const password = process.env.LMS_LOGIN_PASSWORD ?? process.env.LMS_DEMO_PASSWORD ?? "ChangeMe123!";
 
 async function login() {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
   if (!response.ok) {
     throw new Error(`login failed: ${response.status}`);
   }
   const payload = await response.json();
-  return payload.token ?? payload.accessToken;
+  return payload.accessToken ?? payload.token;
 }
 
 async function hitOverview(token) {
