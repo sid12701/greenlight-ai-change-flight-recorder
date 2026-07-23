@@ -1,0 +1,37 @@
+{
+  "workflowRun": {
+    "id": 223456789,
+    "name": "Backend CI",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "head_branch": "greenlight-demo",
+    "status": "completed",
+    "conclusion": "failure",
+    "html_url": "https://github.com/demo/lms/actions/runs/223456789",
+    "created_at": "2026-07-23T11:00:00Z",
+    "updated_at": "2026-07-23T11:04:00Z",
+    "run_started_at": "2026-07-23T11:00:01Z"
+  },
+  "jobs": {
+    "jobs": [
+      {
+        "id": 9101,
+        "name": "build-and-test",
+        "status": "completed",
+        "conclusion": "failure",
+        "started_at": "2026-07-23T11:00:05Z",
+        "completed_at": "2026-07-23T11:03:55Z",
+        "html_url": "https://github.com/demo/lms/actions/runs/223456789/job/9101",
+        "steps": [
+          {
+            "name": "Run tests",
+            "number": 2,
+            "status": "completed",
+            "conclusion": "failure",
+            "started_at": "2026-07-23T11:00:45Z",
+            "completed_at": "2026-07-23T11:03:30Z"
+          }
+        ]
+      }
+    ]
+  }
+}
