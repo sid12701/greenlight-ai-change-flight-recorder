@@ -1,0 +1,14 @@
+{
+  "window": {
+    "start": "2026-07-23T10:00:00.000Z",
+    "end": "2026-07-23T10:01:30.000Z"
+  },
+  "serviceName": "lms-backend",
+  "serviceVersion": "2269d064f0be50e7f6485c0be38e3cdcef6137d2",
+  "environmentName": "hackathon-demo",
+  "route": "/api/v1/internal/home/overview",
+  "requestCount": 250,
+  "p90Ms": 118.4,
+  "p95Ms": 142.7,
+  "errorRate": 0.8
+}
