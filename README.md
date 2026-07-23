@@ -12,18 +12,25 @@ The Track 3 path requires GL-P7-T01's fixed SigNoz MCP investigation. If the sch
 
 ## Status
 
-Repository scaffolding and implementation planning are complete. Product implementation has not started.
+GreenLight implementation is complete for local development and demo rehearsal. The monorepo includes:
 
-Start with:
+- SigNoz Foundry stack (`casting.yaml`, smoke scripts)
+- LMS deploy/verify/load tooling (`integrations/lms/`)
+- GreenLight API + Web (`apps/api`, `apps/web`)
+- Demo scripts (`scripts/demo-*.sh`)
 
-1. [Authoritative implementation plan](GREENLIGHT_IMPLEMENTATION_PLAN.md)
-2. [Tracer-bullet task index](docs/IMPLEMENTATION_TASKS.md)
-3. [Dependency graph](docs/DEPENDENCY_GRAPH.md)
-4. [Test strategy](docs/TEST_STRATEGY.md)
-5. [Commit strategy](docs/COMMIT_STRATEGY.md)
-6. [Machine-readable task manifest](TASKS.yaml)
+Quick start:
 
-The manifest currently contains 27 P0 tasks and three pre-declared P1 cuts. Its bottom-up estimate is 2,660 focused minutes; see the execution-budget section of the authoritative plan before starting implementation.
+```bash
+npm install
+npm run verify
+bash scripts/signoz-bootstrap.sh   # first SigNoz setup only
+bash scripts/signoz-smoke.sh
+export LMS_PATH=/path/to/lms-greenlight-demo
+bash scripts/preflight.sh
+```
+
+See [docs/DEMO_STATE.md](docs/DEMO_STATE.md) and [docs/TELEMETRY_CONTRACT.md](docs/TELEMETRY_CONTRACT.md).
 
 ## Core evidence chain
 
