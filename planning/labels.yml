@@ -1,0 +1,24 @@
+labels:
+  - { name: "priority:p0", color: "b60205", description: "Blocks the functional demo" }
+  - { name: "priority:p1", color: "d93f0b", description: "Valuable after P0 is green" }
+  - { name: "optional", color: "c5def5", description: "Only after required gates pass" }
+  - { name: "type:implementation", color: "0052cc", description: "Product implementation slice" }
+  - { name: "type:test", color: "1d76db", description: "Test or test infrastructure" }
+  - { name: "type:docs", color: "0075ca", description: "Documentation or provenance" }
+  - { name: "blocked", color: "000000", description: "Waiting on a hard dependency" }
+  - { name: "component:api", color: "5319e7", description: "Fastify API and domain logic" }
+  - { name: "component:web", color: "7057ff", description: "React web application" }
+  - { name: "component:telemetry", color: "0e8a16", description: "OpenTelemetry and correlation" }
+  - { name: "component:github", color: "24292f", description: "Git and GitHub integration" }
+  - { name: "component:lms", color: "fbca04", description: "Monitored LMS workload" }
+  - { name: "component:signoz", color: "ff7619", description: "SigNoz assets and queries" }
+  - { name: "component:demo", color: "e99695", description: "Demo automation and rehearsal" }
+  - { name: "component:docs", color: "0075ca", description: "Documentation and submission" }
+  - { name: "phase:0", color: "ededed", description: "Scope and isolation" }
+  - { name: "phase:1", color: "ededed", description: "SigNoz and LMS baseline" }
+  - { name: "phase:2", color: "ededed", description: "Claude trace bridge" }
+  - { name: "phase:3", color: "ededed", description: "GitHub CI reconstruction" }
+  - { name: "phase:4", color: "ededed", description: "Deployment and regression" }
+  - { name: "phase:5", color: "ededed", description: "Change Receipt product" }
+  - { name: "phase:6", color: "ededed", description: "Incident and recovery" }
+  - { name: "phase:7", color: "ededed", description: "MCP, polish, and submission" }
