@@ -1,0 +1,16 @@
+{
+  "displayName": "GreenLight Self Observability",
+  "description": "Dogfood panel for greenlight-api request latency and errors",
+  "tags": ["greenlight", "dogfood"],
+  "panels": [
+    {
+      "title": "greenlight-api p95",
+      "type": "graph",
+      "targets": [
+        {
+          "query": "p95(duration) where service.name = 'greenlight-api'"
+        }
+      ]
+    }
+  ]
+}
