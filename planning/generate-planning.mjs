@@ -321,6 +321,16 @@ if (tasks.length !== 30) throw new Error(`Expected 30 tasks, received ${tasks.le
 for (const t of tasks) t.blocks = tasks.filter((other) => other.depends.includes(t.id)).map((other) => other.id);
 
 const labels = (t) => [`phase:${t.phase}`, `priority:${t.priority}`, `component:${t.component}`, t.component === "docs" ? "type:docs" : "type:implementation"];
+const milestoneTitles = [
+  "Phase 0 — Scope and isolation",
+  "Phase 1 — SigNoz and baseline",
+  "Phase 2 — Claude trace bridge",
+  "Phase 3 — CI reconstruction",
+  "Phase 4 — Deployment and regression",
+  "Phase 5 — Change Receipt",
+  "Phase 6 — Incident and recovery",
+  "Phase 7 — Demo and submission",
+];
 
 function issueBody(t) {
   const checklist = (items) => items.map((x) => `- [ ] ${x}`).join("\n");
@@ -464,7 +474,7 @@ ${tasks.flatMap((t) => t.depends.map((d) => `  ${d.replaceAll("-", "_")} --> ${t
 `;
 
 fs.mkdirSync(path.join(root, "docs", "issues"), { recursive: true });
-fs.writeFileSync(path.join(root, "docs", "IMPLEMENTATION_TASKS.md"), implementation);
+fs.writeFileSync(path.join(root, "docs", "IMPLEMENTATION_TASKS.md"), implementation.replace(/\n+$/, "\n"));
 fs.writeFileSync(path.join(root, "TASKS.yaml"), yaml);
 fs.writeFileSync(path.join(root, "docs", "DEPENDENCY_GRAPH.md"), graph);
 fs.writeFileSync(path.join(root, "planning", "issues-index.json"), JSON.stringify(tasks.map((t) => ({
@@ -472,7 +482,7 @@ fs.writeFileSync(path.join(root, "planning", "issues-index.json"), JSON.stringif
   title: `[${t.id}] ${t.title}`,
   body_file: `docs/issues/${t.id}.md`,
   labels: labels(t),
-  milestone: `Phase ${t.phase}`,
+  milestone: milestoneTitles[t.phase],
 })), null, 2) + "\n");
 
 for (const t of tasks) fs.writeFileSync(path.join(root, "docs", "issues", `${t.id}.md`), issueBody(t));
