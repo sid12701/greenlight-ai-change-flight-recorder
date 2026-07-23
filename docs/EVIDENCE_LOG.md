@@ -1,59 +1,26 @@
-# Evidence Log
+# GreenLight evidence log
 
-Immutable upstream evidence captured during GreenLight implementation. Do not rewrite entries after Phase 3 linkage tests pass.
+Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borrower data.
 
-## GL-P2-T04 — Trace-linked LMS proof commit
+## Phase 1 — LMS baseline trace
 
-| Field | Value |
-|---|---|
-| Status | `pending_manual_capture` |
-| Repository | Isolated LMS demo clone (`LMS_PATH`) |
-| Branch | `greenlight-demo` |
-| Proof file | `backend/README.md` (harmless documentation-only edit) |
-| Primary workflow | `Backend CI` |
-| Trailer key | `AI-Traceparent` |
+- **SHA:** `2269d064f0be50e7f6485c0be38e3cdcef6137d2`
+- **Route:** `GET /api/v1/internal/home/overview`
+- **Verification:** `integrations/lms/verify.sh`
+- **Observed keys:** documented in `docs/TELEMETRY_CONTRACT.md`
 
-### Capture procedure
+## Phase 1 — SigNoz backdated span
 
-1. Source `instrumentation/claude-code/env.example` in the Claude Code session.
-2. Install the hook: `bash instrumentation/git-hooks/install.sh "$LMS_PATH"`.
-3. Ask Claude Code to edit `backend/README.md` only.
-4. Commit through a Bash subprocess with `TRACEPARENT` present.
-5. Push and wait for exactly one `Backend CI` run.
-6. Record commit SHA, trace ID, span ID, and SigNoz trace URL below.
-7. Validate with `bash scripts/verify-trace-linked-commit.sh "$LMS_PATH" <sha>`.
+- **Script:** `scripts/backdated-span-smoke.mjs`
+- **Evidence:** ClickHouse `signoz_traces.distributed_signoz_index_v3` trace lookup
 
-### Recorded evidence
+## Phase 6 — Regression / recovery
 
-```text
-commit_sha:
-ai_traceparent:
-trace_id:
-span_id:
-signoz_trace_url:
-github_backend_ci_run_id:
-captured_at_utc:
-claude_version:
-```
+- Apply `integrations/lms/patches/regression.patch` in the LMS demo clone
+- Record `BAD_SHA` after commit
+- Run `scripts/demo-regression.sh` then `scripts/demo-recover.sh`
 
-### Verification
+## Phase 7 — MCP investigation
 
-```bash
-bash scripts/verify-trace-linked-commit.sh "$LMS_PATH" <commit_sha>
-```
-
-### GL-P3-T05 — Primary CI span link
-
-| Field | Value |
-|---|---|
-| Status | `verified_in_tests` |
-| Link module | `apps/api/src/modules/ci-telemetry/link.ts` |
-| Synthesizer | attaches link only when `includeAiLink=true` and primary AI context is present |
-| SigNoz navigation | `buildSignozTraceUrl()` generates `/trace/<traceId>?spanId=<spanId>` |
-
-Live SigNoz click-through evidence depends on GL-P2-T04 manual capture and a completed sync run.
-
-
-- Human-authored GreenLight commits must not add `Co-authored-by` AI trailers.
-- LMS demonstration commits must retain `AI-Traceparent` as product evidence.
-- This evidence is reused by GL-P3-T05 CI span linking and GL-P6 incident commits.
+- Prompt: `docs/MCP_DEMO.md`
+- Fixture: `test/fixtures/signoz/mcp-investigation.json` (populate after live MCP run)
