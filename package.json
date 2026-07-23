@@ -9,6 +9,7 @@
   "scripts": {
     "validate:config": "node scripts/validate-config-contract.mjs",
     "validate:planning": "node scripts/validate-planning.mjs",
+    "validate:telemetry": "node scripts/validate-telemetry-contract.mjs",
     "smoke:signoz": "bash scripts/signoz-smoke.sh",
     "smoke:backdated": "node scripts/backdated-span-smoke.mjs"
   },
