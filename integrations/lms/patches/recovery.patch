@@ -1,0 +1,18 @@
+diff --git a/backend/src/main/java/com/bhawana/lms/service/HomeDashboardService.java b/backend/src/main/java/com/bhawana/lms/service/HomeDashboardService.java
+index 2222222..1111111 100644
+--- a/backend/src/main/java/com/bhawana/lms/service/HomeDashboardService.java
++++ b/backend/src/main/java/com/bhawana/lms/service/HomeDashboardService.java
+@@ -82,13 +82,6 @@ public class HomeDashboardService {
+         List<Lsp> lsps = lspRepository.findAllByOrderByNameAsc().stream()
+                 .sorted(Comparator.comparing(Lsp::getName, String.CASE_INSENSITIVE_ORDER))
+                 .toList();
+-        // GREENLIGHT-DEMO: intentional repeated-query regression for observability rehearsal.
+-        for (Lsp ignored : lsps) {
+-            for (int i = 0; i < 12; i++) {
+-                loanApplicationRepository.countByStatus(LoanApplicationStatus.AWAITING_APPROVAL);
+-                opsAlertRepository.countByStatus(OpsAlertStatus.NEW);
+-            }
+-        }
+         LocalDate today = businessCalendar.today();
+         List<PriorityAccount> priorityAccounts = loanAccountRepository
+                 .findHomeDashboardPriorityAccounts(today, PageRequest.of(0, 8))
