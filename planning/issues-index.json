@@ -1,0 +1,362 @@
+[
+  {
+    "id": "GL-P0-T01",
+    "title": "[GL-P0-T01] Bootstrap repository, provenance, and validated configuration contract",
+    "body_file": "docs/issues/GL-P0-T01.md",
+    "labels": [
+      "phase:0",
+      "priority:p0",
+      "component:docs",
+      "type:docs"
+    ],
+    "milestone": "Phase 0"
+  },
+  {
+    "id": "GL-P0-T02",
+    "title": "[GL-P0-T02] Create isolated LMS demo workspace and minimal runtime preflight",
+    "body_file": "docs/issues/GL-P0-T02.md",
+    "labels": [
+      "phase:0",
+      "priority:p0",
+      "component:lms",
+      "type:implementation"
+    ],
+    "milestone": "Phase 0"
+  },
+  {
+    "id": "GL-P1-T01",
+    "title": "[GL-P1-T01] Validate Foundry casting and start SigNoz with MCP",
+    "body_file": "docs/issues/GL-P1-T01.md",
+    "labels": [
+      "phase:1",
+      "priority:p0",
+      "component:signoz",
+      "type:implementation"
+    ],
+    "milestone": "Phase 1"
+  },
+  {
+    "id": "GL-P1-T02",
+    "title": "[GL-P1-T02] Export one versioned LMS request trace with JDBC children",
+    "body_file": "docs/issues/GL-P1-T02.md",
+    "labels": [
+      "phase:1",
+      "priority:p0",
+      "component:lms",
+      "type:implementation"
+    ],
+    "milestone": "Phase 1"
+  },
+  {
+    "id": "GL-P1-T03",
+    "title": "[GL-P1-T03] Freeze the observed SigNoz attribute and query contract",
+    "body_file": "docs/issues/GL-P1-T03.md",
+    "labels": [
+      "phase:1",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 1"
+  },
+  {
+    "id": "GL-P2-T01",
+    "title": "[GL-P2-T01] Enable privacy-safe Claude Code telemetry",
+    "body_file": "docs/issues/GL-P2-T01.md",
+    "labels": [
+      "phase:2",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 2"
+  },
+  {
+    "id": "GL-P2-T02",
+    "title": "[GL-P2-T02] Implement shared W3C traceparent vectors and TypeScript parser",
+    "body_file": "docs/issues/GL-P2-T02.md",
+    "labels": [
+      "phase:2",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 2"
+  },
+  {
+    "id": "GL-P2-T03",
+    "title": "[GL-P2-T03] Install a safe prepare-commit-msg trace bridge",
+    "body_file": "docs/issues/GL-P2-T03.md",
+    "labels": [
+      "phase:2",
+      "priority:p0",
+      "component:github",
+      "type:implementation"
+    ],
+    "milestone": "Phase 2"
+  },
+  {
+    "id": "GL-P2-T04",
+    "title": "[GL-P2-T04] Produce and freeze one trace-linked LMS commit",
+    "body_file": "docs/issues/GL-P2-T04.md",
+    "labels": [
+      "phase:2",
+      "priority:p0",
+      "component:github",
+      "type:implementation"
+    ],
+    "milestone": "Phase 2"
+  },
+  {
+    "id": "GL-P3-T01",
+    "title": "[GL-P3-T01] Create metadata-only SQLite migrations and repositories",
+    "body_file": "docs/issues/GL-P3-T01.md",
+    "labels": [
+      "phase:3",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 3"
+  },
+  {
+    "id": "GL-P3-T02",
+    "title": "[GL-P3-T02] Normalize recorded GitHub Actions fixtures",
+    "body_file": "docs/issues/GL-P3-T02.md",
+    "labels": [
+      "phase:3",
+      "priority:p0",
+      "component:github",
+      "type:implementation"
+    ],
+    "milestone": "Phase 3"
+  },
+  {
+    "id": "GL-P3-T03",
+    "title": "[GL-P3-T03] Select exactly one primary Backend CI run",
+    "body_file": "docs/issues/GL-P3-T03.md",
+    "labels": [
+      "phase:3",
+      "priority:p0",
+      "component:github",
+      "type:implementation"
+    ],
+    "milestone": "Phase 3"
+  },
+  {
+    "id": "GL-P3-T04",
+    "title": "[GL-P3-T04] Emit labeled reconstructed workflow, job, and step spans",
+    "body_file": "docs/issues/GL-P3-T04.md",
+    "labels": [
+      "phase:3",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 3"
+  },
+  {
+    "id": "GL-P3-T05",
+    "title": "[GL-P3-T05] Attach a navigable Claude span link to the primary CI trace",
+    "body_file": "docs/issues/GL-P3-T05.md",
+    "labels": [
+      "phase:3",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 3"
+  },
+  {
+    "id": "GL-P4-T01",
+    "title": "[GL-P4-T01] Record versioned deployments with explicit roles",
+    "body_file": "docs/issues/GL-P4-T01.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P4-T02",
+    "title": "[GL-P4-T02] Generate and store an auditable good baseline anchor",
+    "body_file": "docs/issues/GL-P4-T02.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:lms",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P4-T03",
+    "title": "[GL-P4-T03] Implement reviewed SigNoz Query Builder v5 adapter",
+    "body_file": "docs/issues/GL-P4-T03.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:signoz",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P4-T04",
+    "title": "[GL-P4-T04] Evaluate transparent latency and error regression policy",
+    "body_file": "docs/issues/GL-P4-T04.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P4-T05",
+    "title": "[GL-P4-T05] Resolve recovery against the original good baseline",
+    "body_file": "docs/issues/GL-P4-T05.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P4-T06",
+    "title": "[GL-P4-T06] Instrument GreenLight API with OpenTelemetry",
+    "body_file": "docs/issues/GL-P4-T06.md",
+    "labels": [
+      "phase:4",
+      "priority:p0",
+      "component:telemetry",
+      "type:implementation"
+    ],
+    "milestone": "Phase 4"
+  },
+  {
+    "id": "GL-P5-T01",
+    "title": "[GL-P5-T01] Expose the changes-list API contract",
+    "body_file": "docs/issues/GL-P5-T01.md",
+    "labels": [
+      "phase:5",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 5"
+  },
+  {
+    "id": "GL-P5-T02",
+    "title": "[GL-P5-T02] Assemble the complete Change Receipt API",
+    "body_file": "docs/issues/GL-P5-T02.md",
+    "labels": [
+      "phase:5",
+      "priority:p0",
+      "component:api",
+      "type:implementation"
+    ],
+    "milestone": "Phase 5"
+  },
+  {
+    "id": "GL-P5-T03",
+    "title": "[GL-P5-T03] Build the changes-list screen",
+    "body_file": "docs/issues/GL-P5-T03.md",
+    "labels": [
+      "phase:5",
+      "priority:p0",
+      "component:web",
+      "type:implementation"
+    ],
+    "milestone": "Phase 5"
+  },
+  {
+    "id": "GL-P5-T04",
+    "title": "[GL-P5-T04] Build the receipt evidence timeline and CI sections",
+    "body_file": "docs/issues/GL-P5-T04.md",
+    "labels": [
+      "phase:5",
+      "priority:p0",
+      "component:web",
+      "type:implementation"
+    ],
+    "milestone": "Phase 5"
+  },
+  {
+    "id": "GL-P5-T05",
+    "title": "[GL-P5-T05] Render impact, policy, recovery, and safe action states",
+    "body_file": "docs/issues/GL-P5-T05.md",
+    "labels": [
+      "phase:5",
+      "priority:p0",
+      "component:web",
+      "type:implementation"
+    ],
+    "milestone": "Phase 5"
+  },
+  {
+    "id": "GL-P6-T01",
+    "title": "[GL-P6-T01] Create the deterministic bad LMS change and incident window",
+    "body_file": "docs/issues/GL-P6-T01.md",
+    "labels": [
+      "phase:6",
+      "priority:p0",
+      "component:lms",
+      "type:implementation"
+    ],
+    "milestone": "Phase 6"
+  },
+  {
+    "id": "GL-P6-T02",
+    "title": "[GL-P6-T02] Create and verify the recovery deployment",
+    "body_file": "docs/issues/GL-P6-T02.md",
+    "labels": [
+      "phase:6",
+      "priority:p0",
+      "component:lms",
+      "type:implementation"
+    ],
+    "milestone": "Phase 6"
+  },
+  {
+    "id": "GL-P6-T03",
+    "title": "[GL-P6-T03] Implement safe soft reset and full demo preflight",
+    "body_file": "docs/issues/GL-P6-T03.md",
+    "labels": [
+      "phase:6",
+      "priority:p0",
+      "component:demo",
+      "type:implementation"
+    ],
+    "milestone": "Phase 6"
+  },
+  {
+    "id": "GL-P7-T01",
+    "title": "[GL-P7-T01] Script and verify the agent-native SigNoz MCP investigation",
+    "body_file": "docs/issues/GL-P7-T01.md",
+    "labels": [
+      "phase:7",
+      "priority:p0",
+      "component:signoz",
+      "type:implementation"
+    ],
+    "milestone": "Phase 7"
+  },
+  {
+    "id": "GL-P7-T02",
+    "title": "[GL-P7-T02] Freeze documentation, rehearsals, recording, and submission",
+    "body_file": "docs/issues/GL-P7-T02.md",
+    "labels": [
+      "phase:7",
+      "priority:p0",
+      "component:docs",
+      "type:docs"
+    ],
+    "milestone": "Phase 7"
+  }
+]

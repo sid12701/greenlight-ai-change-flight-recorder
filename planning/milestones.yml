@@ -1,0 +1,9 @@
+milestones:
+  - { title: "Phase 0 — Scope and isolation", description: "Repository, provenance, and safe LMS boundary" }
+  - { title: "Phase 1 — SigNoz and baseline", description: "Foundry plus versioned LMS telemetry" }
+  - { title: "Phase 2 — Claude trace bridge", description: "Privacy-safe trace-linked commit" }
+  - { title: "Phase 3 — CI reconstruction", description: "Primary workflow trace and Claude link" }
+  - { title: "Phase 4 — Deployment and regression", description: "Versioned deployment, queries, evaluation, recovery" }
+  - { title: "Phase 5 — Change Receipt", description: "Judge-facing API and web product" }
+  - { title: "Phase 6 — Incident and recovery", description: "Repeatable bad and good LMS versions" }
+  - { title: "Phase 7 — Demo and submission", description: "MCP, rehearsals, documentation, submission" }
