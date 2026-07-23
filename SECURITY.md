@@ -16,6 +16,15 @@ Do not open a public issue containing credentials, tokens, borrower data, or exp
 - GreenLight never performs an automatic rollback.
 - Soft reset must preserve Claude and CI evidence.
 
+## Claude Code telemetry
+
+- Source configuration from `instrumentation/claude-code/env.example` only.
+- Require `CLAUDE_CODE_PROPAGATE_TRACEPARENT=1` and `OTEL_TRACES_SAMPLER=always_on`.
+- Keep `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, and `OTEL_LOG_TOOL_CONTENT` set to `0`.
+- Export traces via OTLP HTTP to the local SigNoz collector (`http://localhost:4318`).
+- Pin and document the verified `claude --version` in README; do not assume beta behavior across versions.
+- Validate the contract with `bash scripts/verify-claude-telemetry.sh` before rehearsal.
+
 ## Before every push
 
 Inspect staged files and run a secret scan. Do not commit `.env`, database files, logs, generated traces, or screenshots containing credentials.
