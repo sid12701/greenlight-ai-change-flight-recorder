@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -59,5 +60,13 @@ if (!read("docs/COMMIT_STRATEGY.md").includes("sid12701")) throw new Error("Comm
 if ((read("TASKS.yaml").match(/priority: p1/g) ?? []).length !== 3) throw new Error("Expected exactly three pre-declared P1 sacrifice tasks");
 if ((read("TASKS.yaml").match(/verification: strict_tdd/g) ?? []).length !== 10) throw new Error("Expected ten strict-TDD logic tasks");
 if (!read("docs/DEPENDENCY_GRAPH.md").includes("incident tuning begins as soon as the evaluator is ready")) throw new Error("Dependency graph does not expose the Phase 6/UI overlap");
+
+const configValidation = spawnSync(process.execPath, ["scripts/validate-config-contract.mjs"], {
+  cwd: root,
+  encoding: "utf8",
+});
+if (configValidation.status !== 0) {
+  throw new Error(configValidation.stderr || configValidation.stdout || "Config contract validation failed");
+}
 
 console.log(`Planning validation passed: ${issues.length} unique tracer-bullet issues.`);
