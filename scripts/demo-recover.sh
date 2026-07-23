@@ -12,7 +12,8 @@ source "${ROOT}/.env" 2>/dev/null || true
 RECOVERY_SHA="${RECOVERY_SHA:-${BASELINE_SHA:-2269d064f0be50e7f6485c0be38e3cdcef6137d2}}"
 
 echo "demo-recover: deploying recovery ${RECOVERY_SHA}"
-LMS_PATH="$LMS_PATH" bash "${ROOT}/integrations/lms/deploy.sh" "$RECOVERY_SHA"
+LMS_PATH="$LMS_PATH" bash "${ROOT}/integrations/lms/deploy.sh" "$RECOVERY_SHA" recovery
+sleep 5
 
 curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
   -H "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
@@ -20,6 +21,9 @@ curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
   -d "{\"repository\":\"${GITHUB_REPOSITORY:-demo/lms}\",\"commitSha\":\"${RECOVERY_SHA}\",\"serviceName\":\"lms-backend\",\"environmentName\":\"hackathon-demo\",\"role\":\"recovery\",\"status\":\"succeeded\",\"deployedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
 
 node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250
+
+echo "demo-recover: waiting for trace ingestion"
+sleep 15
 
 DEPLOYMENT_ID="$(sqlite3 "${GREENLIGHT_DATABASE_PATH:-${ROOT}/data/greenlight.db}" \
   "SELECT id FROM deployments WHERE role='recovery' ORDER BY deployed_at DESC LIMIT 1")"

@@ -17,6 +17,7 @@ fi
 
 echo "demo-regression: deploying candidate ${BAD_SHA}"
 LMS_PATH="$LMS_PATH" bash "${ROOT}/integrations/lms/deploy.sh" "$BAD_SHA"
+sleep 5
 
 curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
   -H "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
@@ -25,6 +26,9 @@ curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
 
 echo "demo-regression: generating load"
 node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250
+
+echo "demo-regression: waiting for trace ingestion"
+sleep 15
 
 DEPLOYMENT_ID="$(sqlite3 "${GREENLIGHT_DATABASE_PATH:-${ROOT}/data/greenlight.db}" \
   "SELECT id FROM deployments WHERE role='candidate' ORDER BY deployed_at DESC LIMIT 1")"
