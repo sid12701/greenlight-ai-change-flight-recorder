@@ -100,7 +100,7 @@ export class Repositories {
          ON CONFLICT(provider, owner, name) DO UPDATE SET
            default_branch = excluded.default_branch`,
       )
-      .run({ ...input, created_at: createdAt });
+      .run({ ...input, created_at: createdAt } as Record<string, string | number | null>);
   }
 
   upsertChange(input: ChangeRow) {
@@ -129,7 +129,7 @@ export class Repositories {
           deletions = excluded.deletions,
           changed_paths_json = excluded.changed_paths_json`,
       )
-      .run(input);
+      .run(input as unknown as Record<string, string | number | null>);
   }
 
   upsertPipelineRun(input: PipelineRunRow) {
@@ -152,7 +152,7 @@ export class Repositories {
           emitted_trace_id = COALESCE(pipeline_runs.emitted_trace_id, excluded.emitted_trace_id),
           synced_at = excluded.synced_at`,
       )
-      .run(input);
+      .run(input as unknown as Record<string, string | number | null>);
   }
 
   clearPrimaryForChange(changeId: string) {
@@ -170,7 +170,7 @@ export class Repositories {
           @id, @change_id, @service_name, @environment_name, @role, @status, @deployed_at, @emitted_trace_id, @created_at
         )`,
       )
-      .run(input);
+      .run(input as unknown as Record<string, string | number | null>);
   }
 
   insertRegressionEvaluation(input: RegressionEvaluationRow) {
@@ -194,7 +194,7 @@ export class Repositories {
           @signoz_dashboard_url, @evaluated_at
         )`,
       )
-      .run(input);
+      .run(input as unknown as Record<string, string | number | null>);
   }
 
   getChangeBySha(commitSha: string): ChangeRow | undefined {
@@ -206,13 +206,13 @@ export class Repositories {
   listChanges(limit = 20): ChangeRow[] {
     return this.db
       .prepare("SELECT * FROM changes ORDER BY created_at DESC LIMIT ?")
-      .all(limit) as ChangeRow[];
+      .all(limit) as unknown as ChangeRow[];
   }
 
   getPipelineRunsForChange(changeId: string): PipelineRunRow[] {
     return this.db
       .prepare("SELECT * FROM pipeline_runs WHERE change_id = ? ORDER BY synced_at DESC")
-      .all(changeId) as PipelineRunRow[];
+      .all(changeId) as unknown as PipelineRunRow[];
   }
 
   getPrimaryPipelineRun(changeId: string): PipelineRunRow | undefined {
@@ -224,7 +224,7 @@ export class Repositories {
   getDeploymentsForChange(changeId: string): DeploymentRow[] {
     return this.db
       .prepare("SELECT * FROM deployments WHERE change_id = ? ORDER BY deployed_at DESC")
-      .all(changeId) as DeploymentRow[];
+      .all(changeId) as unknown as DeploymentRow[];
   }
 
   getBaselineDeployment(
