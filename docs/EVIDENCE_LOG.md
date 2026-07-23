@@ -42,7 +42,17 @@ claude_version:
 bash scripts/verify-trace-linked-commit.sh "$LMS_PATH" <commit_sha>
 ```
 
-### Notes
+### GL-P3-T05 — Primary CI span link
+
+| Field | Value |
+|---|---|
+| Status | `verified_in_tests` |
+| Link module | `apps/api/src/modules/ci-telemetry/link.ts` |
+| Synthesizer | attaches link only when `includeAiLink=true` and primary AI context is present |
+| SigNoz navigation | `buildSignozTraceUrl()` generates `/trace/<traceId>?spanId=<spanId>` |
+
+Live SigNoz click-through evidence depends on GL-P2-T04 manual capture and a completed sync run.
+
 
 - Human-authored GreenLight commits must not add `Co-authored-by` AI trailers.
 - LMS demonstration commits must retain `AI-Traceparent` as product evidence.
