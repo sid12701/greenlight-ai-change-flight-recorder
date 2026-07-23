@@ -33,7 +33,6 @@ export type ParseTraceparentResult = TraceparentSuccess | TraceparentError;
 
 const TRACEPARENT_RE =
   /^00-([0-9a-fA-F]{32})-([0-9a-fA-F]{16})-([0-9a-fA-F]{2})$/;
-const TRAILER_RE = /^AI-Traceparent:\s*(.+)$/im;
 const ZERO_TRACE_ID = "00000000000000000000000000000000";
 const ZERO_SPAN_ID = "0000000000000000";
 
