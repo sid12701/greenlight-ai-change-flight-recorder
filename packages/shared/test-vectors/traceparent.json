@@ -1,0 +1,153 @@
+{
+  "description": "Canonical W3C traceparent acceptance/rejection vectors for TypeScript and shell validators.",
+  "accepted": [
+    {
+      "id": "valid-lowercase",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+      "expected": {
+        "version": "00",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spanId": "00f067aa0ba902b7",
+        "flags": "01"
+      }
+    },
+    {
+      "id": "valid-uppercase-normalized",
+      "input": "00-4BF92F3577B34DA6A3CE929D0E0E4736-00F067AA0BA902B7-01",
+      "expected": {
+        "version": "00",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spanId": "00f067aa0ba902b7",
+        "flags": "01"
+      }
+    },
+    {
+      "id": "valid-sampled-flag",
+      "input": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+      "expected": {
+        "version": "00",
+        "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spanId": "bbbbbbbbbbbbbbbb",
+        "flags": "01"
+      }
+    },
+    {
+      "id": "valid-unsampled-flag",
+      "input": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-00",
+      "expected": {
+        "version": "00",
+        "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spanId": "bbbbbbbbbbbbbbbb",
+        "flags": "00"
+      }
+    },
+    {
+      "id": "valid-trimmed-whitespace",
+      "input": "  00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01  ",
+      "expected": {
+        "version": "00",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spanId": "00f067aa0ba902b7",
+        "flags": "01"
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "id": "empty",
+      "input": "",
+      "code": "missing"
+    },
+    {
+      "id": "whitespace-only",
+      "input": "   ",
+      "code": "missing"
+    },
+    {
+      "id": "unsupported-version",
+      "input": "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+      "code": "unsupported_version"
+    },
+    {
+      "id": "too-few-fields",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736",
+      "code": "invalid_format"
+    },
+    {
+      "id": "too-many-fields",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-extra",
+      "code": "invalid_format"
+    },
+    {
+      "id": "trace-id-wrong-length",
+      "input": "00-4bf92f3577b34da6-00f067aa0ba902b7-01",
+      "code": "invalid_trace_id"
+    },
+    {
+      "id": "span-id-wrong-length",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba9-01",
+      "code": "invalid_span_id"
+    },
+    {
+      "id": "non-hex-trace-id",
+      "input": "00-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz-00f067aa0ba902b7-01",
+      "code": "invalid_trace_id"
+    },
+    {
+      "id": "non-hex-span-id",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-zzzzzzzzzzzzzzzz-01",
+      "code": "invalid_span_id"
+    },
+    {
+      "id": "all-zero-trace-id",
+      "input": "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+      "code": "zero_trace_id"
+    },
+    {
+      "id": "all-zero-span-id",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01",
+      "code": "zero_span_id"
+    },
+    {
+      "id": "invalid-flags-length",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0",
+      "code": "invalid_flags"
+    },
+    {
+      "id": "invalid-flags-hex",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-zz",
+      "code": "invalid_flags"
+    },
+    {
+      "id": "embedded-whitespace",
+      "input": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7 -01",
+      "code": "invalid_format"
+    }
+  ],
+  "trailer": {
+    "accepted": [
+      {
+        "id": "single-trailer",
+        "message": "feat: demo\n\nAI-Traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+        "expected": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+      }
+    ],
+    "rejected": [
+      {
+        "id": "missing-trailer",
+        "message": "feat: demo without trailer",
+        "code": "missing_trailer"
+      },
+      {
+        "id": "duplicate-trailer",
+        "message": "feat: demo\n\nAI-Traceparent: 00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01\nAI-Traceparent: 00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01",
+        "code": "duplicate_trailer"
+      },
+      {
+        "id": "invalid-trailer-value",
+        "message": "feat: demo\n\nAI-Traceparent: not-valid",
+        "code": "invalid_trailer"
+      }
+    ]
+  }
+}
