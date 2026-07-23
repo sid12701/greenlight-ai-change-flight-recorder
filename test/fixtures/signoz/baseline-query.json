@@ -1,0 +1,18 @@
+{
+  "description": "Sanitized SigNoz Query Builder v5 baseline fixture — GL-P1-T03",
+  "serviceName": "lms-backend",
+  "serviceVersion": "2269d064f0be50e7f6485c0be38e3cdcef6137d2",
+  "environmentName": "hackathon-demo",
+  "route": "/api/v1/internal/home/overview",
+  "filters": {
+    "service.name": "lms-backend",
+    "service.version": "2269d064f0be50e7f6485c0be38e3cdcef6137d2",
+    "deployment.environment.name": "hackathon-demo",
+    "http.route": "/api/v1/internal/home/overview"
+  },
+  "observedSpanNames": [
+    "GET /api/v1/internal/home/overview",
+    "SELECT lms",
+    "LoanApplicationRepository.findTop8ByOrderByCreatedAtDesc"
+  ]
+}
