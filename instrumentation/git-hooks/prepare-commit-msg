@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=validate-traceparent.sh
+. "${HOOK_DIR}/validate-traceparent.sh"
+
+COMMIT_MSG_FILE="${1:-}"
+SOURCE="${2:-}"
+
+if [ -z "${COMMIT_MSG_FILE}" ] || [ ! -f "${COMMIT_MSG_FILE}" ]; then
+  exit 0
+fi
+
+# Only inject for normal commits with empty or message source.
+case "${SOURCE}" in
+  "" | message) ;;
+  *)
+    exit 0
+    ;;
+esac
+
+if [ -z "${TRACEPARENT:-}" ]; then
+  exit 0
+fi
+
+if grep -q '^AI-Traceparent:' "${COMMIT_MSG_FILE}"; then
+  exit 0
+fi
+
+normalized="$(validate_traceparent "${TRACEPARENT}")" || {
+  echo "prepare-commit-msg: ignoring invalid TRACEPARENT context" >&2
+  exit 0
+}
+
+git interpret-trailers \
+  --in-place \
+  --if-exists=doNothing \
+  --trailer "AI-Traceparent: ${normalized}" \
+  "${COMMIT_MSG_FILE}"
