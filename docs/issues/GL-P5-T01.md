@@ -9,6 +9,7 @@ Return the latest changes with primary CI, deployment, regression, recovery, and
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** api
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P3-T03, GL-P4-T04
 - **Blocks:** GL-P5-T02, GL-P5-T03
@@ -20,9 +21,9 @@ Return the latest changes with primary CI, deployment, regression, recovery, and
 - apps/api/src/routes/changes.ts
 - packages/shared/src/contracts.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Fastify inject tests for linked/missing CI, no deployment, healthy, regressed, recovered, pagination, and auth-safe errors
 
@@ -70,4 +71,4 @@ If related workflow data is absent, return empty related count rather than fabri
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

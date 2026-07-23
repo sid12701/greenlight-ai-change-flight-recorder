@@ -9,6 +9,7 @@ Persist baseline, candidate, and recovery deployments and emit versioned deploym
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** api
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P3-T01, GL-P1-T02
 - **Blocks:** GL-P4-T02
@@ -20,9 +21,9 @@ Persist baseline, candidate, and recovery deployments and emit versioned deploym
 - apps/api/src/routes/deployments.ts
 - integrations/lms/deploy.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Auth, input validation, idempotency, role constraint, health failure, and version-visibility cases
 - [ ] Only one succeeded baseline per service/environment
@@ -72,4 +73,4 @@ If live start timing varies, preserve a recorded successful deployment while kee
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

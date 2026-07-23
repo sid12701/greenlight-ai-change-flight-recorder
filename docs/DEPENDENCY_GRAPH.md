@@ -63,26 +63,27 @@ flowchart TD
   GL_P4_T04 --> GL_P5_T01
   GL_P5_T01 --> GL_P5_T02
   GL_P4_T05 --> GL_P5_T02
+  GL_P3_T05 --> GL_P5_T02
   GL_P5_T01 --> GL_P5_T03
   GL_P5_T02 --> GL_P5_T04
   GL_P5_T04 --> GL_P5_T05
   GL_P4_T05 --> GL_P5_T05
   GL_P2_T04 --> GL_P6_T01
   GL_P4_T04 --> GL_P6_T01
-  GL_P5_T05 --> GL_P6_T01
   GL_P6_T01 --> GL_P6_T02
   GL_P4_T05 --> GL_P6_T02
   GL_P6_T02 --> GL_P6_T03
-  GL_P4_T06 --> GL_P6_T03
   GL_P6_T01 --> GL_P7_T01
   GL_P4_T03 --> GL_P7_T01
   GL_P6_T03 --> GL_P7_T02
-  GL_P7_T01 --> GL_P7_T02
+  GL_P5_T05 --> GL_P7_T02
 ```
 
 ## Critical-path discipline
 
-- Do not start optional work while a P0 dependency is open.
+- Do not start P1 work while an unblocked P0 task is available.
 - The Claude-to-CI linkage pivot remains time-boxed.
-- Phase 6 requires the Phase 5 receipt shell because the incident must be visible end to end.
+- GL-P3-T05 is a hard dependency of the full receipt and must run immediately when unblocked.
+- Phase 6 incident tuning begins as soon as the evaluator is ready and can overlap Phase 5 UI work.
+- End-to-end incident visibility is verified in GL-P7-T02 after both the incident and receipt UI are complete.
 - Phase 7 begins only after two stable incident/recovery rehearsals.

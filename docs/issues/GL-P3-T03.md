@@ -9,6 +9,7 @@ Store backend and frontend runs for one change while deterministically selecting
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** github
+- **Verification:** strict_tdd
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P3-T02
 - **Blocks:** GL-P3-T04, GL-P5-T01
@@ -20,9 +21,9 @@ Store backend and frontend runs for one change while deterministically selecting
 - apps/api/src/modules/github/primary-workflow.test.ts
 - apps/api/src/config.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Zero match returns configuration error
 - [ ] One match marks exactly one primary
@@ -73,4 +74,4 @@ If the workflow is renamed, configuration must change explicitly; do not use fuz
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

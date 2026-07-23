@@ -9,6 +9,7 @@ Reconstruct completed GitHub runs as auditable OpenTelemetry traces using GitHub
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
 - **Depends on:** GL-P3-T02, GL-P3-T03
 - **Blocks:** GL-P3-T05
@@ -19,9 +20,9 @@ Reconstruct completed GitHub runs as auditable OpenTelemetry traces using GitHub
 - apps/api/src/modules/ci-telemetry/synthesizer.ts
 - apps/api/src/modules/ci-telemetry/synthesizer.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] In-memory exporter proves hierarchy, UTC timestamps, durations, status mapping, attributes, and forced flush
 - [ ] Re-sync skips already emitted trace IDs
@@ -70,4 +71,4 @@ If post-hoc timestamps are rejected, capture the SDK limitation and use explicit
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

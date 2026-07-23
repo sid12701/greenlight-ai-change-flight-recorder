@@ -9,8 +9,9 @@ Deliver a reproducible, provenance-safe, sub-four-minute submission with a succe
 - **Phase:** 7
 - **Priority:** P0
 - **Component:** docs
+- **Verification:** smoke_verified
 - **Estimate:** 120 focused minutes
-- **Depends on:** GL-P6-T03, GL-P7-T01
+- **Depends on:** GL-P6-T03, GL-P5-T05
 - **Blocks:** None
 - **Labels:** phase:7, priority:p0, component:docs, type:docs
 
@@ -22,9 +23,9 @@ Deliver a reproducible, provenance-safe, sub-four-minute submission with a succe
 - docs/DEMO_SCRIPT.md
 - docs/SUBMISSION_CHECKLIST.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Required unit/integration/component/hook/build/telemetry gates pass
 - [ ] Two full rehearsals pass without edits
@@ -43,7 +44,7 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 
 ## Telemetry and integration contract
 
-Final demo shows SigNoz dashboards, links, MCP, and GreenLight self-observability.
+Final demo always shows SigNoz dashboards and links; MCP and GreenLight self-observability appear when their P1 tasks were retained.
 
 ## Security and privacy
 
@@ -78,4 +79,4 @@ If cosmetic work threatens the buffer, freeze the backup recording and submit th
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

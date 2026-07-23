@@ -9,6 +9,7 @@ Implement the normalized repository/change/pipeline/deployment/evaluation/eviden
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P0-T01
 - **Blocks:** GL-P3-T02, GL-P4-T01, GL-P4-T06
@@ -21,9 +22,9 @@ Implement the normalized repository/change/pipeline/deployment/evaluation/eviden
 - apps/api/src/db/repositories/
 - apps/api/test/db.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Fresh migration succeeds
 - [ ] Repeat migration is idempotent
@@ -75,4 +76,4 @@ If better-sqlite3 fails on Apple Silicon, stop at the Phase 0 native-module pivo
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
