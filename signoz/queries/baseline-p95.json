@@ -1,0 +1,24 @@
+{
+  "compositeQuery": {
+    "queryType": "builder",
+    "panelType": "graph",
+    "builderQueries": {
+      "A": {
+        "dataSource": "traces",
+        "aggregateOperator": "p95",
+        "aggregateAttribute": { "key": "durationNano" },
+        "filters": {
+          "items": [
+            { "key": "service.name", "op": "=", "value": "{{serviceName}}" },
+            { "key": "service.version", "op": "=", "value": "{{serviceVersion}}" },
+            { "key": "deployment.environment.name", "op": "=", "value": "{{environmentName}}" },
+            { "key": "http.route", "op": "=", "value": "{{route}}" }
+          ]
+        }
+      }
+    }
+  },
+  "start": "{{startMs}}",
+  "end": "{{endMs}}",
+  "step": 60
+}
