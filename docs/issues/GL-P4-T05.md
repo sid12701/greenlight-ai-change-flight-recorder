@@ -9,6 +9,7 @@ Ensure a recovery deployment compares to the original good baseline rather than 
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P4-T04
 - **Blocks:** GL-P5-T02, GL-P5-T05, GL-P6-T02
@@ -19,9 +20,9 @@ Ensure a recovery deployment compares to the original good baseline rather than 
 - apps/api/src/modules/regressions/baseline-resolver.ts
 - apps/api/src/modules/regressions/recovery.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Explicit baseline validation
 - [ ] Newest valid baseline selection
@@ -73,4 +74,4 @@ Allow explicit override only after strict identity and ordering validation.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

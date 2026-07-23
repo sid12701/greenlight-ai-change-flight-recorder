@@ -9,6 +9,7 @@ Send a real home-overview request through the Java agent and prove its trace car
 - **Phase:** 1
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P1-T01
 - **Blocks:** GL-P1-T03, GL-P4-T01
@@ -20,9 +21,9 @@ Send a real home-overview request through the Java agent and prove its trace car
 - integrations/lms/deploy.sh
 - integrations/lms/verify.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Deploy script rejects non-40-character SHAs
 - [ ] Health gate uses /actuator/health
@@ -73,4 +74,4 @@ If readiness groups are explicitly enabled they may be checked additionally; /ac
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

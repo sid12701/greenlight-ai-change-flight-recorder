@@ -21,20 +21,20 @@ const tasks = [
 
   task("GL-P0-T02", 0, "Create isolated LMS demo workspace and minimal runtime preflight", "lms", 90, ["GL-P0-T01"],
     "Prove the demo can use the existing LMS without touching its dirty checkout and without starting unnecessary infrastructure.",
-    ["integrations/lms/README.md", "integrations/lms/demo-config.example", "scripts/preflight.sh"],
-    ["Preflight fails when LMS_PATH points at /Users/siddhant/Desktop/lms", "Preflight confirms baseline SHA and clean demo worktree", "Dependency checklist identifies only services used by home overview"],
-    ["Create a clean clone/worktree at baseline commit", "Create greenlight-demo branch", "Inspect home-overview runtime dependencies", "Record minimal compose services and port 8081", "Verify original LMS status is unchanged"],
-    ["Original LMS worktree hash/status remains unchanged", "Clean demo worktree is pinned and documented", "Only required infrastructure is selected", "Preflight exits non-zero on unsafe paths"],
+    ["integrations/lms/README.md", "integrations/lms/demo-config.example", "integrations/lms/workflow-trigger-contract.md", "scripts/preflight.sh"],
+    ["Preflight fails when LMS_PATH points at /Users/siddhant/Desktop/lms", "Preflight confirms baseline SHA and clean demo worktree", "Dependency checklist identifies only services used by home overview", "Workflow-trigger check records Backend CI on.push paths and proves the planned no-op backend file matches them"],
+    ["Create a clean clone/worktree at baseline commit", "Create greenlight-demo branch", "Inspect home-overview runtime dependencies", "Record minimal compose services and port 8081", "Inspect Backend CI workflow name and push/path filters", "Choose a harmless backend file that is guaranteed to trigger Backend CI", "Verify original LMS status is unchanged"],
+    ["Original LMS worktree hash/status remains unchanged", "Clean demo worktree is pinned and documented", "Only required infrastructure is selected", "Backend CI trigger contract and proof-commit path are recorded", "Preflight exits non-zero on unsafe paths"],
     "No telemetry yet; output the exact service and route that Phase 1 will instrument.",
     "If LMS cannot be isolated in 45 minutes, create the documented minimal fixture path without modifying the original checkout.",
     "chore(lms): isolate demo workload and preflight (#issue)"),
 
-  task("GL-P1-T01", 1, "Validate Foundry casting and start SigNoz with MCP", "signoz", 90, ["GL-P0-T02"],
-    "Create a reproducible SigNoz installation whose UI, OTLP HTTP receiver, and MCP health endpoints are available.",
-    ["casting.yaml", "casting.yaml.lock", "signoz/README.md", "scripts/signoz-smoke.sh"],
-    ["Casting schema passes foundryctl gauge", "Smoke test checks UI 8080, OTLP HTTP 4318, and MCP livez 8000", "Port 4317 is not treated as required"],
-    ["Add official Foundry casting", "Run gauge before forge", "Generate and inspect lock", "Cast services", "Create service-account setup instructions", "Run health smoke"],
-    ["casting.yaml and generated lock are committed", "SigNoz UI responds", "OTLP HTTP accepts telemetry", "MCP livez responds", "No credentials are committed"],
+  task("GL-P1-T01", 1, "Validate Foundry casting and start SigNoz with MCP", "signoz", 110, ["GL-P0-T02"],
+    "Create a reproducible SigNoz installation whose UI, OTLP HTTP receiver, and MCP health endpoints are available, and retire the backdated-span risk before CI synthesis begins.",
+    ["casting.yaml", "casting.yaml.lock", "signoz/README.md", "scripts/signoz-smoke.sh", "scripts/backdated-span-smoke.mjs"],
+    ["Casting schema passes foundryctl gauge", "Smoke test checks UI 8080, OTLP HTTP 4318, and MCP livez 8000", "Port 4317 is not treated as required", "A span timestamped two hours in the past is accepted over OTLP HTTP and discoverable in SigNoz"],
+    ["Add official Foundry casting", "Run gauge before forge", "Generate and inspect lock", "Cast services", "Create service-account setup instructions", "Run health smoke", "Run a 20-minute backdated-span spike and record the query/evidence"],
+    ["casting.yaml and generated lock are committed", "SigNoz UI responds", "OTLP HTTP accepts current and backdated telemetry", "The two-hour-old span is visible with the supplied timestamps", "MCP livez responds", "No credentials are committed"],
     "SigNoz is the telemetry source of truth; gRPC 4317 is an unused default listener.",
     "If cast is blocked, use Foundry-generated compose for local progress but keep successful Foundry output mandatory for submission.",
     "chore(signoz): add reproducible Foundry stack (#issue)"),
@@ -54,7 +54,7 @@ const tasks = [
     ["docs/TELEMETRY_CONTRACT.md", "signoz/saved-views.md", "test/fixtures/signoz/baseline-query.json"],
     ["Fixture parser resolves observed route, version, environment, status, and JDBC keys", "Query fixture returns only the exact SHA and route"],
     ["Inspect real span attributes", "Record exact filterable keys", "Save Query Builder view URL", "Capture sanitized response fixture", "Pin Java agent version"],
-    ["Contract names exact observed keys", "Query isolates /api/v1/internal/home/overview", "Full SHA filter works", "At least 200 spans can be counted"],
+    ["Contract names exact observed keys", "Query isolates /api/v1/internal/home/overview", "Full SHA filter works", "Count matches the deliberately small Phase 1 sample; the 200-span verdict floor is deferred to GL-P4-T02"],
     "Reviewed Query Builder v5 contract becomes the boundary for all later evaluator work.",
     "If http.route is absent, document and use the actual stable key rather than rewriting data to match the plan.",
     "docs(telemetry): freeze LMS query contract (#issue)"),
@@ -90,11 +90,11 @@ const tasks = [
     "feat(git): bridge Claude trace context to commits (#issue)"),
 
   task("GL-P2-T04", 2, "Produce and freeze one trace-linked LMS commit", "github", 45, ["GL-P2-T03"],
-    "Create a harmless commit through Claude Code and prove its trailer resolves to the preserved SigNoz span.",
-    ["docs/EVIDENCE_LOG.md", "PROVENANCE.md"],
-    ["Verification script parses commit trailer and checks the target trace/span exists", "Human commit fixture remains unmodified"],
-    ["Ask Claude for a harmless docs change in demo clone", "Commit through traced Bash", "Record SHA and trace IDs", "Open target in SigNoz", "Freeze evidence"],
-    ["Commit has one valid AI-Traceparent", "Linked span exists", "No content telemetry leaked", "Evidence IDs are recorded without secrets"],
+    "Create a harmless backend no-op commit through Claude Code that is guaranteed to trigger Backend CI, and prove its retained trailer resolves to the preserved SigNoz span.",
+    ["docs/EVIDENCE_LOG.md", "PROVENANCE.md", "integrations/lms/workflow-trigger-contract.md"],
+    ["Verification script parses commit trailer and checks the target trace/span exists", "Trigger check proves the changed backend path matches Backend CI filters", "Human commit fixture remains unmodified"],
+    ["Use the harmless backend file selected in GL-P0-T02", "Make only a comment/no-op change through Claude", "Commit through traced Bash", "Confirm AI-Traceparent remains present and is never stripped by the human-only GreenLight commit policy", "Push and confirm exactly one Backend CI run exists", "Record SHA and trace IDs", "Open target in SigNoz", "Freeze evidence"],
+    ["Commit has one valid retained AI-Traceparent", "The commit triggers Backend CI", "Linked span exists", "No content telemetry leaked", "Evidence IDs are recorded without secrets"],
     "This immutable Claude evidence is reused by later CI-link tests.",
     "Do not regenerate after Phase 3; if unavailable, freeze the labeled session-ID degraded mode.",
     "docs(evidence): freeze trace-linked commit proof (#issue)"),
@@ -160,11 +160,11 @@ const tasks = [
     "feat(api): record versioned deployments (#issue)"),
 
   task("GL-P4-T02", 4, "Generate and store an auditable good baseline anchor", "lms", 75, ["GL-P4-T01", "GL-P1-T03"],
-    "Record the known-good SHA as role=baseline and generate a repeatable 250-request, 90-second synthetic window.",
+    "Capture one immutable known-good baseline deployment and 250-request, 90-second window exactly once; every candidate and recovery rehearsal reuses its stored baseline_deployment_id and never regenerates this window.",
     ["integrations/lms/load-home-overview.mjs", "scripts/demo-baseline.sh", "apps/api/test/fixtures/signoz/good-window.json"],
     ["Load generator honors duration/concurrency and synthetic credentials", "Abort below 250 target or on real-data configuration", "Baseline record precedes candidate deployment"],
-    ["Seed synthetic portfolio", "Record baseline deployment", "Run controlled load", "Capture sample count/p90/p95/error", "Store only sanitized aggregate fixture"],
-    ["At least 200 completed spans", "Target 250 provides margin", "Exact baseline SHA/filter recorded", "Window is repeatable twice"],
+    ["Seed synthetic portfolio", "Record the single baseline deployment", "Run controlled load once", "Capture and freeze sample count/p90/p95/error plus UTC window bounds", "Store only sanitized aggregate fixture", "Make reset scripts reject baseline deletion or regeneration"],
+    ["At least 200 completed spans", "Target 250 provides margin", "Exact baseline SHA/filter/window and baseline_deployment_id are frozen", "Candidate and recovery comparisons both reference this same baseline", "Rehearsals regenerate only candidate/recovery windows"],
     "Produces LMS request/JDBC traces in the configured baseline window.",
     "If 250 requests exceed laptop capacity, lengthen preparation time without lowering the 200-span verdict floor.",
     "feat(demo): establish good telemetry baseline (#issue)"),
@@ -180,11 +180,11 @@ const tasks = [
     "feat(signoz): add defensive query adapter (#issue)"),
 
   task("GL-P4-T04", 4, "Evaluate transparent latency and error regression policy", "api", 120, ["GL-P4-T03"],
-    "Compute healthy, regressed, or insufficient status using explicit windows, 200-span floor, and transparent thresholds.",
+    "Compute healthy, regressed, or insufficient status by comparing a candidate window to the single stored GL-P4-T02 baseline_deployment_id, using the 200-span floor and transparent thresholds.",
     ["apps/api/src/modules/regressions/evaluator.ts", "apps/api/src/modules/regressions/evaluator.test.ts", "apps/api/src/routes/regressions.ts"],
     ["Boundary tests for 1.5x and +250ms latency, +2pp and 5% error, sample floor, query failure, and p90 display", "409 baseline_required test"],
-    ["Write table-driven rules", "Resolve explicit/automatic baseline", "Query both windows", "Preserve raw aggregates", "Persist reasons and versions", "Return typed status"],
-    ["No verdict below 200 spans", "Both latency conditions are required", "Error rule is exact", "Thresholds are returned to UI", "Correlation wording avoids causation"],
+    ["Write table-driven rules", "Resolve the immutable stored baseline rather than an immediately preceding window", "Query the frozen baseline and current candidate windows", "Preserve raw aggregates", "Persist baseline_deployment_id, reasons, and versions", "Return typed status"],
+    ["No verdict below 200 spans", "Candidate comparison references the frozen baseline_deployment_id", "Both latency conditions are required", "Error rule is exact", "Thresholds are returned to UI", "Correlation wording avoids causation"],
     "Queries SigNoz and emits greenlight.regression.status on API spans.",
     "If the controlled error band is unstable, retain latency-only status and suppress misleading error headlines.",
     "feat(api): evaluate deployment regression (#issue)"),
@@ -207,7 +207,7 @@ const tasks = [
     ["GreenLight API appears in SigNoz", "Core requests have spans", "Secrets/body content absent", "Shutdown flushes"],
     "OTLP HTTP/protobuf to SigNoz.",
     "If auto-instrumentation adds sensitive attributes, install a processor that redacts them before export.",
-    "feat(telemetry): trace GreenLight API (#issue)"),
+    "feat(telemetry): trace GreenLight API (#issue)", "p1"),
 
   task("GL-P5-T01", 5, "Expose the changes-list API contract", "api", 75, ["GL-P3-T03", "GL-P4-T04"],
     "Return the latest changes with primary CI, deployment, regression, recovery, and AI-link summaries.",
@@ -219,7 +219,7 @@ const tasks = [
     "If related workflow data is absent, return empty related count rather than fabricate.",
     "feat(api): expose change summaries (#issue)"),
 
-  task("GL-P5-T02", 5, "Assemble the complete Change Receipt API", "api", 120, ["GL-P5-T01", "GL-P4-T05"],
+  task("GL-P5-T02", 5, "Assemble the complete Change Receipt API", "api", 120, ["GL-P5-T01", "GL-P4-T05", "GL-P3-T05"],
     "Produce one stable receipt containing identity, primary and related CI, deployment, measured impact, evidence, recovery, and safe actions.",
     ["apps/api/src/modules/receipts/assembler.ts", "apps/api/src/modules/receipts/assembler.test.ts", "apps/api/src/routes/receipts.ts"],
     ["Full, missing-AI, secondary-CI, insufficient, regressed, recovered, and integration-error fixtures", "GitHub links originate only from pipeline_runs"],
@@ -237,7 +237,7 @@ const tasks = [
     ["All API states render", "Status is accessible", "No sensitive data shown", "Laptop/narrow layouts work"],
     "Frontend itself is not instrumented in MVP.",
     "If styling time expands, keep semantic HTML and status clarity; defer decorative animation.",
-    "feat(web): add changes overview (#issue)"),
+    "feat(web): add changes overview (#issue)", "p1"),
 
   task("GL-P5-T04", 5, "Build the receipt evidence timeline and CI sections", "web", 120, ["GL-P5-T02"],
     "Visualize Claude → commit → reconstructed primary CI → deployment → incident while clearly separating related workflows.",
@@ -259,12 +259,12 @@ const tasks = [
     "If clipboard permission fails, select and display the command for manual copy.",
     "feat(web): show impact and recovery evidence (#issue)"),
 
-  task("GL-P6-T01", 6, "Create the deterministic bad LMS change and incident window", "lms", 120, ["GL-P2-T04", "GL-P4-T04", "GL-P5-T05"],
+  task("GL-P6-T01", 6, "Create the deterministic bad LMS change and incident window", "lms", 120, ["GL-P2-T04", "GL-P4-T04"],
     "Produce a traced N+1/repeated-query commit that passes functional CI but reliably crosses the transparent latency policy under synthetic load.",
     ["integrations/lms/patches/regression.patch", "scripts/demo-regression.sh", "docs/EVIDENCE_LOG.md"],
     ["Existing LMS functional tests remain green", "Load rehearsal crosses latency policy twice", "JDBC child count explains slowdown", "Optional timeout error band is bounded"],
-    ["Apply prepared change through Claude trace path", "Commit and push", "Sync primary CI", "Deploy candidate role", "Generate 250 requests", "Evaluate live", "Capture slow traces"],
-    ["Bad SHA is immutable", "CI is green", "Regression is repeatable", "Evidence is synthetic and privacy-safe", "No threshold tuned to a lucky run"],
+    ["Apply prepared change through Claude trace path", "Commit while retaining the AI-Traceparent trailer; never clean it under the GreenLight human-only commit policy", "Push and sync primary CI", "Deploy candidate role", "Generate 250 requests", "Evaluate live against the frozen baseline_deployment_id", "Capture slow traces"],
+    ["Bad SHA is immutable and retains its AI-Traceparent trailer", "CI is green", "Regression is repeatable against the frozen baseline", "Evidence is synthetic and privacy-safe", "No threshold tuned to a lucky run"],
     "LMS and reconstructed CI telemetry land in SigNoz; evaluation runs live.",
     "After one hour use disclosed fault flag; after 30 minutes of unstable errors switch to honest latency-only framing.",
     "feat(demo): create observable LMS regression (#issue)"),
@@ -279,12 +279,12 @@ const tasks = [
     "If recovery misses bounds, inspect data/infra variance; do not loosen recovery thresholds to fit one run.",
     "fix(demo): restore LMS query performance (#issue)"),
 
-  task("GL-P6-T03", 6, "Implement safe soft reset and full demo preflight", "demo", 90, ["GL-P6-T02", "GL-P4-T06"],
-    "Reset only transient deployment/evaluation state and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.",
+  task("GL-P6-T03", 6, "Implement safe soft reset and full demo preflight", "demo", 90, ["GL-P6-T02"],
+    "Reset only candidate/recovery deployment and evaluation state—never the frozen baseline—and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.",
     ["scripts/demo-reset.sh", "scripts/preflight.sh", "scripts/demo-smoke.sh", "docs/DEMO_STATE.md"],
-    ["Soft reset preserves changes/pipeline runs and SigNoz evidence", "Unsafe DB/path fails", "Hard reset requires explicit phrase", "Preflight detects missing links/ports/SHAs"],
-    ["Implement allowlisted deletes", "Protect immutable tables", "Add path guards", "Check primary CI/Claude trace targets", "Check minimal services", "Print non-secret status"],
-    ["Soft reset is repeatable", "Hard reset prohibited in demo mode", "No destructive broad target", "Preflight gives actionable failures"],
+    ["Soft reset preserves changes/pipeline runs, frozen baseline deployment/window, and SigNoz evidence", "Unsafe DB/path fails", "Hard reset requires explicit phrase", "Preflight detects missing links/ports/SHAs"],
+    ["Implement allowlisted candidate/recovery deletes", "Protect baseline and immutable tables", "Add path guards", "Check primary CI/Claude trace targets", "Check minimal services", "Print non-secret status"],
+    ["Soft reset is repeatable and regenerates only candidate/recovery windows", "Frozen baseline_deployment_id remains unchanged", "Hard reset prohibited in demo mode", "No destructive broad target", "Preflight gives actionable failures"],
     "Validates SigNoz UI/OTLP/MCP and required evidence.",
     "Never clear SigNoz during demo window; if immutable evidence is missing, stop and use recorded backup rather than silently rebuilding.",
     "feat(demo): add safe reset and preflight (#issue)"),
@@ -297,15 +297,15 @@ const tasks = [
     ["MCP result agrees qualitatively and numerically", "Three traces resolve", "No causal overclaim", "Prompt is fixed and repeatable"],
     "Uses SigNoz MCP against the same telemetry GreenLight queries.",
     "If live MCP latency is risky, show a captured successful result after stating it is preserved; GreenLight evaluation remains live.",
-    "feat(demo): add fixed MCP investigation (#issue)"),
+    "feat(demo): add fixed MCP investigation (#issue)", "p1"),
 
-  task("GL-P7-T02", 7, "Freeze documentation, rehearsals, recording, and submission", "docs", 120, ["GL-P6-T03", "GL-P7-T01"],
+  task("GL-P7-T02", 7, "Freeze documentation, rehearsals, recording, and submission", "docs", 120, ["GL-P6-T03", "GL-P5-T05"],
     "Deliver a reproducible, provenance-safe, sub-four-minute submission with a successful backup recording and no unresolved P0 gate.",
     ["README.md", "PROVENANCE.md", "docs/ARCHITECTURE.md", "docs/DEMO_SCRIPT.md", "docs/SUBMISSION_CHECKLIST.md"],
     ["Required unit/integration/component/hook/build/telemetry gates pass", "Two full rehearsals pass without edits", "Secret and synthetic-data scans pass", "Optional Playwright smoke is non-blocking"],
     ["Document reconstructed spans and prepared-load/live-analysis distinction", "Document polling and production evolution", "Run all gates", "Rehearse twice", "Record backup then final", "Verify repository access", "Submit with buffer"],
     ["Demo is under four minutes", "README reproduces setup", "AI assistance disclosed", "No secrets/real data", "All P0 issues closed with evidence"],
-    "Final demo shows SigNoz dashboards, links, MCP, and GreenLight self-observability.",
+    "Final demo always shows SigNoz dashboards and links; MCP and GreenLight self-observability appear when their P1 tasks were retained.",
     "If cosmetic work threatens the buffer, freeze the backup recording and submit the last verified state.",
     "docs: finalize GreenLight hackathon submission (#issue)")
 ];
@@ -319,6 +319,20 @@ for (const t of tasks) {
 if (tasks.length !== 30) throw new Error(`Expected 30 tasks, received ${tasks.length}`);
 
 for (const t of tasks) t.blocks = tasks.filter((other) => other.depends.includes(t.id)).map((other) => other.id);
+
+const strictTddIds = new Set([
+  "GL-P0-T01",
+  "GL-P2-T02",
+  "GL-P2-T03",
+  "GL-P3-T01",
+  "GL-P3-T03",
+  "GL-P3-T04",
+  "GL-P4-T03",
+  "GL-P4-T04",
+  "GL-P4-T05",
+  "GL-P5-T02",
+]);
+for (const t of tasks) t.verification = strictTddIds.has(t.id) ? "strict_tdd" : "smoke_verified";
 
 const labels = (t) => [`phase:${t.phase}`, `priority:${t.priority}`, `component:${t.component}`, t.component === "docs" ? "type:docs" : "type:implementation"];
 const milestoneTitles = [
@@ -335,6 +349,9 @@ const milestoneTitles = [
 function issueBody(t) {
   const checklist = (items) => items.map((x) => `- [ ] ${x}`).join("\n");
   const bullets = (items) => items.length ? items.map((x) => `- ${x}`).join("\n") : "- None";
+  const verificationContract = t.verification === "strict_tdd"
+    ? "Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch."
+    : "Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.";
   return `# ${t.id} — ${t.title}
 
 ## Outcome
@@ -346,6 +363,7 @@ ${t.objective}
 - **Phase:** ${t.phase}
 - **Priority:** ${t.priority.toUpperCase()}
 - **Component:** ${t.component}
+- **Verification:** ${t.verification}
 - **Estimate:** ${t.estimate} focused minutes
 - **Depends on:** ${t.depends.length ? t.depends.join(", ") : "None"}
 - **Blocks:** ${t.blocks.length ? t.blocks.join(", ") : "None"}
@@ -355,9 +373,9 @@ ${t.objective}
 
 ${bullets(t.files)}
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+${verificationContract}
 
 ${checklist(t.tests)}
 
@@ -398,7 +416,7 @@ ${t.fallback}
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring \`AI-Traceparent\` must retain that product-evidence trailer.
 `;
 }
 
@@ -416,12 +434,14 @@ This is the execution index for the authoritative [implementation plan](../GREEN
 ## Execution rules
 
 - Work only on unblocked tasks.
-- Follow Red–Green–Refactor.
+- Use strict Red–Green–Refactor only for logic-heavy tasks marked \`strict_tdd\`.
+- Use focused, evidence-capturing smoke verification for environment and integration tasks marked \`smoke_verified\`.
 - Post test and telemetry evidence before closing an issue.
 - Never modify the original dirty LMS checkout.
 - Do not add AI co-author trailers.
 - Required test gates are blocking; Playwright remains optional and non-blocking.
 - Preserve immutable Claude and CI evidence after Phase 3.
+- Work P0 tasks before P1 tasks. P1 tasks are explicitly sacrificeable when the schedule slips.
 
 ## Phase summary
 
@@ -447,6 +467,7 @@ for (const t of tasks) {
   yaml += `    title: ${yamlString(t.title)}\n`;
   yaml += `    priority: ${t.priority}\n`;
   yaml += `    component: ${t.component}\n`;
+  yaml += `    verification: ${t.verification}\n`;
   yaml += `    estimate_minutes: ${t.estimate}\n`;
   yaml += `    depends_on: [${t.depends.join(", ")}]\n`;
   yaml += `    blocks: [${t.blocks.join(", ")}]\n`;
@@ -467,9 +488,11 @@ ${tasks.flatMap((t) => t.depends.map((d) => `  ${d.replaceAll("-", "_")} --> ${t
 
 ## Critical-path discipline
 
-- Do not start optional work while a P0 dependency is open.
+- Do not start P1 work while an unblocked P0 task is available.
 - The Claude-to-CI linkage pivot remains time-boxed.
-- Phase 6 requires the Phase 5 receipt shell because the incident must be visible end to end.
+- GL-P3-T05 is a hard dependency of the full receipt and must run immediately when unblocked.
+- Phase 6 incident tuning begins as soon as the evaluator is ready and can overlap Phase 5 UI work.
+- End-to-end incident visibility is verified in GL-P7-T02 after both the incident and receipt UI are complete.
 - Phase 7 begins only after two stable incident/recovery rehearsals.
 `;
 

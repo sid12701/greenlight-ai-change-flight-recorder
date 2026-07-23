@@ -9,6 +9,7 @@ Replace assumed semantic-convention keys with keys verified from actual LMS span
 - **Phase:** 1
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P1-T02
 - **Blocks:** GL-P4-T02, GL-P4-T03
@@ -20,9 +21,9 @@ Replace assumed semantic-convention keys with keys verified from actual LMS span
 - signoz/saved-views.md
 - test/fixtures/signoz/baseline-query.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Fixture parser resolves observed route, version, environment, status, and JDBC keys
 - [ ] Query fixture returns only the exact SHA and route
@@ -51,7 +52,7 @@ Reviewed Query Builder v5 contract becomes the boundary for all later evaluator 
 - [ ] Contract names exact observed keys
 - [ ] Query isolates /api/v1/internal/home/overview
 - [ ] Full SHA filter works
-- [ ] At least 200 spans can be counted
+- [ ] Count matches the deliberately small Phase 1 sample; the 200-span verdict floor is deferred to GL-P4-T02
 
 ## Required evidence for closure
 
@@ -71,4 +72,4 @@ If http.route is absent, document and use the actual stable key rather than rewr
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

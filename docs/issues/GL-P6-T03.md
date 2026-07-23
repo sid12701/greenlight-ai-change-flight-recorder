@@ -2,15 +2,16 @@
 
 ## Outcome
 
-Reset only transient deployment/evaluation state and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.
+Reset only candidate/recovery deployment and evaluation state—never the frozen baseline—and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.
 
 ## Planning metadata
 
 - **Phase:** 6
 - **Priority:** P0
 - **Component:** demo
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
-- **Depends on:** GL-P6-T02, GL-P4-T06
+- **Depends on:** GL-P6-T02
 - **Blocks:** GL-P7-T02
 - **Labels:** phase:6, priority:p0, component:demo, type:implementation
 
@@ -21,19 +22,19 @@ Reset only transient deployment/evaluation state and prove every dependency, cre
 - scripts/demo-smoke.sh
 - docs/DEMO_STATE.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
-- [ ] Soft reset preserves changes/pipeline runs and SigNoz evidence
+- [ ] Soft reset preserves changes/pipeline runs, frozen baseline deployment/window, and SigNoz evidence
 - [ ] Unsafe DB/path fails
 - [ ] Hard reset requires explicit phrase
 - [ ] Preflight detects missing links/ports/SHAs
 
 ## Implementation steps
 
-- [ ] Implement allowlisted deletes
-- [ ] Protect immutable tables
+- [ ] Implement allowlisted candidate/recovery deletes
+- [ ] Protect baseline and immutable tables
 - [ ] Add path guards
 - [ ] Check primary CI/Claude trace targets
 - [ ] Check minimal services
@@ -52,7 +53,8 @@ Validates SigNoz UI/OTLP/MCP and required evidence.
 
 ## Acceptance criteria
 
-- [ ] Soft reset is repeatable
+- [ ] Soft reset is repeatable and regenerates only candidate/recovery windows
+- [ ] Frozen baseline_deployment_id remains unchanged
 - [ ] Hard reset prohibited in demo mode
 - [ ] No destructive broad target
 - [ ] Preflight gives actionable failures
@@ -75,4 +77,4 @@ Never clear SigNoz during demo window; if immutable evidence is missing, stop an
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

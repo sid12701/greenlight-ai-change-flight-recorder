@@ -7,12 +7,13 @@ Dogfood SigNoz by tracing GreenLight health, sync, deployment, evaluation, and r
 ## Planning metadata
 
 - **Phase:** 4
-- **Priority:** P0
+- **Priority:** P1
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P3-T01, GL-P1-T01
-- **Blocks:** GL-P6-T03
-- **Labels:** phase:4, priority:p0, component:telemetry, type:implementation
+- **Blocks:** None
+- **Labels:** phase:4, priority:p1, component:telemetry, type:implementation
 
 ## Expected files
 
@@ -20,9 +21,9 @@ Dogfood SigNoz by tracing GreenLight health, sync, deployment, evaluation, and r
 - apps/api/src/server.ts
 - signoz/dashboards/greenlight-self.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] In-memory exporter verifies service name, route, status, error redaction, and exporter shutdown
 - [ ] No auth header attributes
@@ -72,4 +73,4 @@ If auto-instrumentation adds sensitive attributes, install a processor that reda
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

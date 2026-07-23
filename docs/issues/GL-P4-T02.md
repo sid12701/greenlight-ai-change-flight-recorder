@@ -2,13 +2,14 @@
 
 ## Outcome
 
-Record the known-good SHA as role=baseline and generate a repeatable 250-request, 90-second synthetic window.
+Capture one immutable known-good baseline deployment and 250-request, 90-second window exactly once; every candidate and recovery rehearsal reuses its stored baseline_deployment_id and never regenerates this window.
 
 ## Planning metadata
 
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P4-T01, GL-P1-T03
 - **Blocks:** GL-P4-T03
@@ -20,9 +21,9 @@ Record the known-good SHA as role=baseline and generate a repeatable 250-request
 - scripts/demo-baseline.sh
 - apps/api/test/fixtures/signoz/good-window.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Load generator honors duration/concurrency and synthetic credentials
 - [ ] Abort below 250 target or on real-data configuration
@@ -31,10 +32,11 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 ## Implementation steps
 
 - [ ] Seed synthetic portfolio
-- [ ] Record baseline deployment
-- [ ] Run controlled load
-- [ ] Capture sample count/p90/p95/error
+- [ ] Record the single baseline deployment
+- [ ] Run controlled load once
+- [ ] Capture and freeze sample count/p90/p95/error plus UTC window bounds
 - [ ] Store only sanitized aggregate fixture
+- [ ] Make reset scripts reject baseline deletion or regeneration
 
 ## Telemetry and integration contract
 
@@ -51,8 +53,9 @@ Produces LMS request/JDBC traces in the configured baseline window.
 
 - [ ] At least 200 completed spans
 - [ ] Target 250 provides margin
-- [ ] Exact baseline SHA/filter recorded
-- [ ] Window is repeatable twice
+- [ ] Exact baseline SHA/filter/window and baseline_deployment_id are frozen
+- [ ] Candidate and recovery comparisons both reference this same baseline
+- [ ] Rehearsals regenerate only candidate/recovery windows
 
 ## Required evidence for closure
 
@@ -72,4 +75,4 @@ If 250 requests exceed laptop capacity, lengthen preparation time without loweri
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

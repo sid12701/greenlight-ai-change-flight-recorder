@@ -9,6 +9,7 @@ Create one canonical accepted/rejected vector set and a typed parser that cannot
 - **Phase:** 2
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** strict_tdd
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P2-T01
 - **Blocks:** GL-P2-T03
@@ -20,9 +21,9 @@ Create one canonical accepted/rejected vector set and a typed parser that cannot
 - packages/shared/test-vectors/traceparent.json
 - packages/shared/src/traceparent.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Red tests cover version, length, hex, zeros, flags, whitespace, missing and duplicate trailers
 - [ ] Parser returns structured errors without leaking input
@@ -72,4 +73,4 @@ Invalid context never blocks CI sync; it records ai_link_status=invalid.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

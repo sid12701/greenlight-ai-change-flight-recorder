@@ -8,6 +8,8 @@ This repository is the new hackathon project. The pre-existing Bhawana LMS is us
 
 GreenLight is filed under **Track 3 — Build Your Own** because it instruments an otherwise unobserved surface: the AI-authored software-delivery lifecycle, rather than the application or coding agent in isolation. It is inspired by the deployment-guardian problem described in [SigNoz issue #11657](https://github.com/SigNoz/signoz/issues/11657).
 
+The Track 3 path requires GL-P7-T01's fixed SigNoz MCP investigation. If the schedule forces that P1 task to be cut, the remaining product is submitted only to Track 1; the repository must not claim Track 3 without the MCP demonstration.
+
 ## Status
 
 Repository scaffolding and implementation planning are complete. Product implementation has not started.
@@ -20,6 +22,8 @@ Start with:
 4. [Test strategy](docs/TEST_STRATEGY.md)
 5. [Commit strategy](docs/COMMIT_STRATEGY.md)
 6. [Machine-readable task manifest](TASKS.yaml)
+
+The manifest currently contains 27 P0 tasks and three pre-declared P1 cuts. Its bottom-up estimate is 2,660 focused minutes; see the execution-budget section of the authoritative plan before starting implementation.
 
 ## Core evidence chain
 
