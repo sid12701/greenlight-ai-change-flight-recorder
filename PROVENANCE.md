@@ -22,6 +22,10 @@ The following are GreenLight work:
 - Change Receipt API and web interface.
 - Demo automation, soft reset, and reproducibility documentation.
 
+## GL-P2-T04 trace-linked commit
+
+The immutable LMS proof commit for Claude→CI linkage is documented in `docs/EVIDENCE_LOG.md`. Until the manual Claude Code capture is performed in the isolated demo clone, status remains `pending_manual_capture`. The verification script `scripts/verify-trace-linked-commit.sh` enforces trailer validity and `backend/**` workflow trigger contract.
+
 ## AI assistance
 
 AI assistants may support research, planning, coding, review, and test generation. Their use is disclosed here and in the submission. AI assistants are not added as Git commit co-authors. The human maintainer reviews and accepts responsibility for every committed change.
