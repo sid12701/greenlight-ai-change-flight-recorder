@@ -156,4 +156,18 @@ export class GitHubClient {
       GitHubCommitSchema,
     );
   }
+
+  listWorkflowRuns(input: { branch: string; status?: string; perPage?: number }) {
+    const params = new URLSearchParams({
+      branch: input.branch,
+      per_page: String(input.perPage ?? 30),
+    });
+    if (input.status) {
+      params.set("status", input.status);
+    }
+    return this.request(
+      `/repos/${this.owner}/${this.repo}/actions/runs?${params.toString()}`,
+      z.object({ workflow_runs: z.array(GitHubWorkflowRunSchema) }),
+    );
+  }
 }

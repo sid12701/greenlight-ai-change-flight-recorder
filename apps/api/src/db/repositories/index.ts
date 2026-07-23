@@ -84,6 +84,15 @@ export interface RegressionEvaluationRow {
   evaluated_at: string;
 }
 
+export interface EvidenceLinkRow {
+  id: string;
+  regression_evaluation_id: string;
+  kind: "signoz_trace" | "signoz_dashboard";
+  label: string;
+  url: string;
+  created_at: string;
+}
+
 export class Repositories {
   constructor(private readonly db: DatabaseSync) {}
 
@@ -195,6 +204,44 @@ export class Repositories {
         )`,
       )
       .run(input as unknown as Record<string, string | number | null>);
+  }
+
+  insertEvidenceLinks(links: EvidenceLinkRow[]) {
+    const stmt = this.db.prepare(
+      `INSERT INTO evidence_links (id, regression_evaluation_id, kind, label, url, created_at)
+       VALUES (@id, @regression_evaluation_id, @kind, @label, @url, @created_at)`,
+    );
+    for (const link of links) {
+      stmt.run(link as unknown as Record<string, string | number | null>);
+    }
+  }
+
+  getEvidenceLinksForEvaluation(evaluationId: string): EvidenceLinkRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM evidence_links
+         WHERE regression_evaluation_id = ?
+         ORDER BY created_at ASC`,
+      )
+      .all(evaluationId) as unknown as EvidenceLinkRow[];
+  }
+
+  listRegressionEvaluations(): RegressionEvaluationRow[] {
+    return this.db
+      .prepare("SELECT * FROM regression_evaluations ORDER BY evaluated_at DESC")
+      .all() as unknown as RegressionEvaluationRow[];
+  }
+
+  listDeployments(): DeploymentRow[] {
+    return this.db
+      .prepare("SELECT * FROM deployments ORDER BY deployed_at DESC")
+      .all() as unknown as DeploymentRow[];
+  }
+
+  getRepositoryByOwnerName(owner: string, name: string): RepositoryRow | undefined {
+    return this.db
+      .prepare("SELECT * FROM repositories WHERE owner = ? AND name = ?")
+      .get(owner, name) as RepositoryRow | undefined;
   }
 
   getChangeBySha(commitSha: string): ChangeRow | undefined {

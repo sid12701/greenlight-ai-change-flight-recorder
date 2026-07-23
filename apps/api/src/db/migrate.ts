@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,6 +49,7 @@ export function migrate(db: DatabaseSync): void {
 }
 
 export function createDatabase(path: string): DatabaseSync {
+  mkdirSync(dirname(path), { recursive: true });
   const db = openDatabase(path);
   migrate(db);
   return db;

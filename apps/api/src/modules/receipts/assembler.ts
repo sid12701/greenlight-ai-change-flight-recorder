@@ -24,6 +24,7 @@ export function assembleReceipt(input: {
   recoveryDeployment?: DeploymentRow;
   signozUrl: string;
   normalizedRun?: ReturnType<typeof normalizeWorkflowRun>;
+  evidenceLinks?: Array<{ kind: "signoz_trace" | "signoz_dashboard"; label: string; url: string }>;
 }): ChangeReceipt {
   const primary = input.pipelines.find((run) => run.is_primary === 1);
   const related = input.pipelines.filter((run) => run.is_primary !== 1);
@@ -109,15 +110,21 @@ export function assembleReceipt(input: {
             "Deployment correlation is evidence of temporal and version association, not proof that every observed failure was caused by the commit.",
         }
       : null,
-    evidence: input.evaluation?.signoz_dashboard_url
-      ? [
-          {
-            kind: "signoz_dashboard",
-            label: "Deployment Impact dashboard",
-            url: input.evaluation.signoz_dashboard_url,
-          },
-        ]
-      : [],
+    evidence: input.evidenceLinks?.length
+      ? input.evidenceLinks.map((link) => ({
+          kind: link.kind,
+          label: link.label,
+          url: link.url,
+        }))
+      : input.evaluation?.signoz_dashboard_url
+        ? [
+            {
+              kind: "signoz_dashboard" as const,
+              label: "Deployment Impact dashboard",
+              url: input.evaluation.signoz_dashboard_url,
+            },
+          ]
+        : [],
     recovery: input.recoveryDeployment
       ? {
           deploymentId: input.recoveryDeployment.id,
@@ -156,6 +163,13 @@ export function getReceipt(
   const recoveryEvaluation = recoveryDeployment
     ? repos.getLatestEvaluationForDeployment(recoveryDeployment.id)
     : undefined;
+  const evidenceLinks = evaluation
+    ? repos.getEvidenceLinksForEvaluation(evaluation.id).map((link) => ({
+        kind: link.kind,
+        label: link.label,
+        url: link.url,
+      }))
+    : [];
 
   return assembleReceipt({
     change,
@@ -166,6 +180,7 @@ export function getReceipt(
     recoveryDeployment,
     recoveryEvaluation,
     signozUrl,
+    evidenceLinks,
   });
 }
 

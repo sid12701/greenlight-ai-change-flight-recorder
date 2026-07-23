@@ -17,10 +17,15 @@ export class DeploymentService {
     private readonly repos: Repositories,
     private readonly healthCheck: (url: string) => Promise<boolean> = defaultHealthCheck,
     private readonly versionVisible: (serviceName: string, version: string) => Promise<boolean> = async () => true,
+    private readonly ensureChange?: (commitSha: string) => Promise<void>,
   ) {}
 
   async recordDeployment(input: RecordDeploymentInput) {
-    const change = this.repos.getChangeBySha(input.commitSha);
+    let change = this.repos.getChangeBySha(input.commitSha);
+    if (!change && this.ensureChange) {
+      await this.ensureChange(input.commitSha);
+      change = this.repos.getChangeBySha(input.commitSha);
+    }
     if (!change) {
       throw new Error("Change must exist before deployment can be recorded");
     }

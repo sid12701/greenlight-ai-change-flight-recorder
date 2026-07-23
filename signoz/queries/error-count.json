@@ -1,0 +1,25 @@
+{
+  "compositeQuery": {
+    "queryType": "builder",
+    "panelType": "graph",
+    "builderQueries": {
+      "A": {
+        "dataSource": "traces",
+        "aggregateOperator": "count",
+        "aggregateAttribute": { "key": "" },
+        "filters": {
+          "items": [
+            { "key": "service.name", "op": "=", "value": "{{serviceName}}" },
+            { "key": "service.version", "op": "=", "value": "{{serviceVersion}}" },
+            { "key": "deployment.environment.name", "op": "=", "value": "{{environmentName}}" },
+            { "key": "http.route", "op": "=", "value": "{{route}}" },
+            { "key": "status.code", "op": "=", "value": "ERROR" }
+          ]
+        }
+      }
+    }
+  },
+  "start": "{{startMs}}",
+  "end": "{{endMs}}",
+  "step": 60
+}

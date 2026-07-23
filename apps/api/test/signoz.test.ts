@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeErrorRatePercent,
   parseLatencyMs,
   parseRequestCount,
   parseScalarSeries,
+  parseTraceIds,
   renderQueryTemplate,
 } from "../src/modules/signoz/client.js";
 
@@ -42,5 +44,29 @@ describe("signoz adapter", () => {
   it("does not invent zero values for missing series", () => {
     expect(parseRequestCount(null)).toBeNull();
     expect(parseLatencyMs(undefined)).toBeNull();
+  });
+
+  it("computes error rate from request and error counts", () => {
+    expect(computeErrorRatePercent(200, 10)).toBe(5);
+    expect(computeErrorRatePercent(null, 10)).toBeNull();
+    expect(computeErrorRatePercent(0, 10)).toBeNull();
+  });
+
+  it("parses trace ids from table payloads", () => {
+    const payload = {
+      data: {
+        result: [
+          {
+            table: {
+              records: [
+                { data: { traceID: "abc123" } },
+                { data: { traceID: "def456" } },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    expect(parseTraceIds(payload, 3)).toEqual(["abc123", "def456"]);
   });
 });
