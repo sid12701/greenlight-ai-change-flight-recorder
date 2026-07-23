@@ -7,6 +7,9 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "echo 'Run npm run dev:api and npm run dev:web in separate terminals'",
+    "dev:api": "npm --workspace @greenlight/api run dev",
+    "dev:web": "npm --workspace @greenlight/web run dev",
     "validate:config": "node scripts/validate-config-contract.mjs",
     "validate:planning": "node scripts/validate-planning.mjs",
     "validate:telemetry": "node scripts/validate-telemetry-contract.mjs",
