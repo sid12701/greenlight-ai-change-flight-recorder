@@ -9,7 +9,7 @@
       "component:docs",
       "type:docs"
     ],
-    "milestone": "Phase 0"
+    "milestone": "Phase 0 — Scope and isolation"
   },
   {
     "id": "GL-P0-T02",
@@ -21,7 +21,7 @@
       "component:lms",
       "type:implementation"
     ],
-    "milestone": "Phase 0"
+    "milestone": "Phase 0 — Scope and isolation"
   },
   {
     "id": "GL-P1-T01",
@@ -33,7 +33,7 @@
       "component:signoz",
       "type:implementation"
     ],
-    "milestone": "Phase 1"
+    "milestone": "Phase 1 — SigNoz and baseline"
   },
   {
     "id": "GL-P1-T02",
@@ -45,7 +45,7 @@
       "component:lms",
       "type:implementation"
     ],
-    "milestone": "Phase 1"
+    "milestone": "Phase 1 — SigNoz and baseline"
   },
   {
     "id": "GL-P1-T03",
@@ -57,7 +57,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 1"
+    "milestone": "Phase 1 — SigNoz and baseline"
   },
   {
     "id": "GL-P2-T01",
@@ -69,7 +69,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 2"
+    "milestone": "Phase 2 — Claude trace bridge"
   },
   {
     "id": "GL-P2-T02",
@@ -81,7 +81,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 2"
+    "milestone": "Phase 2 — Claude trace bridge"
   },
   {
     "id": "GL-P2-T03",
@@ -93,7 +93,7 @@
       "component:github",
       "type:implementation"
     ],
-    "milestone": "Phase 2"
+    "milestone": "Phase 2 — Claude trace bridge"
   },
   {
     "id": "GL-P2-T04",
@@ -105,7 +105,7 @@
       "component:github",
       "type:implementation"
     ],
-    "milestone": "Phase 2"
+    "milestone": "Phase 2 — Claude trace bridge"
   },
   {
     "id": "GL-P3-T01",
@@ -117,7 +117,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 3"
+    "milestone": "Phase 3 — CI reconstruction"
   },
   {
     "id": "GL-P3-T02",
@@ -129,7 +129,7 @@
       "component:github",
       "type:implementation"
     ],
-    "milestone": "Phase 3"
+    "milestone": "Phase 3 — CI reconstruction"
   },
   {
     "id": "GL-P3-T03",
@@ -141,7 +141,7 @@
       "component:github",
       "type:implementation"
     ],
-    "milestone": "Phase 3"
+    "milestone": "Phase 3 — CI reconstruction"
   },
   {
     "id": "GL-P3-T04",
@@ -153,7 +153,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 3"
+    "milestone": "Phase 3 — CI reconstruction"
   },
   {
     "id": "GL-P3-T05",
@@ -165,7 +165,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 3"
+    "milestone": "Phase 3 — CI reconstruction"
   },
   {
     "id": "GL-P4-T01",
@@ -177,7 +177,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P4-T02",
@@ -189,7 +189,7 @@
       "component:lms",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P4-T03",
@@ -201,7 +201,7 @@
       "component:signoz",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P4-T04",
@@ -213,7 +213,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P4-T05",
@@ -225,7 +225,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P4-T06",
@@ -237,7 +237,7 @@
       "component:telemetry",
       "type:implementation"
     ],
-    "milestone": "Phase 4"
+    "milestone": "Phase 4 — Deployment and regression"
   },
   {
     "id": "GL-P5-T01",
@@ -249,7 +249,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 5"
+    "milestone": "Phase 5 — Change Receipt"
   },
   {
     "id": "GL-P5-T02",
@@ -261,7 +261,7 @@
       "component:api",
       "type:implementation"
     ],
-    "milestone": "Phase 5"
+    "milestone": "Phase 5 — Change Receipt"
   },
   {
     "id": "GL-P5-T03",
@@ -273,7 +273,7 @@
       "component:web",
       "type:implementation"
     ],
-    "milestone": "Phase 5"
+    "milestone": "Phase 5 — Change Receipt"
   },
   {
     "id": "GL-P5-T04",
@@ -285,7 +285,7 @@
       "component:web",
       "type:implementation"
     ],
-    "milestone": "Phase 5"
+    "milestone": "Phase 5 — Change Receipt"
   },
   {
     "id": "GL-P5-T05",
@@ -297,7 +297,7 @@
       "component:web",
       "type:implementation"
     ],
-    "milestone": "Phase 5"
+    "milestone": "Phase 5 — Change Receipt"
   },
   {
     "id": "GL-P6-T01",
@@ -309,7 +309,7 @@
       "component:lms",
       "type:implementation"
     ],
-    "milestone": "Phase 6"
+    "milestone": "Phase 6 — Incident and recovery"
   },
   {
     "id": "GL-P6-T02",
@@ -321,7 +321,7 @@
       "component:lms",
       "type:implementation"
     ],
-    "milestone": "Phase 6"
+    "milestone": "Phase 6 — Incident and recovery"
   },
   {
     "id": "GL-P6-T03",
@@ -333,7 +333,7 @@
       "component:demo",
       "type:implementation"
     ],
-    "milestone": "Phase 6"
+    "milestone": "Phase 6 — Incident and recovery"
   },
   {
     "id": "GL-P7-T01",
@@ -345,7 +345,7 @@
       "component:signoz",
       "type:implementation"
     ],
-    "milestone": "Phase 7"
+    "milestone": "Phase 7 — Demo and submission"
   },
   {
     "id": "GL-P7-T02",
@@ -357,6 +357,6 @@
       "component:docs",
       "type:docs"
     ],
-    "milestone": "Phase 7"
+    "milestone": "Phase 7 — Demo and submission"
   }
 ]
