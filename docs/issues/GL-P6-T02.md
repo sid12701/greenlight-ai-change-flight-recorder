@@ -9,6 +9,7 @@ Restore the efficient query, deploy role=recovery, and prove metrics return to t
 - **Phase:** 6
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P6-T01, GL-P4-T05
 - **Blocks:** GL-P6-T03
@@ -20,9 +21,9 @@ Restore the efficient query, deploy role=recovery, and prove metrics return to t
 - scripts/demo-recover.sh
 - docs/EVIDENCE_LOG.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Functional tests pass
 - [ ] Recovery resolver reuses original baseline
@@ -73,4 +74,4 @@ If recovery misses bounds, inspect data/infra variance; do not loosen recovery t
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

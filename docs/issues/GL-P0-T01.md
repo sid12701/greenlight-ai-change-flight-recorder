@@ -9,6 +9,7 @@ Produce a clean repository whose ownership, pre-existing LMS boundary, secret po
 - **Phase:** 0
 - **Priority:** P0
 - **Component:** docs
+- **Verification:** strict_tdd
 - **Estimate:** 60 focused minutes
 - **Depends on:** None
 - **Blocks:** GL-P0-T02, GL-P3-T01
@@ -22,9 +23,9 @@ Produce a clean repository whose ownership, pre-existing LMS boundary, secret po
 - SECURITY.md
 - GREENLIGHT_IMPLEMENTATION_PLAN.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Secret-pattern scan rejects credential-like fixtures
 - [ ] Config-key inventory matches the implementation plan
@@ -72,4 +73,4 @@ Stop if repository identity or licensing is ambiguous; record the decision in do
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

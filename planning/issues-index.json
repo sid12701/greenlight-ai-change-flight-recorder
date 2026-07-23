@@ -233,7 +233,7 @@
     "body_file": "docs/issues/GL-P4-T06.md",
     "labels": [
       "phase:4",
-      "priority:p0",
+      "priority:p1",
       "component:telemetry",
       "type:implementation"
     ],
@@ -269,7 +269,7 @@
     "body_file": "docs/issues/GL-P5-T03.md",
     "labels": [
       "phase:5",
-      "priority:p0",
+      "priority:p1",
       "component:web",
       "type:implementation"
     ],
@@ -341,7 +341,7 @@
     "body_file": "docs/issues/GL-P7-T01.md",
     "labels": [
       "phase:7",
-      "priority:p0",
+      "priority:p1",
       "component:signoz",
       "type:implementation"
     ],

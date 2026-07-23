@@ -178,7 +178,7 @@ OTLP supports gRPC on port `4317` and HTTP/protobuf on port `4318`. GreenLight d
 
 #### GreenLight Web
 
-- Provides one changes list and one receipt detail page.
+- Provides one required receipt detail page; the standalone changes list is a P1 enhancement and is cut first if the schedule slips.
 - Makes the evidence chain understandable without requiring SigNoz knowledge.
 - Uses links to GitHub and SigNoz for auditability.
 - Displays loading, insufficient-data, regression, recovered, and integration-error states.
@@ -422,9 +422,9 @@ GET /api/v1/internal/home/overview
 
 For each deployment:
 
-- **Baseline window:** the configured period immediately before deployment for the most recent good version.
+- **Baseline window:** one immutable, configured period captured once for the known-good `role=baseline` deployment in GL-P4-T02. Every candidate and recovery comparison reuses that stored `baseline_deployment_id` and its exact UTC window.
 - **Observed window:** the configured period after a startup warm-up.
-- **Demo configuration:** `90s` baseline, `15s` warm-up, and `90s` observed; generate these windows during rehearsal preparation rather than waiting live during judging.
+- **Demo configuration:** `90s` frozen baseline, `15s` warm-up, and `90s` observed; generate the baseline once and generate new candidate/recovery windows during rehearsal preparation rather than waiting live during judging.
 - **Minimum sample:** 200 completed request spans in each window. The load script targets 250 per window to preserve margin.
 - **Latency regression:** observed p95 is greater than both `baseline p95 × 1.5` and `baseline p95 + 250 ms`.
 - **Error regression:** observed error rate is at least two percentage points above baseline and at least 5% absolute.
@@ -560,8 +560,8 @@ CREATE INDEX idx_regressions_baseline ON regression_evaluations(baseline_deploym
 
 - Keep only metadata required for the demo.
 - Treat the Claude interaction trace, synthesized CI trace, frozen bad/recovery commits, `changes`, and `pipeline_runs` as immutable upstream evidence once Phases 2–3 pass.
-- `demo-reset.sh` is a **soft rehearsal reset**. It may delete only `deployments`, `regression_evaluations`, `evidence_links`, and transient evaluation state, then regenerate LMS runtime load.
-- A soft reset must never delete `changes`, `pipeline_runs`, any Claude/CI trace identifiers, the SQLite file itself, or any SigNoz telemetry.
+- `demo-reset.sh` is a **soft rehearsal reset**. It may delete only candidate/recovery deployments, their evaluations/evidence links, and transient evaluation state, then regenerate candidate/recovery LMS runtime load.
+- A soft reset must never delete the frozen baseline deployment/window, `changes`, `pipeline_runs`, any Claude/CI trace identifiers, the SQLite file itself, or any SigNoz telemetry.
 - `demo-reset.sh --hard` is a full rebuild tool only: it regenerates Claude and CI traces and then re-freezes commit trailers and stored trace IDs. Never run it during the demo window.
 - Do not copy raw GitHub job logs, Claude prompts, LMS payloads, borrower information, or trace bodies into SQLite.
 
@@ -794,9 +794,10 @@ Test the hook in a temporary Git repository before installing it in the LMS demo
 - Require exact service, version, environment, route, and time windows.
 - Read baseline, warm-up, observed, and sample-floor values from validated configuration rather than hard-coding them.
 - Baseline selection for a normal deployment:
-  1. Use the explicitly supplied `baselineDeploymentId` when present.
-  2. Otherwise select the newest earlier `succeeded` deployment with the same service and environment that is either marked `role=baseline` or whose latest evaluation for the route is `healthy` or `recovered`.
-  3. If there is no candidate or more than one equally valid candidate, return `baseline_required`; never guess.
+  1. Use the explicitly supplied `baselineDeploymentId` only when it identifies the unique frozen GL-P4-T02 baseline for the same service/environment and precedes the candidate.
+  2. Otherwise select that unique `role=baseline`, `succeeded` deployment and its stored UTC window.
+  3. Never select an immediately preceding healthy/recovered deployment and never regenerate the baseline per rehearsal.
+  4. If the frozen baseline is missing or ambiguous, return `baseline_required`; never guess.
 - Baseline selection for recovery:
   1. Find the most recent earlier `regressed` evaluation for the same service, environment, and route.
   2. Reuse that row's `baseline_deployment_id` and baseline window—not the bad deployment—as the recovery comparison.
@@ -1053,12 +1054,14 @@ Front-load the generic harness before product-specific UI work:
 - Install Playwright and cache the browser binary.
 - Add `playwright.config.ts`, base URL, local `webServer` wiring, and the separate smoke workflow.
 - Add reusable synthetic seed/auth fixtures and login helpers.
-- Add page-object skeletons for `/changes` and `/changes/:sha`.
+- Add a required page-object skeleton for `/changes/:sha`; add `/changes` only if the P1 standalone list remains in scope.
 - Prove only a generic boot smoke: the application loads and the document title renders.
 
 Product assertions cannot be fully authored in advance because they depend on the Phase 5 selectors, text, and flows. As each screen lands, add only small isolated assertions against the real DOM. If time remains after the required gates pass, complete one happy path:
 
-`changes list → receipt → status/timeline visible → evidence link present → revert command copyable`
+`direct receipt route → status/timeline visible → evidence link present → revert command copyable`
+
+If GL-P5-T03 remains in scope, prepend the changes-list navigation to that smoke.
 
 Do not spend critical-path time expanding the suite or debugging non-deterministic browser behavior. A failing or absent optional Playwright smoke does not block release if the required Vitest, Fastify-inject, component, build, telemetry, and rehearsal gates pass.
 
@@ -1403,9 +1406,9 @@ Fallback scenario:
 
 - If a natural N+1 regression is not deterministic within one hour, use a clearly disclosed demo-only latency fault guarded by `GREENLIGHT_DEMO_FAULT=true`. Reliability is more important than pretending an unstable fault is organic.
 
-### Phase 7 — Polish, verify, record, and submit (3–4 planned hours; 5 buffered)
+### Phase 7 — Polish, verify, record, and submit (3h 15m bottom-up; 4h 15m risk budget)
 
-**Dependencies:** All must-have phases.
+**Dependencies:** All P0 phases; P1 work is included only when explicitly retained.
 **Goal:** Freeze a reliable submission and demonstration.
 
 Tasks:
@@ -1413,7 +1416,7 @@ Tasks:
 1. Run required unit, integration, component, hook, build, and telemetry smoke tests.
 2. Run backend LMS tests in the clean demo clone.
 3. Import/finalize SigNoz dashboards and alert.
-4. Run and capture the fixed MCP investigation prompt; verify its comparison and three slow traces agree with the deterministic GreenLight result.
+4. If submitting to Track 3, run and capture the GL-P7-T01 fixed MCP investigation prompt; otherwise record that P1 cut in the submission checklist.
 5. Run a soft `demo-reset`, baseline, regression, and recovery sequence without regenerating preserved upstream traces.
 6. Write final README with architecture, setup, provenance, limitations, screenshots, and AI disclosure.
 7. Write a four-minute `DEMO_SCRIPT.md` with exact clicks and narration.
@@ -1451,49 +1454,62 @@ Phase 0 isolate work
   → Phase 3 CI trace synthesis
   → Linkage pivot gate
   → Phase 4 deployment + regression evaluator
-  → Phase 6 deterministic incident
-  → Phase 7 rehearsal and submission
+  ├→ Phase 5 receipt UI
+  └→ Phase 6 deterministic incident
+       → Phase 7 end-to-end verification, rehearsal, and submission
 ```
 
-Phase 5 UI begins after the Phase 3 API contract stabilizes and can continue alongside Phase 4. Do not begin optional review-policy or notification work until Phase 6 has passed twice.
+Phase 5 UI begins after the Phase 3 API contract stabilizes and continues alongside Phase 4/6. GL-P3-T05 is a hard dependency of the full receipt and runs immediately when GL-P2-T04 plus GL-P3-T04 unblock it. Incident tuning starts after GL-P4-T04; it does not wait for finished UI polish. GL-P7-T02 verifies that the prepared incident is visible end to end after both branches converge.
 
-The original estimate is 26.5 focused hours. Plan against 36 buffered hours (about 1.36×) to absorb integration friction:
+The generated 30-issue manifest is the estimating authority. Its bottom-up estimate is **2,660 focused minutes = 44 hours 20 minutes**, not 26.5 hours. A 1.3× integration factor yields roughly **57 hours 40 minutes of solo wall-clock effort**. The earlier 26.5/36-hour claim was top-down and is retired because it contradicted the implementable slices.
 
-| Phase | Planned h | Buffered h | Blocking gate |
+| Phase | Bottom-up focused | 1.3× risk budget | Blocking gate |
 |---|---:|---:|---|
-| 0. Scope and isolation | 1.5 | 2 | Clean repositories, provenance, SQLite native-module check |
-| 1. SigNoz and baseline | 3 | 5 | Foundry validated Day 1; versioned spans and filterable keys confirmed |
-| 2. AI trace bridge | 3 | 4 | Trailer resolves to preserved Claude trace |
-| 3. CI trace synthesis | 4 | 5 | Linked workflow trace; SigNoz navigation works |
+| 0. Scope and isolation | 2h 30m | 3h 15m | Clean repositories, provenance, workflow triggers, SQLite native-module check |
+| 1. SigNoz and baseline | 4h 20m | 5h 40m | Foundry validated Day 1; backdated span, versioned spans, and filterable keys confirmed |
+| 2. AI trace bridge | 4h 30m | 5h 50m | Backend-triggering trailer commit resolves to preserved Claude trace |
+| 3. CI trace synthesis | 7h 15m | 9h 25m | Linked workflow trace; SigNoz navigation works |
 | **Linkage pivot** | — | — | **No later than July 24, 2026 at 18:00 IST: if the clickable Claude→CI link is not green, freeze the deterministic session-ID fallback and stop debugging beta linkage** |
-| 4. Deployment and regression | 4 | 5.5 | Healthy, regressed, recovered, and insufficient states are correct |
-| 5. Receipt UI | 4 | 5 | First-time comprehension in 30 seconds |
-| 6. Incident scenario | 3 | 4.5 | Two qualitatively identical rehearsals |
-| 7. Polish and submission | 4 | 5 | Fixed MCP result and sub-four-minute demo |
-| **Total** | **26.5** | **36** | — |
+| 4. Deployment and regression | 9h | 11h 40m | Healthy, regressed, recovered, and insufficient states are correct |
+| 5. Receipt UI | 8h 30m | 11h 5m | First-time comprehension in 30 seconds |
+| 6. Incident scenario | 5h | 6h 30m | Two qualitatively identical rehearsals |
+| 7. Polish and submission | 3h 15m | 4h 15m | Sub-four-minute demo; Track 3 MCP beat if retained |
+| **Total** | **44h 20m** | **57h 40m** | — |
 
-Claude's suggested phase buffer values sum to 36 hours, not 40.5. Use 36 as the scheduling number and protect the named pivot; do not silently consume submission time debugging the beta trace bridge.
+This is not a 26.5-hour solo plan. Either add human teammates or accept a compressed, high-risk solo schedule. Three pre-declared P1 cuts save 3h 45m focused, leaving a **40h 35m P0 spine**. Cut them in this order when a gate slips:
+
+1. **GL-P5-T03 standalone changes list** — route the demo directly to the prepared receipt.
+2. **GL-P4-T06 GreenLight self-observability panel** — retain LMS/CI/Claude telemetry and disclose the cut.
+3. **GL-P7-T01 fixed MCP investigation** — this preserves a Track 1 submission but gives up the Track 3 differentiator. If submitting to Track 3, promote this task back to P0 and do not cut it.
+
+No optional policy, notification, screenshot, or export work begins while any unblocked P0 issue remains. Protect the linkage pivot and submission buffer rather than silently borrowing from them.
 
 ## 18. Must-have versus optional backlog
 
-### Must-have
+### P0 — minimum judged spine
 
 - Foundry SigNoz + MCP with casting lock.
+- Early proof that SigNoz accepts and displays a two-hour-backdated span.
 - LMS Java-agent instrumentation and version propagation.
 - Claude trace export and traceparent Git trailer.
+- A harmless backend no-op proof commit that actually triggers Backend CI and retains `AI-Traceparent`.
 - GitHub run/job/step sync.
 - CI trace with AI span link.
 - Deployment recording.
-- SigNoz baseline/observed queries.
+- One frozen good baseline plus candidate/recovery queries.
 - Deterministic regression and recovery evaluation.
-- Changes list and Change Receipt.
+- Change Receipt detail page.
 - Dashboard, alert, deep links.
-- Fixed, rehearsed SigNoz MCP investigation.
-- GreenLight API self-observability in SigNoz.
 - Repeatable bad and recovery LMS commits.
 - Tests, provenance, AI disclosure, README, demo script.
 
-### Optional only after all gates pass
+### P1 — pre-declared schedule cuts
+
+- GL-P5-T03 standalone changes-list page.
+- GL-P4-T06 GreenLight API self-observability panel.
+- GL-P7-T01 fixed, rehearsed SigNoz MCP investigation. It is required only if retaining the Track 3 submission path.
+
+### Optional only after all P0 gates pass
 
 - Transparent `review_required` policy.
 - Slack notification.
@@ -1589,13 +1605,14 @@ Target duration: 3 minutes 30 seconds to 4 minutes.
 - Keep the Claude and CI traces immutable; use only the soft reset during rehearsals and judging.
 - Record a successful backup demo before the final take.
 - If live deployment timing is variable, show the deployment command, then use the already-generated telemetry window while clearly saying it was prepared for the demo.
-- Prepared traffic is acceptable; prepared conclusions are not. Sync, evaluation, receipt assembly, and MCP querying run live.
+- Prepared traffic is acceptable; prepared conclusions are not. Sync, evaluation, and receipt assembly run live; MCP querying also runs live when the Track 3 P1 task is retained.
 
 ## 21. Final definition of done
 
 ### Product
 
-- Two GreenLight pages work and handle failure states.
+- The required Change Receipt page works and handles failure states.
+- The standalone changes list works only if GL-P5-T03 remains in scope.
 - Complete receipt exists for baseline, bad, and recovery versions.
 - Receipt shows exactly one primary backend pipeline and labels any secondary workflows as related.
 - No core step requires manual database editing.
@@ -1603,13 +1620,13 @@ Target duration: 3 minutes 30 seconds to 4 minutes.
 ### Telemetry
 
 - Claude, CI, deployment, and LMS traces are visible in SigNoz.
-- GreenLight API traces are visible in SigNoz.
+- GreenLight API traces are visible in SigNoz only if GL-P4-T06 remains in scope.
 - Commit SHA is consistent across GitHub, SQLite, deployment, and `service.version`.
 - CI root contains a valid span link or clearly labeled fallback linkage.
 - Every reconstructed CI root is labeled as reconstructed and records its GitHub source.
 - Every evaluation records its baseline deployment plus baseline and observed versions.
 - Dashboard and alert use reviewed Query Builder queries.
-- The required fixed MCP investigation agrees with GreenLight's deterministic result.
+- If submitting to Track 3, the fixed MCP investigation agrees with GreenLight's deterministic result; otherwise its omission is disclosed as the GL-P7-T01 P1 cut.
 
 ### Engineering
 
@@ -1632,7 +1649,7 @@ Target duration: 3 minutes 30 seconds to 4 minutes.
 
 - README explains problem, solution, architecture, setup, provenance, limitations, and AI usage.
 - Four-minute demo script is rehearsed twice.
-- Prepared workload windows are disclosed while sync, evaluation, receipt assembly, and MCP analysis run live.
+- Prepared workload windows are disclosed while sync, evaluation, and receipt assembly run live; MCP analysis runs live when the Track 3 task remains in scope.
 - Screenshots and video contain only synthetic data and no secrets.
 - Submission is made before the deadline buffer.
 
@@ -1672,7 +1689,7 @@ Target duration: 3 minutes 30 seconds to 4 minutes.
 | SF-4 UTC discipline | Accepted | UTC-only storage, boundary conversion, and round-trip unit test |
 | SF-5 windows exceed demo | Accepted | Configurable 90-second windows generated during rehearsal preparation |
 | SF-6 Playwright critical path | Accepted | Pre-warmed generic harness; optional non-blocking product smoke |
-| SF-7 no buffer/pivot | Accepted with arithmetic correction | 36 buffered hours, not 40.5; named July 24 linkage pivot |
+| SF-7 no buffer/pivot | Superseded by bottom-up issue estimate | 44h 20m focused / about 57h 40m risk budget; named July 24 linkage pivot retained |
 | SF-8 GreenLight not dogfooded | Accepted | `greenlight-api` traces and dashboard/demo mention |
 | SF-9 Track 3 rationale | Accepted | README rationale plus SigNoz issue `#11657` anchor |
 
@@ -1697,3 +1714,19 @@ Target duration: 3 minutes 30 seconds to 4 minutes.
 | Hand-tuned thresholds | Present them as a transparent demo policy, not a universal SLO |
 | Local-first production potential | Add the hosted/webhook/queue/PostgreSQL/multi-repo evolution path |
 | Merge/amend/squash hook semantics | Inject only on normal commits; preserve/skip generated commit messages |
+
+## 25. Thirty-issue decomposition audit resolution
+
+| Finding | Disposition | Roadmap change |
+|---|---|---|
+| Bottom-up estimates total 44 hours rather than 26.5 | Accepted | Retire the top-down claim; publish 2,660 focused minutes and an approximately 57h 40m risk budget |
+| All issues are P0 | Accepted | Mark GL-P4-T06, GL-P5-T03, and GL-P7-T01 P1; document their cut order and Track 3 consequence |
+| Proof commit may not trigger Backend CI | Accepted | GL-P0-T02 records workflow path filters; GL-P2-T04 changes a harmless matching backend file and proves one Backend CI run exists |
+| Baseline temporal model is ambiguous | Accepted | Capture one frozen GL-P4-T02 window and reuse its `baseline_deployment_id` for candidate and recovery comparisons |
+| Claude→CI differentiator is a leaf | Accepted | Make GL-P3-T05 a hard dependency of GL-P5-T02 and schedule it immediately when unblocked |
+| Backdated-span support is discovered too late | Accepted | Add a 20-minute, two-hour-backdated OTLP span spike to GL-P1-T01 |
+| Incident tuning waits for finished UI | Accepted | Remove GL-P5-T05 from GL-P6-T01; converge incident and UI branches in GL-P7-T02 |
+| Phase 1 prematurely requires 200 spans | Accepted | Require an accurate small-sample query in GL-P1-T03; enforce the 200-span floor in GL-P4-T02 onward |
+| Human-only attribution could strip demo evidence | Accepted | Explicitly retain `AI-Traceparent` on LMS proof and incident commits while keeping GreenLight commits human-authored |
+| Universal TDD is too costly for infrastructure | Accepted | Use strict TDD for ten logic-heavy issues and evidence-capturing smoke verification for integration issues |
+| Risky integration estimates remain optimistic | Accepted without false precision | Keep the honest bottom-up total, add the 1.3× risk budget, and preserve pivot/cut gates instead of shrinking estimates |

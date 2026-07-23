@@ -2,16 +2,14 @@
 
 ## Principle
 
-Every tracer bullet follows Red–Green–Refactor:
+Verification effort follows the risk:
 
-1. Write the smallest deterministic test for the slice.
-2. Run it and verify it fails for the expected reason.
-3. Implement the minimum behavior.
-4. Run the focused test.
-5. Refactor and run the relevant regression gates.
-6. Post test evidence on the GitHub issue before closing it.
+- `strict_tdd` is required for logic-heavy slices where boundary correctness matters and fixtures are cheap. Write the smallest deterministic failing test, implement the minimum behavior, refactor, and run the relevant regression gates.
+- `smoke_verified` is used for infrastructure and live-integration slices. Write a deterministic validation script or fixture check first where practical, capture the expected failure before configuration, then capture the passing endpoint/trace evidence. Do not create a unit-test seam solely to satisfy ceremony.
 
-A failing test is not committed to `main`. Tests are never deleted, weakened, or skipped merely to make a change pass.
+The strict-TDD set is GL-P0-T01, GL-P2-T02, GL-P2-T03, GL-P3-T01, GL-P3-T03, GL-P3-T04, GL-P4-T03, GL-P4-T04, GL-P4-T05, and GL-P5-T02. The issue manifest is authoritative.
+
+A failing test or broken smoke gate is not committed to `main`. Tests and verification scripts are never deleted, weakened, or skipped merely to make a change pass.
 
 ## Required gates
 
@@ -30,6 +28,8 @@ A failing test is not committed to `main`. Tests are never deleted, weakened, or
 | Delivery | Typecheck and production build |
 | Live integration | SigNoz, OTLP HTTP, MCP, versioned LMS trace smoke |
 
+These gates remain required where the corresponding feature is in scope. A P1 feature that is formally cut is documented in the submission checklist rather than represented as passing.
+
 ## Playwright
 
 Playwright is optional and non-blocking:
@@ -41,10 +41,12 @@ Playwright is optional and non-blocking:
 ## Critical contracts
 
 - Exactly one `Backend CI` run is primary for a change.
+- The proof commit touches a harmless backend path known to trigger `Backend CI`.
+- SigNoz accepts and displays a deliberately backdated span before CI synthesis begins.
 - Reconstructed spans are explicitly labeled.
 - Only the primary CI root links to the Claude span.
 - No evaluation below 200 completed spans.
-- Recovery reuses the original good baseline.
+- Candidate and recovery evaluations reuse one frozen original good baseline.
 - Integration failures never become zero metrics.
 - All timestamps are UTC.
 - Soft reset preserves immutable Claude and CI evidence.

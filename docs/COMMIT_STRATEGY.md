@@ -10,6 +10,8 @@
 
 GitHub contributor attribution is derived from commit metadata; it is not a repository visibility setting.
 
+This policy applies to GreenLight authorship. It must not remove the `AI-Traceparent` product-evidence trailer from the isolated LMS demonstration commits in GL-P2-T04 and GL-P6-T01. That trailer is trace context, not a `Co-authored-by` attribution, and retaining it is part of the acceptance criteria.
+
 ## Branches
 
 Use:
@@ -48,7 +50,7 @@ The commit must include its tests, implementation, and directly required documen
 5. Run focused and relevant regression gates.
 6. Scan for credentials and real data.
 7. Verify author/committer identity.
-8. Confirm no AI attribution trailers.
+8. Confirm no AI attribution trailers; for the two specified LMS evidence commits, separately confirm the required `AI-Traceparent` trailer remains intact.
 9. Commit without `--no-verify`.
 10. Post evidence to the issue after push.
 

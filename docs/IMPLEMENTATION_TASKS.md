@@ -5,26 +5,28 @@ This is the execution index for the authoritative [implementation plan](../GREEN
 ## Execution rules
 
 - Work only on unblocked tasks.
-- Follow Red–Green–Refactor.
+- Use strict Red–Green–Refactor only for logic-heavy tasks marked `strict_tdd`.
+- Use focused, evidence-capturing smoke verification for environment and integration tasks marked `smoke_verified`.
 - Post test and telemetry evidence before closing an issue.
 - Never modify the original dirty LMS checkout.
 - Do not add AI co-author trailers.
 - Required test gates are blocking; Playwright remains optional and non-blocking.
 - Preserve immutable Claude and CI evidence after Phase 3.
+- Work P0 tasks before P1 tasks. P1 tasks are explicitly sacrificeable when the schedule slips.
 
 ## Phase summary
 
 | Phase | Tasks | Focused estimate |
 |---:|---:|---:|
 | 0 | 2 | 150 min |
-| 1 | 3 | 240 min |
+| 1 | 3 | 260 min |
 | 2 | 4 | 270 min |
 | 3 | 5 | 435 min |
 | 4 | 6 | 540 min |
 | 5 | 5 | 510 min |
 | 6 | 3 | 300 min |
 | 7 | 2 | 195 min |
-| **Total** | **30** | **2640 min** |
+| **Total** | **30** | **2660 min** |
 
 ## Phase 0
 
@@ -39,6 +41,7 @@ Produce a clean repository whose ownership, pre-existing LMS boundary, secret po
 - **Phase:** 0
 - **Priority:** P0
 - **Component:** docs
+- **Verification:** strict_tdd
 - **Estimate:** 60 focused minutes
 - **Depends on:** None
 - **Blocks:** GL-P0-T02, GL-P3-T01
@@ -52,9 +55,9 @@ Produce a clean repository whose ownership, pre-existing LMS boundary, secret po
 - SECURITY.md
 - GREENLIGHT_IMPLEMENTATION_PLAN.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Secret-pattern scan rejects credential-like fixtures
 - [ ] Config-key inventory matches the implementation plan
@@ -102,7 +105,7 @@ Stop if repository identity or licensing is ambiguous; record the decision in do
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -117,6 +120,7 @@ Prove the demo can use the existing LMS without touching its dirty checkout and 
 - **Phase:** 0
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P0-T01
 - **Blocks:** GL-P1-T01
@@ -126,15 +130,17 @@ Prove the demo can use the existing LMS without touching its dirty checkout and 
 
 - integrations/lms/README.md
 - integrations/lms/demo-config.example
+- integrations/lms/workflow-trigger-contract.md
 - scripts/preflight.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Preflight fails when LMS_PATH points at /Users/siddhant/Desktop/lms
 - [ ] Preflight confirms baseline SHA and clean demo worktree
 - [ ] Dependency checklist identifies only services used by home overview
+- [ ] Workflow-trigger check records Backend CI on.push paths and proves the planned no-op backend file matches them
 
 ## Implementation steps
 
@@ -142,6 +148,8 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 - [ ] Create greenlight-demo branch
 - [ ] Inspect home-overview runtime dependencies
 - [ ] Record minimal compose services and port 8081
+- [ ] Inspect Backend CI workflow name and push/path filters
+- [ ] Choose a harmless backend file that is guaranteed to trigger Backend CI
 - [ ] Verify original LMS status is unchanged
 
 ## Telemetry and integration contract
@@ -160,6 +168,7 @@ No telemetry yet; output the exact service and route that Phase 1 will instrumen
 - [ ] Original LMS worktree hash/status remains unchanged
 - [ ] Clean demo worktree is pinned and documented
 - [ ] Only required infrastructure is selected
+- [ ] Backend CI trigger contract and proof-commit path are recorded
 - [ ] Preflight exits non-zero on unsafe paths
 
 ## Required evidence for closure
@@ -180,7 +189,7 @@ If LMS cannot be isolated in 45 minutes, create the documented minimal fixture p
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -191,14 +200,15 @@ This issue is done only when every acceptance item is checked, required tests pa
 
 ## Outcome
 
-Create a reproducible SigNoz installation whose UI, OTLP HTTP receiver, and MCP health endpoints are available.
+Create a reproducible SigNoz installation whose UI, OTLP HTTP receiver, and MCP health endpoints are available, and retire the backdated-span risk before CI synthesis begins.
 
 ## Planning metadata
 
 - **Phase:** 1
 - **Priority:** P0
 - **Component:** signoz
-- **Estimate:** 90 focused minutes
+- **Verification:** smoke_verified
+- **Estimate:** 110 focused minutes
 - **Depends on:** GL-P0-T02
 - **Blocks:** GL-P1-T02, GL-P2-T01, GL-P4-T06
 - **Labels:** phase:1, priority:p0, component:signoz, type:implementation
@@ -209,14 +219,16 @@ Create a reproducible SigNoz installation whose UI, OTLP HTTP receiver, and MCP 
 - casting.yaml.lock
 - signoz/README.md
 - scripts/signoz-smoke.sh
+- scripts/backdated-span-smoke.mjs
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Casting schema passes foundryctl gauge
 - [ ] Smoke test checks UI 8080, OTLP HTTP 4318, and MCP livez 8000
 - [ ] Port 4317 is not treated as required
+- [ ] A span timestamped two hours in the past is accepted over OTLP HTTP and discoverable in SigNoz
 
 ## Implementation steps
 
@@ -226,6 +238,7 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 - [ ] Cast services
 - [ ] Create service-account setup instructions
 - [ ] Run health smoke
+- [ ] Run a 20-minute backdated-span spike and record the query/evidence
 
 ## Telemetry and integration contract
 
@@ -242,7 +255,8 @@ SigNoz is the telemetry source of truth; gRPC 4317 is an unused default listener
 
 - [ ] casting.yaml and generated lock are committed
 - [ ] SigNoz UI responds
-- [ ] OTLP HTTP accepts telemetry
+- [ ] OTLP HTTP accepts current and backdated telemetry
+- [ ] The two-hour-old span is visible with the supplied timestamps
 - [ ] MCP livez responds
 - [ ] No credentials are committed
 
@@ -264,7 +278,7 @@ If cast is blocked, use Foundry-generated compose for local progress but keep su
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -279,6 +293,7 @@ Send a real home-overview request through the Java agent and prove its trace car
 - **Phase:** 1
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P1-T01
 - **Blocks:** GL-P1-T03, GL-P4-T01
@@ -290,9 +305,9 @@ Send a real home-overview request through the Java agent and prove its trace car
 - integrations/lms/deploy.sh
 - integrations/lms/verify.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Deploy script rejects non-40-character SHAs
 - [ ] Health gate uses /actuator/health
@@ -343,7 +358,7 @@ If readiness groups are explicitly enabled they may be checked additionally; /ac
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -358,6 +373,7 @@ Replace assumed semantic-convention keys with keys verified from actual LMS span
 - **Phase:** 1
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P1-T02
 - **Blocks:** GL-P4-T02, GL-P4-T03
@@ -369,9 +385,9 @@ Replace assumed semantic-convention keys with keys verified from actual LMS span
 - signoz/saved-views.md
 - test/fixtures/signoz/baseline-query.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Fixture parser resolves observed route, version, environment, status, and JDBC keys
 - [ ] Query fixture returns only the exact SHA and route
@@ -400,7 +416,7 @@ Reviewed Query Builder v5 contract becomes the boundary for all later evaluator 
 - [ ] Contract names exact observed keys
 - [ ] Query isolates /api/v1/internal/home/overview
 - [ ] Full SHA filter works
-- [ ] At least 200 spans can be counted
+- [ ] Count matches the deliberately small Phase 1 sample; the 200-span verdict floor is deferred to GL-P4-T02
 
 ## Required evidence for closure
 
@@ -420,7 +436,7 @@ If http.route is absent, document and use the actual stable key rather than rewr
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -438,6 +454,7 @@ Export a Claude interaction and tool-execution trace while keeping prompts, tool
 - **Phase:** 2
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P1-T01
 - **Blocks:** GL-P2-T02
@@ -449,9 +466,9 @@ Export a Claude interaction and tool-execution trace while keeping prompts, tool
 - docs/SECURITY.md
 - scripts/verify-claude-telemetry.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Environment validation requires tracing, forced propagation, always_on sampling, and content flags off
 - [ ] Verification fixture rejects prompt/tool-content attributes
@@ -501,7 +518,7 @@ If beta tracing fails by the linkage pivot, use the documented SessionStart sess
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -516,6 +533,7 @@ Create one canonical accepted/rejected vector set and a typed parser that cannot
 - **Phase:** 2
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** strict_tdd
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P2-T01
 - **Blocks:** GL-P2-T03
@@ -527,9 +545,9 @@ Create one canonical accepted/rejected vector set and a typed parser that cannot
 - packages/shared/test-vectors/traceparent.json
 - packages/shared/src/traceparent.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Red tests cover version, length, hex, zeros, flags, whitespace, missing and duplicate trailers
 - [ ] Parser returns structured errors without leaking input
@@ -579,7 +597,7 @@ Invalid context never blocks CI sync; it records ai_link_status=invalid.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -594,6 +612,7 @@ Add exactly one AI-Traceparent trailer to a normal Claude-triggered commit witho
 - **Phase:** 2
 - **Priority:** P0
 - **Component:** github
+- **Verification:** strict_tdd
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P2-T02
 - **Blocks:** GL-P2-T04
@@ -605,9 +624,9 @@ Add exactly one AI-Traceparent trailer to a normal Claude-triggered commit witho
 - instrumentation/git-hooks/install.sh
 - instrumentation/git-hooks/test.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Shell hook runs the shared vector cases
 - [ ] Normal valid commit gets one trailer
@@ -659,7 +678,7 @@ If shell portability blocks progress, use a small Node hook launched by POSIX sh
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -667,13 +686,14 @@ This issue is done only when every acceptance item is checked, required tests pa
 
 ## Outcome
 
-Create a harmless commit through Claude Code and prove its trailer resolves to the preserved SigNoz span.
+Create a harmless backend no-op commit through Claude Code that is guaranteed to trigger Backend CI, and prove its retained trailer resolves to the preserved SigNoz span.
 
 ## Planning metadata
 
 - **Phase:** 2
 - **Priority:** P0
 - **Component:** github
+- **Verification:** smoke_verified
 - **Estimate:** 45 focused minutes
 - **Depends on:** GL-P2-T03
 - **Blocks:** GL-P3-T05, GL-P6-T01
@@ -683,18 +703,23 @@ Create a harmless commit through Claude Code and prove its trailer resolves to t
 
 - docs/EVIDENCE_LOG.md
 - PROVENANCE.md
+- integrations/lms/workflow-trigger-contract.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Verification script parses commit trailer and checks the target trace/span exists
+- [ ] Trigger check proves the changed backend path matches Backend CI filters
 - [ ] Human commit fixture remains unmodified
 
 ## Implementation steps
 
-- [ ] Ask Claude for a harmless docs change in demo clone
+- [ ] Use the harmless backend file selected in GL-P0-T02
+- [ ] Make only a comment/no-op change through Claude
 - [ ] Commit through traced Bash
+- [ ] Confirm AI-Traceparent remains present and is never stripped by the human-only GreenLight commit policy
+- [ ] Push and confirm exactly one Backend CI run exists
 - [ ] Record SHA and trace IDs
 - [ ] Open target in SigNoz
 - [ ] Freeze evidence
@@ -712,7 +737,8 @@ This immutable Claude evidence is reused by later CI-link tests.
 
 ## Acceptance criteria
 
-- [ ] Commit has one valid AI-Traceparent
+- [ ] Commit has one valid retained AI-Traceparent
+- [ ] The commit triggers Backend CI
 - [ ] Linked span exists
 - [ ] No content telemetry leaked
 - [ ] Evidence IDs are recorded without secrets
@@ -735,7 +761,7 @@ Do not regenerate after Phase 3; if unavailable, freeze the labeled session-ID d
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -753,6 +779,7 @@ Implement the normalized repository/change/pipeline/deployment/evaluation/eviden
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P0-T01
 - **Blocks:** GL-P3-T02, GL-P4-T01, GL-P4-T06
@@ -765,9 +792,9 @@ Implement the normalized repository/change/pipeline/deployment/evaluation/eviden
 - apps/api/src/db/repositories/
 - apps/api/test/db.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Fresh migration succeeds
 - [ ] Repeat migration is idempotent
@@ -819,7 +846,7 @@ If better-sqlite3 fails on Apple Silicon, stop at the Phase 0 native-module pivo
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -834,6 +861,7 @@ Fetch and normalize commit, workflow, job, and step metadata without storing raw
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** github
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P3-T01
 - **Blocks:** GL-P3-T03, GL-P3-T04
@@ -846,9 +874,9 @@ Fetch and normalize commit, workflow, job, and step metadata without storing raw
 - apps/api/test/fixtures/github/
 - apps/api/src/modules/github/github.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Successful, failed, cancelled, missing-timestamp, and rate-limit fixtures
 - [ ] UTC offset timestamps normalize without drift
@@ -898,7 +926,7 @@ On GitHub failure, preserve last good metadata and report integration_error; nev
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -913,6 +941,7 @@ Store backend and frontend runs for one change while deterministically selecting
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** github
+- **Verification:** strict_tdd
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P3-T02
 - **Blocks:** GL-P3-T04, GL-P5-T01
@@ -924,9 +953,9 @@ Store backend and frontend runs for one change while deterministically selecting
 - apps/api/src/modules/github/primary-workflow.test.ts
 - apps/api/src/config.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Zero match returns configuration error
 - [ ] One match marks exactly one primary
@@ -977,7 +1006,7 @@ If the workflow is renamed, configuration must change explicitly; do not use fuz
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -992,6 +1021,7 @@ Reconstruct completed GitHub runs as auditable OpenTelemetry traces using GitHub
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
 - **Depends on:** GL-P3-T02, GL-P3-T03
 - **Blocks:** GL-P3-T05
@@ -1002,9 +1032,9 @@ Reconstruct completed GitHub runs as auditable OpenTelemetry traces using GitHub
 - apps/api/src/modules/ci-telemetry/synthesizer.ts
 - apps/api/src/modules/ci-telemetry/synthesizer.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] In-memory exporter proves hierarchy, UTC timestamps, durations, status mapping, attributes, and forced flush
 - [ ] Re-sync skips already emitted trace IDs
@@ -1053,7 +1083,7 @@ If post-hoc timestamps are rejected, capture the SDK limitation and use explicit
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1068,9 +1098,10 @@ Link the asynchronous primary CI root to the exact Claude tool-execution span st
 - **Phase:** 3
 - **Priority:** P0
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P2-T04, GL-P3-T04
-- **Blocks:** None
+- **Blocks:** GL-P5-T02
 - **Labels:** phase:3, priority:p0, component:telemetry, type:implementation
 
 ## Expected files
@@ -1079,9 +1110,9 @@ Link the asynchronous primary CI root to the exact Claude tool-execution span st
 - apps/api/src/modules/ci-telemetry/link.test.ts
 - docs/EVIDENCE_LOG.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Valid trailer creates one Link
 - [ ] Missing/invalid trailers create none and preserve sync
@@ -1133,7 +1164,7 @@ At the named pivot, freeze session-ID fallback rather than consuming submission 
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1151,6 +1182,7 @@ Persist baseline, candidate, and recovery deployments and emit versioned deploym
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** api
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P3-T01, GL-P1-T02
 - **Blocks:** GL-P4-T02
@@ -1162,9 +1194,9 @@ Persist baseline, candidate, and recovery deployments and emit versioned deploym
 - apps/api/src/routes/deployments.ts
 - integrations/lms/deploy.sh
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Auth, input validation, idempotency, role constraint, health failure, and version-visibility cases
 - [ ] Only one succeeded baseline per service/environment
@@ -1214,7 +1246,7 @@ If live start timing varies, preserve a recorded successful deployment while kee
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1222,13 +1254,14 @@ This issue is done only when every acceptance item is checked, required tests pa
 
 ## Outcome
 
-Record the known-good SHA as role=baseline and generate a repeatable 250-request, 90-second synthetic window.
+Capture one immutable known-good baseline deployment and 250-request, 90-second window exactly once; every candidate and recovery rehearsal reuses its stored baseline_deployment_id and never regenerates this window.
 
 ## Planning metadata
 
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P4-T01, GL-P1-T03
 - **Blocks:** GL-P4-T03
@@ -1240,9 +1273,9 @@ Record the known-good SHA as role=baseline and generate a repeatable 250-request
 - scripts/demo-baseline.sh
 - apps/api/test/fixtures/signoz/good-window.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Load generator honors duration/concurrency and synthetic credentials
 - [ ] Abort below 250 target or on real-data configuration
@@ -1251,10 +1284,11 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 ## Implementation steps
 
 - [ ] Seed synthetic portfolio
-- [ ] Record baseline deployment
-- [ ] Run controlled load
-- [ ] Capture sample count/p90/p95/error
+- [ ] Record the single baseline deployment
+- [ ] Run controlled load once
+- [ ] Capture and freeze sample count/p90/p95/error plus UTC window bounds
 - [ ] Store only sanitized aggregate fixture
+- [ ] Make reset scripts reject baseline deletion or regeneration
 
 ## Telemetry and integration contract
 
@@ -1271,8 +1305,9 @@ Produces LMS request/JDBC traces in the configured baseline window.
 
 - [ ] At least 200 completed spans
 - [ ] Target 250 provides margin
-- [ ] Exact baseline SHA/filter recorded
-- [ ] Window is repeatable twice
+- [ ] Exact baseline SHA/filter/window and baseline_deployment_id are frozen
+- [ ] Candidate and recovery comparisons both reference this same baseline
+- [ ] Rehearsals regenerate only candidate/recovery windows
 
 ## Required evidence for closure
 
@@ -1292,7 +1327,7 @@ If 250 requests exceed laptop capacity, lengthen preparation time without loweri
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1307,6 +1342,7 @@ Query p90, p95, error rate, request count, and representative traces through one
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** signoz
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
 - **Depends on:** GL-P1-T03, GL-P4-T02
 - **Blocks:** GL-P4-T04, GL-P7-T01
@@ -1319,9 +1355,9 @@ Query p90, p95, error rate, request count, and representative traces through one
 - signoz/queries/
 - apps/api/src/modules/signoz/signoz.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Healthy, empty, malformed, timeout, 429, 5xx, and missing-series fixtures
 - [ ] No missing value becomes numeric zero
@@ -1371,7 +1407,7 @@ If v5 response shape differs, update only this adapter and fixture set.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1379,13 +1415,14 @@ This issue is done only when every acceptance item is checked, required tests pa
 
 ## Outcome
 
-Compute healthy, regressed, or insufficient status using explicit windows, 200-span floor, and transparent thresholds.
+Compute healthy, regressed, or insufficient status by comparing a candidate window to the single stored GL-P4-T02 baseline_deployment_id, using the 200-span floor and transparent thresholds.
 
 ## Planning metadata
 
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
 - **Depends on:** GL-P4-T03
 - **Blocks:** GL-P4-T05, GL-P5-T01, GL-P6-T01
@@ -1397,9 +1434,9 @@ Compute healthy, regressed, or insufficient status using explicit windows, 200-s
 - apps/api/src/modules/regressions/evaluator.test.ts
 - apps/api/src/routes/regressions.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Boundary tests for 1.5x and +250ms latency, +2pp and 5% error, sample floor, query failure, and p90 display
 - [ ] 409 baseline_required test
@@ -1407,10 +1444,10 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 ## Implementation steps
 
 - [ ] Write table-driven rules
-- [ ] Resolve explicit/automatic baseline
-- [ ] Query both windows
+- [ ] Resolve the immutable stored baseline rather than an immediately preceding window
+- [ ] Query the frozen baseline and current candidate windows
 - [ ] Preserve raw aggregates
-- [ ] Persist reasons and versions
+- [ ] Persist baseline_deployment_id, reasons, and versions
 - [ ] Return typed status
 
 ## Telemetry and integration contract
@@ -1427,6 +1464,7 @@ Queries SigNoz and emits greenlight.regression.status on API spans.
 ## Acceptance criteria
 
 - [ ] No verdict below 200 spans
+- [ ] Candidate comparison references the frozen baseline_deployment_id
 - [ ] Both latency conditions are required
 - [ ] Error rule is exact
 - [ ] Thresholds are returned to UI
@@ -1450,7 +1488,7 @@ If the controlled error band is unstable, retain latency-only status and suppres
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1465,6 +1503,7 @@ Ensure a recovery deployment compares to the original good baseline rather than 
 - **Phase:** 4
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P4-T04
 - **Blocks:** GL-P5-T02, GL-P5-T05, GL-P6-T02
@@ -1475,9 +1514,9 @@ Ensure a recovery deployment compares to the original good baseline rather than 
 - apps/api/src/modules/regressions/baseline-resolver.ts
 - apps/api/src/modules/regressions/recovery.test.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Explicit baseline validation
 - [ ] Newest valid baseline selection
@@ -1529,7 +1568,7 @@ Allow explicit override only after strict identity and ordering validation.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1542,12 +1581,13 @@ Dogfood SigNoz by tracing GreenLight health, sync, deployment, evaluation, and r
 ## Planning metadata
 
 - **Phase:** 4
-- **Priority:** P0
+- **Priority:** P1
 - **Component:** telemetry
+- **Verification:** smoke_verified
 - **Estimate:** 60 focused minutes
 - **Depends on:** GL-P3-T01, GL-P1-T01
-- **Blocks:** GL-P6-T03
-- **Labels:** phase:4, priority:p0, component:telemetry, type:implementation
+- **Blocks:** None
+- **Labels:** phase:4, priority:p1, component:telemetry, type:implementation
 
 ## Expected files
 
@@ -1555,9 +1595,9 @@ Dogfood SigNoz by tracing GreenLight health, sync, deployment, evaluation, and r
 - apps/api/src/server.ts
 - signoz/dashboards/greenlight-self.json
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] In-memory exporter verifies service name, route, status, error redaction, and exporter shutdown
 - [ ] No auth header attributes
@@ -1607,7 +1647,7 @@ If auto-instrumentation adds sensitive attributes, install a processor that reda
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1625,6 +1665,7 @@ Return the latest changes with primary CI, deployment, regression, recovery, and
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** api
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P3-T03, GL-P4-T04
 - **Blocks:** GL-P5-T02, GL-P5-T03
@@ -1636,9 +1677,9 @@ Return the latest changes with primary CI, deployment, regression, recovery, and
 - apps/api/src/routes/changes.ts
 - packages/shared/src/contracts.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Fastify inject tests for linked/missing CI, no deployment, healthy, regressed, recovered, pagination, and auth-safe errors
 
@@ -1686,7 +1727,7 @@ If related workflow data is absent, return empty related count rather than fabri
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1701,8 +1742,9 @@ Produce one stable receipt containing identity, primary and related CI, deployme
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
-- **Depends on:** GL-P5-T01, GL-P4-T05
+- **Depends on:** GL-P5-T01, GL-P4-T05, GL-P3-T05
 - **Blocks:** GL-P5-T04
 - **Labels:** phase:5, priority:p0, component:api, type:implementation
 
@@ -1712,9 +1754,9 @@ Produce one stable receipt containing identity, primary and related CI, deployme
 - apps/api/src/modules/receipts/assembler.test.ts
 - apps/api/src/routes/receipts.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Full, missing-AI, secondary-CI, insufficient, regressed, recovered, and integration-error fixtures
 - [ ] GitHub links originate only from pipeline_runs
@@ -1763,7 +1805,7 @@ On partial integration failure, return available evidence with explicit unavaila
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1776,12 +1818,13 @@ Give a first-time user a scannable list of commit, AI-link, primary CI, deployme
 ## Planning metadata
 
 - **Phase:** 5
-- **Priority:** P0
+- **Priority:** P1
 - **Component:** web
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P5-T01
 - **Blocks:** None
-- **Labels:** phase:5, priority:p0, component:web, type:implementation
+- **Labels:** phase:5, priority:p1, component:web, type:implementation
 
 ## Expected files
 
@@ -1789,9 +1832,9 @@ Give a first-time user a scannable list of commit, AI-link, primary CI, deployme
 - apps/web/src/api/
 - apps/web/src/app/routes.tsx
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Component tests for loading, empty, error, missing AI, healthy, regressed, and recovered rows
 - [ ] Keyboard navigation and semantic-link tests
@@ -1840,7 +1883,7 @@ If styling time expands, keep semantic HTML and status clarity; defer decorative
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1855,6 +1898,7 @@ Visualize Claude → commit → reconstructed primary CI → deployment → inci
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** web
+- **Verification:** smoke_verified
 - **Estimate:** 120 focused minutes
 - **Depends on:** GL-P5-T02
 - **Blocks:** GL-P5-T05
@@ -1866,9 +1910,9 @@ Visualize Claude → commit → reconstructed primary CI → deployment → inci
 - apps/web/src/features/receipts/EvidenceTimeline.tsx
 - apps/web/src/features/receipts/CiSection.tsx
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Component tests for every timeline stage, reconstructed label, primary/related runs, broken links, and missing AI fallback
 
@@ -1917,7 +1961,7 @@ If a deep link format changes, hide only that link and retain trace/run IDs for 
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -1932,9 +1976,10 @@ Show before/after versions, p90/p95, errors, counts, transparent thresholds, rec
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** web
+- **Verification:** smoke_verified
 - **Estimate:** 105 focused minutes
 - **Depends on:** GL-P5-T04, GL-P4-T05
-- **Blocks:** GL-P6-T01
+- **Blocks:** GL-P7-T02
 - **Labels:** phase:5, priority:p0, component:web, type:implementation
 
 ## Expected files
@@ -1943,9 +1988,9 @@ Show before/after versions, p90/p95, errors, counts, transparent thresholds, rec
 - apps/web/src/features/receipts/RecoveryPanel.tsx
 - apps/web/src/features/receipts/Actions.tsx
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Boundary display tests, insufficient state, latency-only mode, recovered state, clipboard failure, and no-causation caveat
 
@@ -1995,7 +2040,7 @@ If clipboard permission fails, select and display the command for manual copy.
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -2013,8 +2058,9 @@ Produce a traced N+1/repeated-query commit that passes functional CI but reliabl
 - **Phase:** 6
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 120 focused minutes
-- **Depends on:** GL-P2-T04, GL-P4-T04, GL-P5-T05
+- **Depends on:** GL-P2-T04, GL-P4-T04
 - **Blocks:** GL-P6-T02, GL-P7-T01
 - **Labels:** phase:6, priority:p0, component:lms, type:implementation
 
@@ -2024,9 +2070,9 @@ Produce a traced N+1/repeated-query commit that passes functional CI but reliabl
 - scripts/demo-regression.sh
 - docs/EVIDENCE_LOG.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Existing LMS functional tests remain green
 - [ ] Load rehearsal crosses latency policy twice
@@ -2036,11 +2082,11 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 ## Implementation steps
 
 - [ ] Apply prepared change through Claude trace path
-- [ ] Commit and push
-- [ ] Sync primary CI
+- [ ] Commit while retaining the AI-Traceparent trailer; never clean it under the GreenLight human-only commit policy
+- [ ] Push and sync primary CI
 - [ ] Deploy candidate role
 - [ ] Generate 250 requests
-- [ ] Evaluate live
+- [ ] Evaluate live against the frozen baseline_deployment_id
 - [ ] Capture slow traces
 
 ## Telemetry and integration contract
@@ -2056,9 +2102,9 @@ LMS and reconstructed CI telemetry land in SigNoz; evaluation runs live.
 
 ## Acceptance criteria
 
-- [ ] Bad SHA is immutable
+- [ ] Bad SHA is immutable and retains its AI-Traceparent trailer
 - [ ] CI is green
-- [ ] Regression is repeatable
+- [ ] Regression is repeatable against the frozen baseline
 - [ ] Evidence is synthetic and privacy-safe
 - [ ] No threshold tuned to a lucky run
 
@@ -2080,7 +2126,7 @@ After one hour use disclosed fault flag; after 30 minutes of unstable errors swi
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -2095,6 +2141,7 @@ Restore the efficient query, deploy role=recovery, and prove metrics return to t
 - **Phase:** 6
 - **Priority:** P0
 - **Component:** lms
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
 - **Depends on:** GL-P6-T01, GL-P4-T05
 - **Blocks:** GL-P6-T03
@@ -2106,9 +2153,9 @@ Restore the efficient query, deploy role=recovery, and prove metrics return to t
 - scripts/demo-recover.sh
 - docs/EVIDENCE_LOG.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Functional tests pass
 - [ ] Recovery resolver reuses original baseline
@@ -2159,7 +2206,7 @@ If recovery misses bounds, inspect data/infra variance; do not loosen recovery t
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -2167,15 +2214,16 @@ This issue is done only when every acceptance item is checked, required tests pa
 
 ## Outcome
 
-Reset only transient deployment/evaluation state and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.
+Reset only candidate/recovery deployment and evaluation state—never the frozen baseline—and prove every dependency, credential presence, immutable trace, commit, route, and port before rehearsal.
 
 ## Planning metadata
 
 - **Phase:** 6
 - **Priority:** P0
 - **Component:** demo
+- **Verification:** smoke_verified
 - **Estimate:** 90 focused minutes
-- **Depends on:** GL-P6-T02, GL-P4-T06
+- **Depends on:** GL-P6-T02
 - **Blocks:** GL-P7-T02
 - **Labels:** phase:6, priority:p0, component:demo, type:implementation
 
@@ -2186,19 +2234,19 @@ Reset only transient deployment/evaluation state and prove every dependency, cre
 - scripts/demo-smoke.sh
 - docs/DEMO_STATE.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
-- [ ] Soft reset preserves changes/pipeline runs and SigNoz evidence
+- [ ] Soft reset preserves changes/pipeline runs, frozen baseline deployment/window, and SigNoz evidence
 - [ ] Unsafe DB/path fails
 - [ ] Hard reset requires explicit phrase
 - [ ] Preflight detects missing links/ports/SHAs
 
 ## Implementation steps
 
-- [ ] Implement allowlisted deletes
-- [ ] Protect immutable tables
+- [ ] Implement allowlisted candidate/recovery deletes
+- [ ] Protect baseline and immutable tables
 - [ ] Add path guards
 - [ ] Check primary CI/Claude trace targets
 - [ ] Check minimal services
@@ -2217,7 +2265,8 @@ Validates SigNoz UI/OTLP/MCP and required evidence.
 
 ## Acceptance criteria
 
-- [ ] Soft reset is repeatable
+- [ ] Soft reset is repeatable and regenerates only candidate/recovery windows
+- [ ] Frozen baseline_deployment_id remains unchanged
 - [ ] Hard reset prohibited in demo mode
 - [ ] No destructive broad target
 - [ ] Preflight gives actionable failures
@@ -2240,7 +2289,7 @@ Never clear SigNoz during demo window; if immutable evidence is missing, stop an
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -2256,12 +2305,13 @@ Run one fixed MCP prompt that independently compares the bad version and returns
 ## Planning metadata
 
 - **Phase:** 7
-- **Priority:** P0
+- **Priority:** P1
 - **Component:** signoz
+- **Verification:** smoke_verified
 - **Estimate:** 75 focused minutes
 - **Depends on:** GL-P6-T01, GL-P4-T03
-- **Blocks:** GL-P7-T02
-- **Labels:** phase:7, priority:p0, component:signoz, type:implementation
+- **Blocks:** None
+- **Labels:** phase:7, priority:p1, component:signoz, type:implementation
 
 ## Expected files
 
@@ -2269,9 +2319,9 @@ Run one fixed MCP prompt that independently compares the bad version and returns
 - docs/EVIDENCE_LOG.md
 - scripts/verify-mcp-result.mjs
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Fixture validator checks service, SHA, route, windows, p95/error fields, three trace IDs, and absence of causal wording
 
@@ -2320,7 +2370,7 @@ If live MCP latency is risky, show a captured successful result after stating it
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---
 
@@ -2335,8 +2385,9 @@ Deliver a reproducible, provenance-safe, sub-four-minute submission with a succe
 - **Phase:** 7
 - **Priority:** P0
 - **Component:** docs
+- **Verification:** smoke_verified
 - **Estimate:** 120 focused minutes
-- **Depends on:** GL-P6-T03, GL-P7-T01
+- **Depends on:** GL-P6-T03, GL-P5-T05
 - **Blocks:** None
 - **Labels:** phase:7, priority:p0, component:docs, type:docs
 
@@ -2348,9 +2399,9 @@ Deliver a reproducible, provenance-safe, sub-four-minute submission with a succe
 - docs/DEMO_SCRIPT.md
 - docs/SUBMISSION_CHECKLIST.md
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Smoke-verified integration applies. Write deterministic validation scripts or fixture checks before configuration where practical; capture before/after failure evidence, but do not manufacture a unit-test seam solely for ceremony.
 
 - [ ] Required unit/integration/component/hook/build/telemetry gates pass
 - [ ] Two full rehearsals pass without edits
@@ -2369,7 +2420,7 @@ Follow Red–Green–Refactor. Demonstrate the expected failing test before impl
 
 ## Telemetry and integration contract
 
-Final demo shows SigNoz dashboards, links, MCP, and GreenLight self-observability.
+Final demo always shows SigNoz dashboards and links; MCP and GreenLight self-observability appear when their P1 tasks were retained.
 
 ## Security and privacy
 
@@ -2404,6 +2455,6 @@ If cosmetic work threatens the buffer, freeze the backup recording and submit th
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.
 
 ---

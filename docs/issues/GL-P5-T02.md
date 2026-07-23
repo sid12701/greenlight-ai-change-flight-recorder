@@ -9,8 +9,9 @@ Produce one stable receipt containing identity, primary and related CI, deployme
 - **Phase:** 5
 - **Priority:** P0
 - **Component:** api
+- **Verification:** strict_tdd
 - **Estimate:** 120 focused minutes
-- **Depends on:** GL-P5-T01, GL-P4-T05
+- **Depends on:** GL-P5-T01, GL-P4-T05, GL-P3-T05
 - **Blocks:** GL-P5-T04
 - **Labels:** phase:5, priority:p0, component:api, type:implementation
 
@@ -20,9 +21,9 @@ Produce one stable receipt containing identity, primary and related CI, deployme
 - apps/api/src/modules/receipts/assembler.test.ts
 - apps/api/src/routes/receipts.ts
 
-## Test-first contract
+## Verification contract
 
-Follow Red–Green–Refactor. Demonstrate the expected failing test before implementation, but do not commit a failing main branch.
+Strict Red–Green–Refactor applies. Demonstrate the smallest deterministic failing test before implementation, but do not commit a failing main branch.
 
 - [ ] Full, missing-AI, secondary-CI, insufficient, regressed, recovered, and integration-error fixtures
 - [ ] GitHub links originate only from pipeline_runs
@@ -71,4 +72,4 @@ On partial integration failure, return available evidence with explicit unavaila
 
 ## Definition of done
 
-This issue is done only when every acceptance item is checked, required tests pass, evidence is posted in the issue, no unrelated files are included, and the commit is authored under the human maintainer's verified identity without AI co-author trailers.
+This issue is done only when every acceptance item is checked, required verification passes, evidence is posted in the issue, no unrelated files are included, and the GreenLight commit is authored under the human maintainer's verified identity without AI co-author trailers. LMS demonstration commits explicitly requiring `AI-Traceparent` must retain that product-evidence trailer.

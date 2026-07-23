@@ -31,7 +31,7 @@ if (new Set(issues.map((x) => x.id)).size !== issues.length) throw new Error("Du
 for (const issue of issues) {
   if (!exists(issue.body_file)) throw new Error(`Missing issue body: ${issue.body_file}`);
   const body = read(issue.body_file);
-  for (const heading of ["## Outcome", "## Test-first contract", "## Implementation steps", "## Acceptance criteria", "## Required evidence for closure", "## Fallback / pivot", "## Suggested atomic commit"]) {
+  for (const heading of ["## Outcome", "## Verification contract", "## Implementation steps", "## Acceptance criteria", "## Required evidence for closure", "## Fallback / pivot", "## Suggested atomic commit"]) {
     if (!body.includes(heading)) throw new Error(`${issue.id} missing ${heading}`);
   }
 }
@@ -56,5 +56,8 @@ for (const pattern of forbidden) {
 if (!read("README.md").includes("AI assistance disclosure")) throw new Error("README lacks AI disclosure");
 if (!read("PROVENANCE.md").includes("Pre-existing work")) throw new Error("PROVENANCE lacks pre-existing work");
 if (!read("docs/COMMIT_STRATEGY.md").includes("sid12701")) throw new Error("Commit identity is not sid12701");
+if ((read("TASKS.yaml").match(/priority: p1/g) ?? []).length !== 3) throw new Error("Expected exactly three pre-declared P1 sacrifice tasks");
+if ((read("TASKS.yaml").match(/verification: strict_tdd/g) ?? []).length !== 10) throw new Error("Expected ten strict-TDD logic tasks");
+if (!read("docs/DEPENDENCY_GRAPH.md").includes("incident tuning begins as soon as the evaluator is ready")) throw new Error("Dependency graph does not expose the Phase 6/UI overlap");
 
 console.log(`Planning validation passed: ${issues.length} unique tracer-bullet issues.`);
