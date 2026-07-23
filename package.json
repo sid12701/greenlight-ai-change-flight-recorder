@@ -1,0 +1,25 @@
+{
+  "name": "greenlight",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "validate:config": "node scripts/validate-config-contract.mjs",
+    "validate:planning": "node scripts/validate-planning.mjs",
+    "smoke:signoz": "bash scripts/signoz-smoke.sh",
+    "smoke:backdated": "node scripts/backdated-span-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/resources": "^2.10.0",
+    "@opentelemetry/sdk-trace-base": "^2.10.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0"
+  }
+}
