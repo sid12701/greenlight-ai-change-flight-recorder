@@ -11,7 +11,11 @@
     "validate:planning": "node scripts/validate-planning.mjs",
     "validate:telemetry": "node scripts/validate-telemetry-contract.mjs",
     "smoke:signoz": "bash scripts/signoz-smoke.sh",
-    "smoke:backdated": "node scripts/backdated-span-smoke.mjs"
+    "smoke:backdated": "node scripts/backdated-span-smoke.mjs",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify": "npm run typecheck && npm test && npm run build"
   },
   "engines": {
     "node": ">=20"
