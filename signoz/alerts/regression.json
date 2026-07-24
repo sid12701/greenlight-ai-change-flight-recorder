@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "v1",
+  "alert": "GreenLight — candidate p95 regression",
+  "alertType": "TRACES_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "evalWindow": "5m",
+  "frequency": "1m",
+  "condition": {
+    "compositeQuery": {
+      "schemaVersion": "v1",
+      "queryType": "builder",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "disabled": false,
+            "aggregations": [
+              {
+                "expression": "p95(duration_nano)"
+              }
+            ],
+            "filter": {
+              "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route"
+            }
+          }
+        }
+      ]
+    },
+    "op": ">",
+    "target": 500000000,
+    "matchType": "1",
+    "selectedQueryName": "A",
+    "targetUnit": "ns"
+  },
+  "labels": {
+    "severity": "critical",
+    "owner": "greenlight"
+  },
+  "annotations": {
+    "summary": "Candidate service.version p95 latency exceeded the regression threshold on the evaluated route.",
+    "description": "Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain."
+  },
+  "preferredChannels": []
+}

@@ -1,19 +1,19 @@
 {
   "schemaVersion": "v6",
-  "name": "greenlight-self-observability",
+  "name": "greenlight-pipeline-health",
   "spec": {
     "display": {
-      "name": "GreenLight \u2014 Self Observability",
-      "description": "GreenLight's own API and worker telemetry: request volume, latency, errors and background job outcomes."
+      "name": "GreenLight \u2014 Pipeline Health",
+      "description": "Reconstructed GitHub Actions telemetry exported by the GreenLight worker: run volume, duration and failures per workflow."
     },
     "variables": [],
     "panels": {
-      "api-requests": {
+      "runs-by-workflow": {
         "kind": "Panel",
         "spec": {
           "display": {
-            "name": "API requests by route",
-            "description": "Server spans handled by the GreenLight API."
+            "name": "Reconstructed runs by workflow",
+            "description": "Root spans of reconstructed workflow runs."
           },
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
@@ -35,11 +35,11 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api'"
+                      "expression": "service.name = 'greenlight-ci' AND name LIKE 'Reconstructed GitHub Actions:%'"
                     },
                     "groupBy": [
                       {
-                        "name": "http.route",
+                        "name": "cicd.pipeline.name",
                         "fieldDataType": "string",
                         "fieldContext": "attribute"
                       }
@@ -51,12 +51,12 @@
           ]
         }
       },
-      "api-latency": {
+      "run-duration-p95": {
         "kind": "Panel",
         "spec": {
           "display": {
-            "name": "API latency p95",
-            "description": "p95 duration of GreenLight API server spans."
+            "name": "Workflow run duration p95",
+            "description": "p95 wall-clock duration of reconstructed workflow runs."
           },
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
@@ -78,7 +78,7 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api'"
+                      "expression": "service.name = 'greenlight-ci' AND name LIKE 'Reconstructed GitHub Actions:%'"
                     }
                   }
                 }
@@ -87,12 +87,12 @@
           ]
         }
       },
-      "api-errors": {
+      "failed-steps": {
         "kind": "Panel",
         "spec": {
           "display": {
-            "name": "API server errors",
-            "description": "GreenLight API spans that failed. Client input rejections are not counted as errors."
+            "name": "Failed steps",
+            "description": "Reconstructed step spans whose GitHub conclusion was a failure."
           },
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
@@ -114,47 +114,11 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api' AND has_error = true"
-                    }
-                  }
-                }
-              }
-            }
-          ]
-        }
-      },
-      "worker-jobs": {
-        "kind": "Panel",
-        "spec": {
-          "display": {
-            "name": "Worker jobs by kind",
-            "description": "Background job spans emitted by the GreenLight worker."
-          },
-          "plugin": {
-            "kind": "signoz/TimeSeriesPanel",
-            "spec": {}
-          },
-          "queries": [
-            {
-              "kind": "time_series",
-              "spec": {
-                "plugin": {
-                  "kind": "signoz/BuilderQuery",
-                  "spec": {
-                    "name": "A",
-                    "signal": "traces",
-                    "disabled": false,
-                    "aggregations": [
-                      {
-                        "expression": "count()"
-                      }
-                    ],
-                    "filter": {
-                      "expression": "service.name = 'greenlight-worker' AND name LIKE 'job %'"
+                      "expression": "service.name = 'greenlight-ci' AND has_error = true"
                     },
                     "groupBy": [
                       {
-                        "name": "greenlight.job.kind",
+                        "name": "github.step.name",
                         "fieldDataType": "string",
                         "fieldContext": "attribute"
                       }
@@ -166,12 +130,12 @@
           ]
         }
       },
-      "worker-failures": {
+      "slowest-jobs": {
         "kind": "Panel",
         "spec": {
           "display": {
-            "name": "Worker job failures",
-            "description": "Job spans that ended in an error status, grouped by job kind."
+            "name": "Job duration p95",
+            "description": "p95 duration of reconstructed job spans, to locate the slowest stage."
           },
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
@@ -189,15 +153,15 @@
                     "disabled": false,
                     "aggregations": [
                       {
-                        "expression": "count()"
+                        "expression": "p95(duration_nano)"
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-worker' AND has_error = true"
+                      "expression": "service.name = 'greenlight-ci' AND name LIKE 'job:%'"
                     },
                     "groupBy": [
                       {
-                        "name": "greenlight.job.kind",
+                        "name": "cicd.pipeline.task.name",
                         "fieldDataType": "string",
                         "fieldContext": "attribute"
                       }
@@ -223,7 +187,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/api-requests"
+                "$ref": "#/spec/panels/runs-by-workflow"
               }
             },
             {
@@ -232,7 +196,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/api-latency"
+                "$ref": "#/spec/panels/run-duration-p95"
               }
             },
             {
@@ -241,7 +205,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/api-errors"
+                "$ref": "#/spec/panels/failed-steps"
               }
             },
             {
@@ -250,16 +214,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/worker-jobs"
-              }
-            },
-            {
-              "x": 0,
-              "y": 12,
-              "width": 6,
-              "height": 6,
-              "content": {
-                "$ref": "#/spec/panels/worker-failures"
+                "$ref": "#/spec/panels/slowest-jobs"
               }
             }
           ]
