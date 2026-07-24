@@ -1,0 +1,93 @@
+name: greenlight
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    image: greenlight-api:0.1.0
+    command: ["node", "apps/api/dist/server.js"]
+    env_file:
+      - ../.env
+    environment:
+      GREENLIGHT_HOST: 0.0.0.0
+      GREENLIGHT_DATABASE_PATH: /app/data/greenlight.db
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - greenlight-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/worker.Dockerfile
+    image: greenlight-worker:0.1.0
+    command: ["node", "apps/api/dist/worker.js"]
+    env_file:
+      - ../.env
+    environment:
+      GREENLIGHT_DATABASE_PATH: /app/data/greenlight.db
+    volumes:
+      - greenlight-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    image: greenlight-web:0.1.0
+    ports:
+      - "127.0.0.1:4173:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=16m
+      - /var/run:size=4m
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          memory: 32M
+
+volumes:
+  greenlight-data: {}

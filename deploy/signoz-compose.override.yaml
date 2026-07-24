@@ -1,0 +1,73 @@
+services:
+  ingester:
+    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set a signed signoz-otel-collector image by digest}
+    ports: !override
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  signoz-mcp:
+    image: ${SIGNOZ_MCP_IMAGE:?Set a signed signoz-mcp-server image by digest}
+    ports: !override
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      signoz-signoz-0:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  signoz-metastore-postgres-0:
+    environment: !override
+      POSTGRES_DB: signoz
+      POSTGRES_USER: signoz
+      POSTGRES_PASSWORD: ${SIGNOZ_POSTGRES_PASSWORD:?Set SIGNOZ_POSTGRES_PASSWORD through a secret source}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  signoz-signoz-0:
+    image: ${SIGNOZ_IMAGE:?Set a signed SigNoz image by digest}
+    environment: !override
+      SIGNOZ_SQLSTORE_PROVIDER: postgres
+      SIGNOZ_SQLSTORE_POSTGRES_DSN: postgres://signoz:${SIGNOZ_POSTGRES_PASSWORD}@signoz-metastore-postgres-0:5432/signoz?sslmode=disable
+      SIGNOZ_TELEMETRYSTORE_PROVIDER: clickhouse
+      SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN: tcp://signoz-telemetrystore-clickhouse-0-0:9000
+      SIGNOZ_JWT_SECRET: ${SIGNOZ_JWT_SECRET:?Set SIGNOZ_JWT_SECRET through a secret source}
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      signoz-metastore-postgres-0:
+        condition: service_healthy
+      signoz-telemetrystore-clickhouse-0-0:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  signoz-telemetrykeeper-clickhousekeeper-0:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  signoz-telemetrystore-clickhouse-0-0:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+
+  signoz-telemetrystore-migrator:
+    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set a signed signoz-otel-collector image by digest}
