@@ -1,73 +1,73 @@
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+/**
+ * The only supported path from GreenLight to SigNoz.
+ *
+ * Every method distinguishes three outcomes, because an evidence product must
+ * never present "the dependency failed" as "the evidence is absent":
+ *
+ * - a value, when SigNoz answered;
+ * - an explicit absence (`null` / `false` / `[]`), when SigNoz answered that
+ *   nothing matched;
+ * - a thrown `SignozIntegrationError`, when SigNoz could not be reached,
+ *   rejected the credential, or returned a response we do not recognise.
+ */
+import {
+  buildCredentialProbeRequest,
+  buildSlowTraceRequest,
+  buildTraceVerificationRequest,
+  buildWindowMetricsRequest,
+  nanosecondsToMilliseconds,
+  readGroupValues,
+  readRawColumn,
+  readScalarAggregation,
+  sumScalarAggregation,
+  type QueryRangeRequest,
+  type QueryWindow,
+} from "./query.js";
 
-const execFileAsync = promisify(execFile);
-
-const queriesDir = join(dirname(fileURLToPath(import.meta.url)), "../../../../../signoz/queries");
-
-export interface QueryWindow {
-  serviceName: string;
-  serviceVersion: string;
-  environmentName: string;
-  route: string;
-  startMs: number;
-  endMs: number;
-}
+export type { QueryWindow, TelemetryScope } from "./query.js";
+export { QueryWindowSchema } from "./query.js";
 
 export class SignozIntegrationError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly code:
+      | "signoz_unauthorized"
+      | "signoz_unavailable"
+      | "signoz_invalid_request"
+      | "signoz_invalid_response" = "signoz_unavailable",
+    readonly retryable = true,
+  ) {
     super(message);
     this.name = "SignozIntegrationError";
   }
 }
 
-function loadTemplate(name: string) {
-  return readFileSync(join(queriesDir, name), "utf8");
-}
-
-export function renderQueryTemplate(templateName: string, window: QueryWindow) {
-  return loadTemplate(templateName)
-    .replaceAll("{{serviceName}}", window.serviceName)
-    .replaceAll("{{serviceVersion}}", window.serviceVersion)
-    .replaceAll("{{environmentName}}", window.environmentName)
-    .replaceAll("{{route}}", window.route)
-    .replaceAll("{{startMs}}", String(window.startMs))
-    .replaceAll("{{endMs}}", String(window.endMs));
-}
-
-export interface SignozQueryResult {
+export interface WindowMetrics {
   requestCount: number | null;
+  errorCount: number | null;
   p90Ms: number | null;
   p95Ms: number | null;
-  errorRate: number | null;
-  integrationError?: string;
+  errorRatePercent: number | null;
 }
 
-export function parseScalarSeries(payload: unknown): number | null {
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
-  const data = payload as { data?: { result?: Array<{ series?: Array<{ values?: Array<{ value: string }> }> }> } };
-  const values = data.data?.result?.[0]?.series?.[0]?.values;
-  if (!values?.length) {
-    return null;
-  }
-  const numeric = Number(values.at(-1)?.value);
-  return Number.isFinite(numeric) ? numeric : null;
+export interface TraceVerification {
+  spanCount: number;
+  services: string[];
+  spanPresent: boolean | null;
 }
 
-export function parseRequestCount(payload: unknown): number | null {
-  const value = parseScalarSeries(payload);
-  return value === null ? null : Math.round(value);
+export interface SignozClientOptions {
+  fetchImpl?: typeof fetch;
+  sleepImpl?: (milliseconds: number) => Promise<void>;
+  randomImpl?: () => number;
+  nowImpl?: () => number;
+  deploymentDashboardId?: string;
+  /** Total attempts per request, including the first. */
+  maxAttempts?: number;
+  requestTimeoutMs?: number;
 }
 
-export function parseLatencyMs(payload: unknown): number | null {
-  const nanos = parseScalarSeries(payload);
-  return nanos === null ? null : nanos / 1_000_000;
-}
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export function computeErrorRatePercent(
   requestCount: number | null,
@@ -79,207 +79,227 @@ export function computeErrorRatePercent(
   return (errorCount / requestCount) * 100;
 }
 
-export function parseTraceIds(payload: unknown, limit = 3): string[] {
-  if (!payload || typeof payload !== "object") {
-    return [];
-  }
-
-  const data = payload as {
-    data?: {
-      result?: Array<{
-        table?: { records?: Array<{ data?: Record<string, string> }> };
-        series?: Array<{ labels?: Record<string, string> }>;
-      }>;
-    };
-  };
-
-  const traceIds: string[] = [];
-  for (const result of data.data?.result ?? []) {
-    for (const record of result.table?.records ?? []) {
-      const traceId =
-        record.data?.traceID ??
-        record.data?.traceId ??
-        record.data?.trace_id ??
-        record.data?.["trace.id"];
-      if (traceId && !traceIds.includes(traceId)) {
-        traceIds.push(traceId);
-      }
-    }
-    for (const series of result.series ?? []) {
-      const traceId = series.labels?.traceID ?? series.labels?.traceId ?? series.labels?.["trace.id"];
-      if (traceId && !traceIds.includes(traceId)) {
-        traceIds.push(traceId);
-      }
-    }
-  }
-
-  return traceIds.slice(0, limit);
-}
-
 export class SignozClient {
+  private readonly fetchImpl: typeof fetch;
+  private readonly sleepImpl: (milliseconds: number) => Promise<void>;
+  private readonly randomImpl: () => number;
+  private readonly nowImpl: () => number;
+  private readonly maxAttempts: number;
+  private readonly requestTimeoutMs: number;
+
   constructor(
     private readonly baseUrl: string,
     private readonly apiKey: string,
-    private readonly fetchImpl: typeof fetch = fetch,
-  ) {}
+    private readonly options: SignozClientOptions = {},
+  ) {
+    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.sleepImpl = options.sleepImpl ??
+      ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+    this.randomImpl = options.randomImpl ?? Math.random;
+    this.nowImpl = options.nowImpl ?? Date.now;
+    this.maxAttempts = options.maxAttempts ?? 3;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
+  }
 
-  async queryRange(body: string): Promise<unknown> {
-    let lastError: Error | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+  private backoffMs(attempt: number, retryAfterHeader: string | null): number {
+    const retryAfterSeconds = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+      return Math.min(retryAfterSeconds * 1_000, 10_000);
+    }
+    const exponential = Math.min(250 * 2 ** attempt, 2_000);
+    return exponential + Math.floor(this.randomImpl() * 100);
+  }
+
+  async queryRange(request: QueryRangeRequest): Promise<unknown> {
+    const body = JSON.stringify(request);
+    let lastError = new SignozIntegrationError("SigNoz query was never attempted");
+
+    for (let attempt = 0; attempt < this.maxAttempts; attempt += 1) {
+      let response: Response;
       try {
-        const response = await this.fetchImpl(`${this.baseUrl}/api/v5/query_range`, {
+        response = await this.fetchImpl(new URL("/api/v5/query_range", this.baseUrl), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "SIGNOZ-API-KEY": this.apiKey,
-          },
+          headers: { "Content-Type": "application/json", "SIGNOZ-API-KEY": this.apiKey },
           body,
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(this.requestTimeoutMs),
         });
-        if (response.status === 429 || response.status >= 500) {
-          lastError = new SignozIntegrationError(`SigNoz query failed with ${response.status}`);
-          continue;
-        }
-        if (!response.ok) {
-          throw new SignozIntegrationError(`SigNoz query failed with ${response.status}`);
-        }
-        return response.json();
       } catch (error) {
-        lastError = error instanceof Error ? error : new SignozIntegrationError("SigNoz query failed");
-        if (attempt === 0) {
-          continue;
+        lastError = new SignozIntegrationError(
+          `SigNoz request failed: ${error instanceof Error ? error.message : "unknown transport error"}`,
+        );
+        if (attempt < this.maxAttempts - 1) {
+          await this.sleepImpl(this.backoffMs(attempt, null));
         }
+        continue;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new SignozIntegrationError(
+          `SigNoz rejected the configured API key (HTTP ${response.status})`,
+          "signoz_unauthorized",
+          false,
+        );
+      }
+      if (response.status === 400 || response.status === 422) {
+        throw new SignozIntegrationError(
+          `SigNoz rejected the query as invalid (HTTP ${response.status})`,
+          "signoz_invalid_request",
+          false,
+        );
+      }
+      if (RETRYABLE_STATUS.has(response.status)) {
+        lastError = new SignozIntegrationError(`SigNoz returned HTTP ${response.status}`);
+        if (attempt < this.maxAttempts - 1) {
+          await this.sleepImpl(this.backoffMs(attempt, response.headers.get("retry-after")));
+        }
+        continue;
+      }
+      if (!response.ok) {
+        throw new SignozIntegrationError(
+          `SigNoz returned HTTP ${response.status}`,
+          "signoz_unavailable",
+          false,
+        );
+      }
+
+      try {
+        return await response.json();
+      } catch {
+        throw new SignozIntegrationError(
+          "SigNoz returned a body that is not valid JSON",
+          "signoz_invalid_response",
+          false,
+        );
       }
     }
-    throw lastError ?? new SignozIntegrationError("SigNoz query failed");
+
+    throw lastError;
   }
 
-  async queryWindow(window: QueryWindow): Promise<SignozQueryResult> {
-    try {
-      const [countPayload, p95Payload, errorCountPayload] = await Promise.all([
-        this.queryRange(renderQueryTemplate("request-count.json", window)),
-        this.queryRange(renderQueryTemplate("observed-p95.json", window)),
-        this.queryRange(renderQueryTemplate("error-count.json", window)),
-      ]);
-      const requestCount = parseRequestCount(countPayload);
-      const errorCount = parseRequestCount(errorCountPayload);
-      const p95Ms = parseLatencyMs(p95Payload);
-      return {
-        requestCount,
-        p90Ms: p95Ms,
-        p95Ms,
-        errorRate: computeErrorRatePercent(requestCount, errorCount),
-      };
-    } catch {
-      return this.queryWindowViaClickHouse(window);
-    }
-  }
-
-  private async queryClickHouse(sql: string): Promise<string> {
-    const container =
-      process.env.SIGNOZ_CLICKHOUSE_CONTAINER ?? "signoz-telemetrystore-clickhouse-0-0";
-    const { stdout } = await execFileAsync("docker", [
-      "exec",
-      container,
-      "clickhouse-client",
-      "--query",
-      sql,
-    ]);
-    return stdout.trim();
-  }
-
-  private async queryWindowViaClickHouse(window: QueryWindow): Promise<SignozQueryResult> {
-    try {
-      let result = await this.queryWindowSlice(window);
-      if ((result.requestCount ?? 0) < 200) {
-        result = await this.queryWindowSlice({
-          ...window,
-          startMs: Date.now() - 20 * 60 * 1000,
-          endMs: Date.now(),
-        });
-      }
-      return result;
-    } catch (error) {
-      return {
-        requestCount: null,
-        p90Ms: null,
-        p95Ms: null,
-        errorRate: null,
-        integrationError: error instanceof Error ? error.message : "integration_error",
-      };
-    }
-  }
-
-  private async queryWindowSlice(window: QueryWindow): Promise<SignozQueryResult> {
-    const filters = `
-      resources_string['service.name'] = '${window.serviceName}'
-      AND resources_string['service.version'] = '${window.serviceVersion}'
-      AND attributes_string['http.route'] = '${window.route}'
-      AND timestamp >= fromUnixTimestamp64Milli(${window.startMs})
-      AND timestamp <= fromUnixTimestamp64Milli(${window.endMs})
-    `;
-    const [requestCountRaw, p95Raw, errorCountRaw] = await Promise.all([
-      this.queryClickHouse(`SELECT count() FROM signoz_traces.distributed_signoz_index_v3 WHERE ${filters}`),
-      this.queryClickHouse(
-        `SELECT quantile(0.95)(duration_nano) / 1000000 FROM signoz_traces.distributed_signoz_index_v3 WHERE ${filters}`,
-      ),
-      this.queryClickHouse(
-        `SELECT countIf(status_code = 2) FROM signoz_traces.distributed_signoz_index_v3 WHERE ${filters}`,
-      ),
-    ]);
-    const requestCount = Number(requestCountRaw);
-    const errorCount = Number(errorCountRaw);
-    const p95Ms = Number(p95Raw);
+  /**
+   * Request count, p90, p95 and error rate for one immutable window.
+   *
+   * `null` fields mean SigNoz reported no matching spans. Callers must treat
+   * that as `insufficient_data`, never as zero.
+   */
+  async queryWindow(window: QueryWindow): Promise<WindowMetrics> {
+    const payload = await this.queryRange(buildWindowMetricsRequest(window));
+    const rawCount = readScalarAggregation(payload, "A", 0);
+    const p90Nanos = readScalarAggregation(payload, "A", 1);
+    const p95Nanos = readScalarAggregation(payload, "A", 2);
+    // A zero count with no percentiles means the window matched nothing at
+    // all. Reporting that as "0 requests" invites a caller to treat it as a
+    // measurement; it is an absence, and every field must say so.
+    const requestCount = rawCount === 0 && p95Nanos === null ? null : rawCount;
+    // SigNoz omits the row entirely when no error spans matched; for a window
+    // that did serve traffic, that is a genuine zero rather than missing data.
+    const errorCount = readScalarAggregation(payload, "B", 0) ?? (requestCount === null ? null : 0);
     return {
-      requestCount: Number.isFinite(requestCount) ? Math.round(requestCount) : null,
-      p90Ms: Number.isFinite(p95Ms) ? p95Ms : null,
-      p95Ms: Number.isFinite(p95Ms) ? p95Ms : null,
-      errorRate: computeErrorRatePercent(
-        Number.isFinite(requestCount) ? Math.round(requestCount) : null,
-        Number.isFinite(errorCount) ? Math.round(errorCount) : null,
-      ),
+      requestCount: requestCount === null ? null : Math.round(requestCount),
+      errorCount: errorCount === null ? null : Math.round(errorCount),
+      p90Ms: nanosecondsToMilliseconds(p90Nanos),
+      p95Ms: nanosecondsToMilliseconds(p95Nanos),
+      errorRatePercent: computeErrorRatePercent(requestCount, errorCount),
     };
   }
 
-  async querySlowTraces(window: QueryWindow, limit = 3): Promise<string[]> {
-    try {
-      const payload = await this.queryRange(renderQueryTemplate("slow-traces.json", window));
-      const traceIds = parseTraceIds(payload, limit);
-      if (traceIds.length >= limit) {
-        return traceIds;
-      }
-    } catch {
-      // fall through to ClickHouse
+  async querySlowTraceIds(window: QueryWindow, limit = 3): Promise<string[]> {
+    const payload = await this.queryRange(buildSlowTraceRequest(window, limit));
+    return readRawColumn(payload, "A", "trace_id").slice(0, limit);
+  }
+
+  /**
+   * Resolves a trace in SigNoz. Returns the observed shape so callers can
+   * apply their own expectations; a missing trace yields `spanCount: 0`.
+   */
+  async describeTrace(input: {
+    traceId: string;
+    spanId?: string;
+    startMs: number;
+    endMs: number;
+  }): Promise<TraceVerification> {
+    const payload = await this.queryRange(buildTraceVerificationRequest(input));
+    return {
+      spanCount: sumScalarAggregation(payload, "A"),
+      services: readGroupValues(payload, "A"),
+      spanPresent: input.spanId === undefined
+        ? null
+        : sumScalarAggregation(payload, "B") > 0,
+    };
+  }
+
+  /**
+   * True only when the trace resolves and satisfies every stated expectation.
+   * Integration failures propagate so that "SigNoz is down" is never recorded
+   * as "the trace does not exist".
+   */
+  async verifyTrace(input: {
+    traceId: string;
+    spanId?: string;
+    expectedServiceName?: string;
+    expectedSpanCount?: number;
+    startMs: number;
+    endMs: number;
+  }): Promise<boolean> {
+    const trace = await this.describeTrace(input);
+    if (trace.spanCount < (input.expectedSpanCount ?? 1)) {
+      return false;
     }
+    if (input.spanId !== undefined && trace.spanPresent !== true) {
+      return false;
+    }
+    if (input.expectedServiceName !== undefined && !trace.services.includes(input.expectedServiceName)) {
+      return false;
+    }
+    return true;
+  }
+
+  /** True when the exact deployed version is producing spans on the route. */
+  async isVersionVisible(window: QueryWindow): Promise<boolean> {
+    const metrics = await this.queryWindow(window);
+    return metrics.requestCount !== null && metrics.requestCount > 0;
+  }
+
+  /**
+   * Exercises the credentialed query path. A liveness probe that skips
+   * authentication would report a healthy dependency while every real query
+   * returns 401.
+   */
+  async checkHealth(): Promise<boolean> {
+    const probe = new SignozClient(this.baseUrl, this.apiKey, {
+      ...this.options,
+      maxAttempts: 1,
+      requestTimeoutMs: Math.min(this.requestTimeoutMs, 5_000),
+    });
     try {
-      const output = await this.queryClickHouse(`
-        SELECT trace_id FROM (
-          SELECT trace_id, max(duration_nano) AS max_duration
-          FROM signoz_traces.distributed_signoz_index_v3
-          WHERE resources_string['service.name'] = '${window.serviceName}'
-            AND resources_string['service.version'] = '${window.serviceVersion}'
-            AND timestamp >= fromUnixTimestamp64Milli(${window.startMs})
-            AND timestamp <= fromUnixTimestamp64Milli(${window.endMs})
-          GROUP BY trace_id
-          ORDER BY max_duration DESC
-          LIMIT ${limit}
-        )
-      `);
-      return output.split("\n").map((line) => line.trim()).filter(Boolean);
+      await probe.queryRange(buildCredentialProbeRequest(this.nowImpl()));
+      return true;
     } catch {
-      return [];
+      return false;
     }
   }
 
-  buildDashboardUrl(window: QueryWindow) {
-    const url = new URL("/dashboard/deployment-impact", this.baseUrl);
+  buildDashboardUrl(window: QueryWindow): string | null {
+    const dashboardId = this.options.deploymentDashboardId;
+    if (!dashboardId) {
+      return null;
+    }
+    const url = new URL(`/dashboard/${encodeURIComponent(dashboardId)}`, this.baseUrl);
     url.searchParams.set("service", window.serviceName);
     url.searchParams.set("version", window.serviceVersion);
+    url.searchParams.set("environment", window.environmentName);
     url.searchParams.set("route", window.route);
     return url.toString();
   }
 
-  buildTraceUrl(traceId: string) {
-    return new URL(`/trace/${traceId}`, this.baseUrl).toString();
+  buildTraceUrl(traceId: string): string {
+    if (!/^[0-9a-f]{32}$/i.test(traceId)) {
+      throw new SignozIntegrationError(
+        "Refusing to build a trace URL for a malformed trace ID",
+        "signoz_invalid_response",
+        false,
+      );
+    }
+    return new URL(`/trace/${traceId.toLowerCase()}`, this.baseUrl).toString();
   }
 }
