@@ -7,8 +7,8 @@ dist/
 coverage/
 playwright-report/
 test-results/
-data/*.db
-data/*.db-*
+**/data/*.db
+**/data/*.db-*
 pours/
 instrumentation/lms-java-agent/*.jar
 instrumentation/lms-java-agent/*.pid
