@@ -24,6 +24,7 @@ export interface NormalizedJob {
 
 export interface NormalizedWorkflowRun {
   providerRunId: string;
+  workflowId: number | null;
   workflowName: string;
   headSha: string;
   headBranch: string | null;
@@ -40,11 +41,20 @@ export function parseGitHubTimestamp(value: string | null | undefined): number |
   if (!value) {
     return null;
   }
-  return Date.parse(value);
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid GitHub timestamp: ${value}`);
+  }
+  return parsed;
 }
 
-export function toEpochNanos(epochMs: number): number {
-  return epochMs * 1_000_000;
+export function toHrTime(epochMs: number): [number, number] {
+  if (!Number.isFinite(epochMs) || epochMs < 0) {
+    throw new Error("Epoch milliseconds must be a non-negative finite number");
+  }
+  const seconds = Math.floor(epochMs / 1_000);
+  const nanoseconds = Math.floor((epochMs - seconds * 1_000) * 1_000_000);
+  return [seconds, nanoseconds];
 }
 
 export function durationMs(
@@ -106,6 +116,7 @@ export function normalizeWorkflowRun(
 
   return {
     providerRunId: String(run.id),
+    workflowId: run.workflow_id ?? null,
     workflowName: run.name,
     headSha: run.head_sha,
     headBranch: run.head_branch,

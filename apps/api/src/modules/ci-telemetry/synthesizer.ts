@@ -6,9 +6,12 @@ import {
 } from "@opentelemetry/api";
 import {
   BasicTracerProvider,
+  BatchSpanProcessor,
   InMemorySpanExporter,
-  SimpleSpanProcessor,
+  type SpanExporter,
 } from "@opentelemetry/sdk-trace-base";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import type { SpanContext } from "@greenlight/shared";
 import {
   findSlowestStep,
@@ -44,16 +47,22 @@ function toOtelContext(spanContext: SpanContext): OtelSpanContext {
   };
 }
 
-export function createCiTelemetryProvider(exporter: InMemorySpanExporter) {
+export function createCiTelemetryProvider(exporter: SpanExporter) {
   const provider = new BasicTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(exporter)],
+    resource: resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: "greenlight-ci",
+      "greenlight.telemetry.origin": "reconstructed",
+    }),
+    spanProcessors: [new BatchSpanProcessor(exporter)],
   });
   return provider;
 }
 
-export async function synthesizeCiTrace(input: SynthesizerInput): Promise<SynthesizerResult> {
-  const exporter = new InMemorySpanExporter();
-  const provider = createCiTelemetryProvider(exporter);
+export async function synthesizeCiTrace(
+  input: SynthesizerInput,
+  exporter?: SpanExporter,
+): Promise<SynthesizerResult> {
+  const provider = createCiTelemetryProvider(exporter ?? new InMemorySpanExporter());
   const tracer = provider.getTracer("greenlight-ci-synthesizer");
   const links: Link[] = [];
 
@@ -79,6 +88,7 @@ export async function synthesizeCiTrace(input: SynthesizerInput): Promise<Synthe
       },
     },
   );
+  const rootSpanContext = rootSpan.spanContext();
 
   const rootContext = trace.setSpan(context.active(), rootSpan);
 
@@ -131,25 +141,21 @@ export async function synthesizeCiTrace(input: SynthesizerInput): Promise<Synthe
 
   rootSpan.end(input.run.completedAtMs ?? undefined);
 
-  await provider.forceFlush();
-  const finished = exporter.getFinishedSpans();
-  await provider.shutdown();
-
-  const root = finished.find((span) => span.name.startsWith("Reconstructed GitHub Actions:"));
-  if (!root) {
-    throw new Error("Root span was not exported");
+  try {
+    await provider.forceFlush();
+  } finally {
+    await provider.shutdown();
   }
 
   return {
-    traceId: root.spanContext().traceId,
-    rootSpanId: root.spanContext().spanId,
-    spanCount: finished.length,
-    links: root.links,
+    traceId: rootSpanContext.traceId,
+    rootSpanId: rootSpanContext.spanId,
+    spanCount: 1 + input.run.jobs.reduce(
+      (count, job) => count + 1 + job.steps.length,
+      0,
+    ),
+    links,
   };
-}
-
-export function shouldSkipEmission(existingTraceId: string | null | undefined, force = false) {
-  return Boolean(existingTraceId) && !force;
 }
 
 export function buildNormalizedRunFromFixture(fixture: {

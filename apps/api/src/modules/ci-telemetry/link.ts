@@ -1,5 +1,5 @@
 import type { SpanContext } from "@greenlight/shared";
-import { Link } from "@opentelemetry/api";
+import { type Link } from "@opentelemetry/api";
 
 export function buildAiSpanLink(aiSpanContext: SpanContext | null | undefined): Link[] {
   if (!aiSpanContext) {

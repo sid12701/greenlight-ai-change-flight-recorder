@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildNormalizedRunFromFixture,
-  shouldSkipEmission,
   synthesizeCiTrace,
 } from "../src/modules/ci-telemetry/synthesizer.js";
 import {
@@ -59,12 +58,6 @@ describe("ci trace synthesizer", () => {
     });
     expect(result.links).toHaveLength(1);
     expect(result.links[0].context.traceId).toBe(aiContext.traceId);
-  });
-
-  it("skips emission when a trace id already exists", () => {
-    expect(shouldSkipEmission("abc123")).toBe(true);
-    expect(shouldSkipEmission(null)).toBe(false);
-    expect(shouldSkipEmission("abc123", true)).toBe(false);
   });
 });
 

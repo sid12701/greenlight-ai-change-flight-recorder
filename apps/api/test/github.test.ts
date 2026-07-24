@@ -7,7 +7,7 @@ import {
   findSlowestStep,
   normalizeWorkflowRun,
   parseGitHubTimestamp,
-  toEpochNanos,
+  toHrTime,
 } from "../src/modules/github/normalize.js";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures/github");
@@ -25,9 +25,10 @@ describe("github normalization", () => {
     expect(normalized.startedAtMs).toBe(Date.parse("2026-07-23T10:00:10+00:00"));
     expect(normalized.completedAtMs).toBe(Date.parse("2026-07-23T10:05:00+00:00"));
     expect(normalized.jobs[0].steps[1].durationMs).toBe(225_000);
-    expect(toEpochNanos(normalized.startedAtMs!)).toBe(
-      Date.parse("2026-07-23T10:00:10+00:00") * 1_000_000,
-    );
+    expect(toHrTime(normalized.startedAtMs!)).toEqual([
+      Math.floor(Date.parse("2026-07-23T10:00:10+00:00") / 1_000),
+      0,
+    ]);
   });
 
   it("finds the slowest step", () => {
@@ -36,7 +37,7 @@ describe("github normalization", () => {
     expect(findSlowestStep(normalized)?.name).toBe("Run tests");
   });
 
-  it("maps failed conclusions without requesting logs", async () => {
+  it("maps failed conclusions without requesting logs", () => {
     const fixture = loadFixture("backend-failed.json");
     const normalized = normalizeWorkflowRun(fixture.workflowRun, fixture.jobs.jobs);
     expect(normalized.conclusion).toBe("failure");
@@ -70,5 +71,39 @@ describe("github normalization", () => {
   it("handles missing timestamps defensively", () => {
     expect(parseGitHubTimestamp(null)).toBeNull();
     expect(parseGitHubTimestamp(undefined)).toBeNull();
+  });
+
+  it("follows GitHub pagination links with bounded requests", async () => {
+    const fixture = loadFixture("backend-success.json").workflowRun;
+    const requests: string[] = [];
+    const fetchImpl = async (url: string | URL | Request) => {
+      requests.push(String(url));
+      const page = requests.length;
+      return new Response(
+        JSON.stringify({ workflow_runs: [{ ...fixture, id: page }] }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...(page === 1
+              ? { Link: '<https://api.github.com/page-2>; rel="next"' }
+              : {}),
+          },
+        },
+      );
+    };
+    const client = new GitHubClient({
+      token: "test-token",
+      repository: "demo/lms",
+      fetchImpl,
+      sleepImpl: async () => {},
+    });
+    const result = await client.listWorkflowRuns({ branch: "main" });
+    expect(result.workflow_runs.map((run) => run.id)).toEqual([1, 2]);
+    expect(requests).toHaveLength(2);
+  });
+
+  it("rejects malformed GitHub timestamps", () => {
+    expect(() => parseGitHubTimestamp("not-a-date")).toThrow("Invalid GitHub timestamp");
   });
 });

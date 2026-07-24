@@ -1,6 +1,7 @@
 export interface WorkflowCandidate {
   providerRunId: string;
   workflowName: string;
+  workflowId?: number | null;
 }
 
 export class PrimaryWorkflowConfigurationError extends Error {
@@ -13,18 +14,26 @@ export class PrimaryWorkflowConfigurationError extends Error {
 export function selectPrimaryWorkflow(
   runs: WorkflowCandidate[],
   primaryWorkflowName: string,
+  primaryWorkflowId?: number,
 ): WorkflowCandidate {
-  const matches = runs.filter((run) => run.workflowName === primaryWorkflowName);
+  const matches = runs.filter((run) =>
+    primaryWorkflowId
+      ? run.workflowId === primaryWorkflowId
+      : run.workflowName === primaryWorkflowName,
+  );
+  const identity = primaryWorkflowId
+    ? `workflow ID ${primaryWorkflowId}`
+    : `primary workflow "${primaryWorkflowName}"`;
 
   if (matches.length === 0) {
     throw new PrimaryWorkflowConfigurationError(
-      `No workflow run matched primary workflow "${primaryWorkflowName}"`,
+      `No workflow run matched ${identity}`,
     );
   }
 
   if (matches.length > 1) {
     throw new PrimaryWorkflowConfigurationError(
-      `Multiple workflow runs matched primary workflow "${primaryWorkflowName}"`,
+      `Multiple workflow runs matched ${identity}`,
     );
   }
 
@@ -34,8 +43,9 @@ export function selectPrimaryWorkflow(
 export function markPrimaryRuns<T extends WorkflowCandidate & { isPrimary: boolean }>(
   runs: T[],
   primaryWorkflowName: string,
+  primaryWorkflowId?: number,
 ): T[] {
-  const primary = selectPrimaryWorkflow(runs, primaryWorkflowName);
+  const primary = selectPrimaryWorkflow(runs, primaryWorkflowName, primaryWorkflowId);
   return runs.map((run) => ({
     ...run,
     isPrimary: run.providerRunId === primary.providerRunId,
