@@ -1,8 +1,10 @@
 import type { SpanContext } from "./traceparent.js";
 
 export type AiLinkStatus = "linked" | "missing" | "invalid";
+export type VerificationState = "missing" | "invalid" | "unverified" | "verified" | "failed";
 export type RegressionStatus =
   | "insufficient_data"
+  | "integration_error"
   | "healthy"
   | "regressed"
   | "recovered";
@@ -13,6 +15,7 @@ export interface ChangeSummary {
   commitSubject: string | null;
   committedAt: string | null;
   aiLinkStatus: AiLinkStatus;
+  aiVerificationState: VerificationState;
   primaryWorkflowName: string | null;
   primaryWorkflowConclusion: string | null;
   deploymentStatus: string | null;
@@ -25,9 +28,10 @@ export interface ChangeListResponse {
 }
 
 export interface ReceiptEvidenceLink {
-  kind: "signoz_trace" | "signoz_dashboard";
+  kind: "signoz_trace" | "signoz_dashboard" | "github_run" | "deployment_trace" | "ai_trace";
   label: string;
   url: string;
+  verificationState: "pending" | "verified" | "failed";
 }
 
 export interface ChangeReceipt {
@@ -38,6 +42,7 @@ export interface ChangeReceipt {
     committedAt: string | null;
     branch: string | null;
     aiLinkStatus: AiLinkStatus;
+    aiVerificationState: VerificationState;
     aiTraceparent: string | null;
     aiSpanContext: SpanContext | null;
     githubUrl: string;
@@ -53,6 +58,7 @@ export interface ChangeReceipt {
     slowestStep: string | null;
     htmlUrl: string;
     signozTraceUrl: string | null;
+    exportState: "pending" | "exported" | "verified" | "failed";
     isReconstructed: true;
   } | null;
   relatedPipelines: Array<{
@@ -65,10 +71,13 @@ export interface ChangeReceipt {
     id: string;
     serviceName: string;
     environmentName: string;
-    version: string;
+    version: string | null;
     role: string;
     status: string;
     deployedAt: string;
+    imageDigest: string | null;
+    versionState: "pending" | "verified" | "failed";
+    traceState: "pending" | "exported" | "verified" | "failed";
   } | null;
   impact: {
     route: string;
@@ -92,15 +101,19 @@ export interface ChangeReceipt {
       minSpans: number;
     };
     correlationNote: string;
+    baselineWindow: { start: string; end: string };
+    observedWindow: { start: string; end: string };
+    policyVersion: string;
   } | null;
   evidence: ReceiptEvidenceLink[];
   recovery: {
     deploymentId: string;
-    version: string;
+    version: string | null;
     deployedAt: string;
     status: RegressionStatus | null;
     observedP95Ms: number | null;
     observedErrorRate: number | null;
+    imageDigest: string | null;
   } | null;
   actions: {
     revertCommand: string;

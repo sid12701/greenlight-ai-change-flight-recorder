@@ -14,6 +14,11 @@ export function toChangeSummary(input: {
     commitSubject: input.change.commit_subject,
     committedAt: input.change.committed_at,
     aiLinkStatus: input.change.ai_link_status,
+    aiVerificationState: input.change.ai_verification_state ?? (
+      input.change.ai_link_status === "linked"
+        ? "unverified"
+        : input.change.ai_link_status
+    ),
     primaryWorkflowName: input.primary?.workflow_name ?? null,
     primaryWorkflowConclusion: input.primary?.conclusion ?? null,
     deploymentStatus: input.deployment?.status ?? null,

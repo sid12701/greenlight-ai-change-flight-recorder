@@ -1,7 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { assembleReceipt } from "../src/modules/receipts/assembler.js";
 
 describe("receipt assembler", () => {
@@ -22,6 +19,7 @@ describe("receipt assembler", () => {
         ai_span_id: "00f067aa0ba902b7",
         ai_trace_flags: "01",
         ai_link_status: "linked",
+        ai_verification_state: "verified",
         changed_files_count: 1,
         additions: 1,
         deletions: 0,
@@ -41,6 +39,7 @@ describe("receipt assembler", () => {
           html_url: "https://github.com/demo/lms/actions/runs/100",
           is_primary: 1,
           emitted_trace_id: "feedfacefeedfacefeedfacefeedface",
+          export_state: "verified",
           synced_at: "2026-07-23T10:06:00.000Z",
         },
         {
@@ -87,19 +86,39 @@ describe("receipt assembler", () => {
         observed_request_count: 250,
         baseline_p95_ms: 120,
         observed_p95_ms: 500,
+        baseline_p90_ms: 90,
+        observed_p90_ms: 400,
         latency_delta_pct: 316,
         baseline_error_rate: 1,
         observed_error_rate: 8,
         status: "regressed",
         reasons_json: JSON.stringify(["Observed p95 exceeded thresholds"]),
+        // The complete policy the evaluation was decided with, exactly as
+        // RegressionService persists it.
+        thresholds_json: JSON.stringify({
+          latencyMultiplier: 2,
+          latencyAdditiveMs: 300,
+          errorRateDeltaPct: 3,
+          errorRateAbsolutePct: 6,
+          minSpans: 250,
+          recoveryLatencyMultiplier: 1.1,
+          recoveryErrorRateDeltaPct: 0.5,
+        }),
         signoz_dashboard_url: "http://localhost:8080/dashboard/deployment-impact",
         evaluated_at: "2026-07-23T11:02:00.000Z",
       },
     });
 
     expect(receipt.pipeline?.htmlUrl).toContain("github.com");
+    expect(receipt.pipeline?.signozTraceUrl).toContain("feedface");
     expect(receipt.relatedPipelines).toHaveLength(1);
     expect(receipt.impact?.status).toBe("regressed");
+    expect(receipt.impact?.baselineP90Ms).toBe(90);
+    // The receipt renders the policy the verdict was measured against, not
+    // whatever the current defaults happen to be.
+    expect(receipt.impact?.thresholds.minSpans).toBe(250);
+    expect(receipt.impact?.thresholds.latencyMultiplier).toBe(2);
+    expect(receipt.impact?.thresholds.recoveryLatencyMultiplier).toBe(1.1);
     expect(receipt.caveat).toContain("not proof");
     expect(receipt.actions.revertCommand).toBe(`git revert ${"a".repeat(40)}`);
   });
