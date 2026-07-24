@@ -2,6 +2,24 @@
 
 Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borrower data.
 
+## 2026-07-25 — pinned SigNoz Foundry runtime
+
+**Classification:** live local runtime and immutable-image evidence.
+
+- **Foundry CLI:** `v0.2.16`; `gauge` and `forge` completed successfully.
+- **Runtime matrix:** SigNoz `v0.134.0`, collector `v0.144.6`, MCP `v0.9.0`,
+  PostgreSQL `16.14-trixie`, ClickHouse server/Keeper `25.12.5`.
+- **Immutability:** each of the six running containers matched its committed
+  `repository@sha256` manifest digest.
+- **Health:** SigNoz version API and MCP livez responded; PostgreSQL,
+  ClickHouse, and Keeper were healthy.
+- **Ingestion:** a fresh OTLP/HTTP span was accepted after runtime validation.
+- **Configuration:** generated Compose plus the safety override resolved only
+  digest references and passed `docker compose config --quiet`.
+- **Credential rotation:** the old local service-account key now returns 401
+  after enabling the required tokenizer JWT secret. Existing imported assets
+  remain; a replacement key is required for the next import/read-back.
+
 ## 2026-07-25 — public Blnk workload acceptance
 
 **Classification:** live local runtime and SigNoz evidence.

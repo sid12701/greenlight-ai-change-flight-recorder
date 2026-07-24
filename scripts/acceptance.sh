@@ -8,6 +8,7 @@ npm ci
 npm run quality
 npm run validate:config
 npm run validate:telemetry
+npm run validate:signoz-stack
 npm run validate:signoz-assets
 npm run verify
 npm run test:compiled-migrations

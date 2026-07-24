@@ -1,6 +1,6 @@
 services:
   ingester:
-    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set a signed signoz-otel-collector image by digest}
+    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set the pinned signoz-otel-collector image by digest}
     ports: !override
       - "127.0.0.1:4317:4317"
       - "127.0.0.1:4318:4318"
@@ -11,7 +11,7 @@ services:
           memory: 2G
 
   signoz-mcp:
-    image: ${SIGNOZ_MCP_IMAGE:?Set a signed signoz-mcp-server image by digest}
+    image: ${SIGNOZ_MCP_IMAGE:?Set the pinned signoz-mcp-server image by digest}
     ports: !override
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -24,6 +24,7 @@ services:
           memory: 512M
 
   signoz-metastore-postgres-0:
+    image: ${SIGNOZ_POSTGRES_IMAGE:?Set the pinned PostgreSQL image by digest}
     environment: !override
       POSTGRES_DB: signoz
       POSTGRES_USER: signoz
@@ -35,13 +36,13 @@ services:
           memory: 1G
 
   signoz-signoz-0:
-    image: ${SIGNOZ_IMAGE:?Set a signed SigNoz image by digest}
+    image: ${SIGNOZ_IMAGE:?Set the pinned SigNoz image by digest}
     environment: !override
       SIGNOZ_SQLSTORE_PROVIDER: postgres
       SIGNOZ_SQLSTORE_POSTGRES_DSN: postgres://signoz:${SIGNOZ_POSTGRES_PASSWORD}@signoz-metastore-postgres-0:5432/signoz?sslmode=disable
       SIGNOZ_TELEMETRYSTORE_PROVIDER: clickhouse
       SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN: tcp://signoz-telemetrystore-clickhouse-0-0:9000
-      SIGNOZ_JWT_SECRET: ${SIGNOZ_JWT_SECRET:?Set SIGNOZ_JWT_SECRET through a secret source}
+      SIGNOZ_TOKENIZER_JWT_SECRET: ${SIGNOZ_TOKENIZER_JWT_SECRET:?Set SIGNOZ_TOKENIZER_JWT_SECRET through a secret source}
     ports: !override
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -56,6 +57,7 @@ services:
           memory: 2G
 
   signoz-telemetrykeeper-clickhousekeeper-0:
+    image: ${SIGNOZ_CLICKHOUSE_KEEPER_IMAGE:?Set the pinned ClickHouse Keeper image by digest}
     deploy:
       resources:
         limits:
@@ -63,11 +65,15 @@ services:
           memory: 1G
 
   signoz-telemetrystore-clickhouse-0-0:
+    image: ${SIGNOZ_CLICKHOUSE_IMAGE:?Set the pinned ClickHouse image by digest}
     deploy:
       resources:
         limits:
           cpus: "2.0"
           memory: 4G
 
+  signoz-telemetrystore-clickhouse-user-scripts:
+    image: ${SIGNOZ_CLICKHOUSE_IMAGE:?Set the pinned ClickHouse image by digest}
+
   signoz-telemetrystore-migrator:
-    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set a signed signoz-otel-collector image by digest}
+    image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set the pinned signoz-otel-collector image by digest}

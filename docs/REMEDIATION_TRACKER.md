@@ -243,7 +243,10 @@ These are unchanged by this round and remain release blockers:
 
 - **R-04/R-05/R-06 live provenance.** No real Claude trace, no hosted GitHub
   Actions run, so no reconstructed CI trace has been exported or verified.
-- **R-28/R-29/R-30 workload.** No hosted LMS repository or published image.
+- **R-28/R-29/R-30 workload.** Closed for local development, CI, testing, and
+  demonstration by the pinned public Blnk `v0.15.1` dependency and
+  project-owned source build. Publishing a project image remains an optional
+  deployment optimization, not a reproducibility requirement.
 - **R-24/R-56 operations.** No staging, canary, backup or rollback drill.
 - **Upstream:** SigNoz v0.134.0's bundled UI does not render v6 dashboards.
   Assets import and read back correctly; see `signoz/README.md`.
@@ -257,9 +260,9 @@ live acceptance evidence.
 
 | Final status | Items | Evidence / remaining gate |
 |---|---|---|
-| `validated` | R-03, R-07–R-13, R-15–R-17, R-20–R-22, R-26, R-31–R-33, R-37–R-38, R-43–R-47, R-59–R-60, R-62–R-71, R-73–R-75, L-01–L-06 | Focused unit/integration tests, clean build, schema/config/asset checks, isolated Git-hook test, or Compose normalization passed. |
-| `implemented` | R-27, R-34, R-48, R-50, R-52, R-55, R-58, R-61 | The production design/code is present, but one specified local gate is incomplete: base-image digest enforcement, dependency-failure injection, transaction fault injection, log snapshots, socket-level timeout/concurrency checks, coverage/image scanning, full orchestration integration, or equal-timestamp evidence ordering. |
-| `external-blocked` | R-01–R-02, R-04–R-06, R-14, R-18–R-19, R-23–R-25, R-28–R-30, R-35–R-36, R-39–R-42, R-49, R-51, R-53–R-54, R-56–R-57, R-72 | Repository seams/assets are implemented where possible. Completion requires one or more of: live SigNoz/Claude/GitHub/LMS/MCP evidence, official MCP/PostgreSQL packages, hosted workload refs, Docker image build/inspection, browser/compiled-process listeners, a managed secret store, or restore/canary/rollback drills. |
+| `validated` | R-03, R-07–R-13, R-15–R-17, R-20–R-22, R-26–R-33, R-37–R-38, R-43–R-47, R-59–R-60, R-62–R-71, R-73–R-75, L-01–L-06 | Focused unit/integration tests, clean build, schema/config/asset checks, public workload build/recovery, isolated Git-hook test, or Compose normalization passed. |
+| `implemented` | R-34, R-48, R-50, R-52, R-55, R-58, R-61 | The production design/code is present, but one specified local gate is incomplete: dependency-failure injection, transaction fault injection, log snapshots, socket-level timeout/concurrency checks, coverage/image scanning, full orchestration integration, or equal-timestamp evidence ordering. |
+| `external-blocked` | R-01–R-02, R-04–R-06, R-14, R-18–R-19, R-23–R-25, R-35–R-36, R-39–R-42, R-49, R-51, R-53–R-54, R-56–R-57, R-72 | Repository seams/assets are implemented where possible. Completion requires one or more of: live Claude/GitHub provenance, browser/compiled-process listeners, a managed secret store, or restore/canary/rollback drills. |
 
 ## Validation log
 
@@ -311,11 +314,11 @@ Environment-blocked validation:
   Claude parent, reconstructed CI trees, deployment marker/version, exact
   candidate/recovery windows, and genuine MCP investigation still need one
   complete two-run rehearsal.
-- **Supply chain:** application Docker base references are version-pinned but
-  not yet locked to verified digests; image signing/scanning evidence is absent.
-- **Workload:** the immutable LMS adapter is ready, including separate blue
-  (8081) and green (8082) targets, but the external image/ref/test prerequisites
-  are unavailable.
+- **Supply chain:** the SigNoz runtime is digest-pinned. Application image
+  signing and complete scan evidence are still addressed by H-06.
+- **Workload:** Blnk is fetched from its public origin at an exact tag and
+  commit, built locally as a non-root image, and exercised through real
+  database failure/recovery traffic. A second adapter remains optional.
 - **Rollback:** pause worker intake, route API/Web/worker and LMS to the previous
   signed digests, retain additive migrations for forward repair, and verify
   health, queue, receipt, and SigNoz state. Database restoration and destructive
@@ -329,11 +332,10 @@ verification, deployment markers and self-observability were all exercised
 live, and every failure path was confirmed to fail closed rather than
 fabricate evidence.
 
-The remaining blockers are the PostgreSQL adapter (R-49), the official MCP
-client (R-39/R-40), live Claude and GitHub Actions provenance
-(R-04/R-05/R-06), the hosted workload (R-28/R-29/R-30), and the operational
-drills (R-24/R-56). Each requires a dependency, credential or hosted service
-that does not exist in this environment; none is blocked on application code.
+The remaining blockers are live Claude and GitHub Actions provenance
+(R-04/R-05/R-06), production secret infrastructure, and the operational drills
+(R-24/R-56). The PostgreSQL adapter, official MCP client, public workload, and
+digest-pinned SigNoz runtime are now present and validated.
 
 Promotion remains gated on those items plus two clean end-to-end runs of the
 full acceptance chain.

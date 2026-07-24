@@ -32,6 +32,7 @@ jobs:
       - run: npm run validate:config
       - run: npm run validate:planning
       - run: npm run validate:telemetry
+      - run: npm run validate:signoz-stack
       - run: npm run validate:signoz-assets
       - run: git diff --check
 

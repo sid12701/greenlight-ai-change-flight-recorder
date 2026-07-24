@@ -6,6 +6,25 @@ spec:
   deployment:
     flavor: compose
     mode: docker
+  signoz:
+    spec:
+      image: signoz/signoz:v0.134.0
+      version: v0.134.0
+  ingester:
+    spec:
+      image: signoz/signoz-otel-collector:v0.144.6
+      version: v0.144.6
   mcp:
     spec:
       enabled: true
+      image: signoz/signoz-mcp-server:v0.9.0
+      version: v0.9.0
+  metastore:
+    spec:
+      image: postgres:16.14-trixie
+  telemetrykeeper:
+    spec:
+      image: clickhouse/clickhouse-keeper:25.12.5
+  telemetrystore:
+    spec:
+      image: clickhouse/clickhouse-server:25.12.5

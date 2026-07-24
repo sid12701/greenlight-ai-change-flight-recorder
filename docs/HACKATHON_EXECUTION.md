@@ -24,7 +24,7 @@ Status values:
 | H-01 | P0 | Real baseline → regression → recovery evidence chain | planned | Every stored AI/CI/deploy/evaluation/MCP ID resolves in one live SigNoz; signed manifest saved |
 | H-02 | P0 | Required blog, video, and submission dry run | planned | Public URLs and completed form checklist |
 | H-03 | P0 | Public reproducible LMS/loan workload | complete | Blnk `v0.15.1` pinned; clean build, seed, outage/recovery, and 698 SigNoz spans verified |
-| H-04 | P0 | Digest-pinned compatible Foundry stack | planned | Fresh gauge/forge/cast/smoke/import/MCP pass |
+| H-04 | P0 | Digest-pinned compatible Foundry stack | validated | Fresh gauge/forge/cast/smoke/MCP passed; re-import needs a post-rotation API key |
 | H-05 | P0 | Actionable clean demo bootstrap | planned | One documented command succeeds or fails before startup with precise remediation |
 | H-06 | P0 | Production dependency vulnerabilities | planned | npm audit, SBOM and image scan have no blocking high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
@@ -99,6 +99,63 @@ explicit `--volumes` option removes only this named Compose project's volumes.
   (40 `/balances` 500 and two `/health` 503); final services were healthy.
 - `node --test integrations/blnk/workload.test.mjs`, Compose config validation,
   ESLint, shell syntax, and `git diff --check` passed.
+
+## H-04 — Digest-pinned compatible Foundry stack
+
+### Judging impact and root cause
+
+The Foundry casting and generated lock used mutable `latest` references for
+SigNoz, its collector, and MCP. PostgreSQL and ClickHouse were only
+major/minor-pinned. A clean setup could therefore install a different,
+incompatible stack without any repository change, making the central
+observability proof non-reproducible.
+
+### Implementation plan and architecture
+
+- Select one compatibility set from the live working stack and upstream
+  migration requirements.
+- Pin semantic versions in the Foundry casting and generated lock so Foundry
+  configuration remains readable and regenerable.
+- Pin all six runtime images to immutable manifest digests in a separate,
+  checked-in environment file consumed only by the safety override.
+- Validate the casting, lock, CLI version, tag/digest correspondence, generated
+  Compose model, running image content, API version, MCP health, and OTLP
+  ingestion.
+
+The selected matrix is SigNoz `v0.134.0`, collector `v0.144.6`, MCP `v0.9.0`,
+PostgreSQL `16.14-trixie`, and ClickHouse server/Keeper `25.12.5`.
+ClickHouse 25.12.5 satisfies SigNoz's stated migration prerequisite while
+SigNoz v0.134.0 remains compatible with the v0.9.0 MCP alert APIs.
+
+### Testing, security, operations, and rollback
+
+`scripts/signoz-stack.test.mjs` rejects mutable references, missing pins,
+tag/digest mismatch, and the wrong Foundry CLI contract. CI and local
+acceptance run the validator. Compose normalization proves every resolved
+runtime reference includes the approved digest; the live verifier compares
+each container image's repository digest rather than trusting its display tag.
+
+The safety override keeps UI, MCP, and OTLP on loopback, replaces generated
+database/JWT values with operator-provided secrets, applies health ordering and
+resource ceilings, and does not expose ClickHouse/PostgreSQL. A failed upgrade
+must roll forward or restore a pre-upgrade backup before launching the previous
+digest set; an in-place database downgrade is not supported.
+
+### Validation evidence
+
+- `foundryctl gauge -f casting.yaml` and `foundryctl forge -f casting.yaml`
+  passed with Foundry `v0.2.16`; the regenerated lock contains no `latest`.
+- Digest-pinned two-file Compose normalization and `config --quiet` passed.
+- `node --test scripts/signoz-stack.test.mjs` — 3 tests passed.
+- `npm run validate:signoz-stack` — all six compatible images validated.
+- `scripts/signoz-runtime-verify.sh` matched all six live image digests,
+  confirmed SigNoz `v0.134.0`, MCP `v0.9.0` liveness, and accepted a current
+  OTLP span.
+- The safety override exposed only `127.0.0.1` bindings and used the supported
+  `SIGNOZ_TOKENIZER_JWT_SECRET`. The planned secret rotation invalidated the
+  old local service-account key; imported assets remain in the preserved
+  database, but the idempotent import read-back must be rerun after a new key is
+  issued.
 
 ## H-07 — Receipt correctness and persisted CI details
 
