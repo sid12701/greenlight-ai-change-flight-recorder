@@ -2,6 +2,36 @@
 
 Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borrower data.
 
+## 2026-07-25 — reproducible demo bootstrap and dependency failure
+
+**Classification:** live local bootstrap, runtime, and failure/recovery evidence.
+
+- **First-run behavior:** missing `.env.demo` failed before startup with one
+  copy/configure/rerun action. Missing SigNoz service-account credentials
+  stopped before GreenLight startup with one precise UI remediation.
+- **Toolchain:** Node `v24.14.0`, npm `11.7.0`, Docker `29.6.1`, Compose v2,
+  Foundry `v0.2.16`.
+- **Topology:** digest-pinned SigNoz and MCP; exact public Blnk `v0.15.1`;
+  dedicated GreenLight PostgreSQL; API, worker, and Web in health-gated
+  containers. The complete Foundry-generated collector pipeline runs in
+  deterministic static-config mode so restarts do not create an unbound random
+  OpAMP agent. All host listeners are loopback-only.
+- **Security:** generated secrets and the user-created service-account key are
+  in ignored mode-0600 files. API/worker run as `node`, Web as UID `101`, and
+  all three application filesystems are read-only.
+- **Health:** GreenLight dependency status reported PostgreSQL, public GitHub,
+  and SigNoz healthy. SigNoz image-digest, API-version, MCP-liveness, and OTLP
+  ingestion checks passed.
+- **SigNoz read-back:** all four authenticated live integration tests passed,
+  including reconstruction, OTLP export, and API verification of a CI span
+  tree. A separately exported backdated smoke trace resolved with one span.
+- **Failure drill:** stopping only GreenLight PostgreSQL produced HTTP `503`
+  from `/readyz` with `{"database":"failed"}`. Restarting PostgreSQL restored
+  HTTP `200` with `{"database":"ok"}`; API restart count remained zero.
+- **Idempotency:** rerunning `npm run demo:up` reused the exact Blnk checkout,
+  seed ledger, persistent databases, and existing images while reconciling
+  health.
+
 ## 2026-07-25 — pinned SigNoz Foundry runtime
 
 **Classification:** live local runtime and immutable-image evidence.

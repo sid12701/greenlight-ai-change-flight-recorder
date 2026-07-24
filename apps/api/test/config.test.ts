@@ -16,6 +16,24 @@ describe("configuration safety", () => {
     })).toThrow(/Invalid configuration/);
   });
 
+  it("allows anonymous public GitHub reads only outside production", () => {
+    expect(() => loadConfig({
+      ...required,
+      GITHUB_TOKEN: "",
+    })).not.toThrow();
+    expect(() => loadConfig({
+      ...required,
+      GITHUB_TOKEN: "",
+      GREENLIGHT_ENV: "production",
+      GREENLIGHT_DATABASE_URL: "postgresql://db.example.test/greenlight",
+      GREENLIGHT_REQUIRE_READ_AUTH: "true",
+      GREENLIGHT_ADMIN_TOKEN: undefined,
+      GREENLIGHT_API_KEYS: JSON.stringify([
+        { id: "reader", key: "reader-token-with-safe-length", scopes: ["read"] },
+      ]),
+    })).toThrow(/GITHUB_TOKEN/);
+  });
+
   it("rejects placeholder production secrets", () => {
     expect(() => loadConfig({
       ...required,

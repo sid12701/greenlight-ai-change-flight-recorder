@@ -43,6 +43,8 @@ secrets, and the committed digest file:
 ```bash
 export SIGNOZ_POSTGRES_PASSWORD='<secret-manager-value>'
 export SIGNOZ_TOKENIZER_JWT_SECRET='<at-least-32-random-bytes>'
+export SIGNOZ_BOOTSTRAP_EMAIL='<root-user-email>'
+export SIGNOZ_BOOTSTRAP_PASSWORD='<root-user-password>'
 docker compose \
   --env-file deploy/signoz-images.env \
   -f pours/deployment/compose.yaml \
@@ -54,6 +56,17 @@ The override binds UI, MCP, and both OTLP transports to loopback, adds dependenc
 health ordering and resource ceilings, removes the generated PostgreSQL password,
 and requires SigNoz JWT security. Production uses private networks and TLS ingress
 instead of any host port.
+
+The generated `ingester.yaml` is a complete collector pipeline. The safety
+override launches it in the collector's supported static-config mode rather
+than the generated OpAMP manager mode. The latter creates a random agent ID
+after every container recreation and SigNoz v0.134.0 refuses a new agent until
+an organization is assigned interactively, leaving OTLP ports open but
+non-functional (the failure is also tracked in
+[SigNoz/signoz#8548](https://github.com/SigNoz/signoz/issues/8548)). Static mode
+keeps clean-machine and CI startup deterministic; the trade-off is that this
+local collector is configured through versioned files rather than SigNoz's
+agent-management UI.
 
 ## Endpoints
 
@@ -69,7 +82,7 @@ instead of any host port.
 
 1. Open http://localhost:8080 and complete first-time setup.
 2. Create a service account with read access for Query Builder and traces.
-3. Copy the API key into your local `.env` as `SIGNOZ_API_KEY` (never commit it).
+3. Copy the API key into your local `.env.demo` as `SIGNOZ_API_KEY` (never commit it).
 
 ## Dashboards and alert rules
 

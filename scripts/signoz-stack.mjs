@@ -79,6 +79,16 @@ export async function validateStackPins() {
   if (override.includes("SIGNOZ_JWT_SECRET:")) {
     throw new Error("SigNoz override uses deprecated SIGNOZ_JWT_SECRET");
   }
+  if (
+    !override.includes(
+      "/signoz-otel-collector --config=/etc/otel-collector-config.yaml",
+    ) ||
+    override.includes("--manager-config=")
+  ) {
+    throw new Error(
+      "SigNoz override must use the deterministic static collector pipeline",
+    );
+  }
   return values;
 }
 

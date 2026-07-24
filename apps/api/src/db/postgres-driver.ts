@@ -35,6 +35,21 @@ export class PostgresDriver implements SqlDriver {
       connectionTimeoutMillis: 10_000,
       idleTimeoutMillis: 30_000,
     });
+    // pg emits idle-client failures on the pool itself. Without a listener,
+    // Node treats the event as uncaught and terminates the API instead of
+    // letting readiness fail closed while the database recovers.
+    pool.on("error", (error) => {
+      const errorCode =
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : "unknown";
+      console.error(JSON.stringify({
+        level: "error",
+        service: "postgres-pool",
+        error_code: errorCode,
+        message: "idle PostgreSQL client failed",
+      }));
+    });
     const driver = new PostgresDriver(pool, pool);
     await driver.migrate();
     return driver;

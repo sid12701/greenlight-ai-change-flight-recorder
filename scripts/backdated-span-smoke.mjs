@@ -18,9 +18,13 @@ const SERVICE_NAME = process.env.SMOKE_SERVICE_NAME ?? "greenlight-smoke";
 const BACKDATE_MS = Number(process.env.SMOKE_BACKDATE_MS ?? 2 * 60 * 60 * 1000);
 const CURRENT_ONLY = process.argv.includes("--current-only");
 const WAIT_MS = Number(process.env.SMOKE_WAIT_MS ?? 8000);
+const EXPORT_TIMEOUT_MS = Number(process.env.SMOKE_EXPORT_TIMEOUT_MS ?? 10_000);
 
 async function exportSpan({ startMs, name }) {
-  const exporter = new OTLPTraceExporter({ url: `${OTLP_ENDPOINT}/v1/traces` });
+  const exporter = new OTLPTraceExporter({
+    url: `${OTLP_ENDPOINT}/v1/traces`,
+    timeoutMillis: EXPORT_TIMEOUT_MS,
+  });
   const provider = new BasicTracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: SERVICE_NAME,

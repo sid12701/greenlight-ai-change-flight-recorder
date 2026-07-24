@@ -56,7 +56,7 @@ export type GitHubJob = z.infer<typeof GitHubJobSchema>;
 export type GitHubCommit = z.infer<typeof GitHubCommitSchema>;
 
 export interface GitHubClientOptions {
-  token: string;
+  token?: string;
   repository: string;
   fetchImpl?: typeof fetch;
   baseUrl?: string;
@@ -114,12 +114,15 @@ export class GitHubClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10_000);
       try {
+        const headers: Record<string, string> = {
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        };
+        if (this.options.token) {
+          headers.Authorization = `Bearer ${this.options.token}`;
+        }
         const response = await this.fetchImpl(url, {
-          headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${this.options.token}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
+          headers,
           signal: controller.signal,
         });
 

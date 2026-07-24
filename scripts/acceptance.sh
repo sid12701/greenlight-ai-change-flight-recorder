@@ -5,6 +5,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 npm ci
+demo_env_created=0
+if [[ ! -f .env.demo ]]; then
+  cp .env.demo.example .env.demo
+  demo_env_created=1
+fi
+cleanup_demo_fixture() {
+  if [[ "$demo_env_created" == "1" ]]; then
+    rm -f .env.demo
+  fi
+}
+trap cleanup_demo_fixture EXIT
+node scripts/demo-config.mjs secrets
 npm run quality
 npm run validate:config
 npm run validate:telemetry
@@ -14,7 +26,11 @@ npm run verify
 npm run test:compiled-migrations
 npm run test:compiled-start
 npm run test:e2e:smoke
-docker compose -f deploy/compose.local.yaml config --quiet
+docker compose \
+  --env-file deploy/signoz-images.env \
+  --env-file .workloads/greenlight.env \
+  -f deploy/compose.local.yaml \
+  config --quiet
 docker build -f deploy/api.Dockerfile -t greenlight-api:acceptance .
 docker build -f deploy/web.Dockerfile -t greenlight-web:acceptance .
 

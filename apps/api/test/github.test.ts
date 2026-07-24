@@ -68,6 +68,27 @@ describe("github normalization", () => {
     expect(attempts).toBe(2);
   });
 
+  it("omits authorization for public repositories when no token is configured", async () => {
+    let authorization: string | null = "unexpected";
+    const fetchImpl = async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      authorization = new Headers(init?.headers).get("authorization");
+      return new Response(
+        JSON.stringify(loadFixture("backend-success.json").workflowRun),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    };
+    const client = new GitHubClient({
+      repository: "demo/public-repository",
+      fetchImpl,
+    });
+
+    await client.getWorkflowRun(123456789);
+    expect(authorization).toBeNull();
+  });
+
   it("handles missing timestamps defensively", () => {
     expect(parseGitHubTimestamp(null)).toBeNull();
     expect(parseGitHubTimestamp(undefined)).toBeNull();

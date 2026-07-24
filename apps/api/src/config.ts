@@ -61,7 +61,7 @@ export const AppConfigSchema = z.object({
   GREENLIGHT_REQUEST_TIMEOUT_MS: PositiveInteger.default(15_000),
   GREENLIGHT_RATE_LIMIT_PER_MINUTE: PositiveInteger.default(120),
   GREENLIGHT_MAX_CONCURRENT_REQUESTS: PositiveInteger.default(50),
-  GITHUB_TOKEN: z.string().min(1),
+  GITHUB_TOKEN: z.string().default(""),
   GITHUB_REPOSITORY: z.string().regex(/^[^/]+\/[^/]+$/),
   GREENLIGHT_PRIMARY_WORKFLOW_NAME: z.string().default("Backend CI"),
   GREENLIGHT_PRIMARY_WORKFLOW_ID: z.coerce.number().int().positive().optional(),
@@ -132,7 +132,7 @@ export const AppConfigSchema = z.object({
     ["GITHUB_TOKEN", config.GITHUB_TOKEN],
     ["SIGNOZ_API_KEY", config.SIGNOZ_API_KEY],
   ] as const) {
-    if (PLACEHOLDER_SECRET.test(value)) {
+    if (!value || PLACEHOLDER_SECRET.test(value)) {
       addIssue(field, "Placeholder secrets are forbidden in production");
     }
   }

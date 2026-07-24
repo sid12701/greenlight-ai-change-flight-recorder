@@ -20,13 +20,42 @@ GreenLight is under production-readiness remediation. The monorepo includes:
 - GreenLight API + Web (`apps/api`, `apps/web`)
 - Demo scripts (`scripts/demo-*.sh`)
 
-## Local verification
+## Five-minute local quickstart
 
-Use Node 24 (see `.node-version` / `.nvmrc`) and Docker with Compose. From a
-fresh checkout:
+Prerequisites are Node 24, Docker with Compose v2, Git, curl, OpenSSL, and
+SigNoz Foundry `v0.2.16`. From a fresh checkout:
 
 ```bash
 npm ci
+cp .env.demo.example .env.demo
+npm run demo:up
+```
+
+The first run creates private local secrets, starts the digest-pinned SigNoz
+stack, and provisions its administrator. SigNoz intentionally does not expose
+an API key through automation. If the command stops at that gate, follow its
+single remediation message: sign in at `http://127.0.0.1:8080` with the
+mode-0600 credentials in `.workloads/signoz.env`, create a service-account key,
+put it in `.env.demo`, and rerun `npm run demo:up`.
+
+The rerun fetches and verifies Blnk `v0.15.1`, seeds synthetic loan-ledger data,
+and starts PostgreSQL, the GreenLight API and worker, and the Web UI. The
+checked-in public Blnk repository can be read anonymously; `GITHUB_TOKEN` is
+optional for this local path.
+
+```bash
+npm run demo:status
+# GreenLight: http://127.0.0.1:4173
+# SigNoz:     http://127.0.0.1:8080
+# Blnk:       http://127.0.0.1:18081
+
+npm run demo:down
+```
+
+`demo:down` preserves PostgreSQL, ClickHouse, Redis, and application volumes.
+For repository-level verification, use Node 24 and run:
+
+```bash
 npm run verify
 npm run quality
 npm run validate:config
@@ -34,32 +63,11 @@ npm run validate:telemetry
 npm run validate:signoz-assets
 npm run test:compiled-migrations
 bash instrumentation/git-hooks/test.sh
-docker compose -f deploy/compose.local.yaml config --quiet
 ```
 
-Start the public workload and generate a seeded baseline:
-
-```bash
-bash integrations/blnk/up.sh
-```
-
-Copy `.env.example` to `.env` and replace every placeholder. In three terminals,
-start the already-built processes:
-
-```bash
-set -a; source .env; set +a
-npm --workspace @greenlight/api run start
-
-set -a; source .env; set +a
-npm --workspace @greenlight/api run start:worker
-
-npm --workspace @greenlight/web run preview
-```
-
-Then verify `http://127.0.0.1:4000/livez`,
-`http://127.0.0.1:4000/readyz`, and `http://127.0.0.1:4173`. For the real
-evidence chain, make this GreenLight repository public and configure its GitHub
-Actions repository, SigNoz service-account, and MCP credentials; run:
+For the real evidence chain, make this GreenLight repository public and point
+`GITHUB_REPOSITORY` and `GREENLIGHT_PRIMARY_WORKFLOW_NAME` at its Actions
+workflow. Then run:
 
 ```bash
 bash scripts/preflight.sh

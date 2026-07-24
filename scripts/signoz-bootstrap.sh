@@ -19,19 +19,21 @@ if echo "$setup_json" | grep -q '"setupCompleted":true'; then
 fi
 
 echo "signoz-bootstrap: registering initial admin user"
-curl -fsS -X POST "${SIGNOZ_URL}/api/v1/register" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"${SIGNOZ_BOOTSTRAP_EMAIL}\",\"password\":\"${SIGNOZ_BOOTSTRAP_PASSWORD}\",\"name\":\"${SIGNOZ_BOOTSTRAP_NAME}\"}" \
+node -e 'process.stdout.write(JSON.stringify({email:process.env.SIGNOZ_BOOTSTRAP_EMAIL,password:process.env.SIGNOZ_BOOTSTRAP_PASSWORD,name:process.env.SIGNOZ_BOOTSTRAP_NAME}))' |
+  curl -fsS -X POST "${SIGNOZ_URL}/api/v1/register" \
+  -H 'Content-Type: application/json' --data-binary @- \
   >/dev/null
 
 echo "signoz-bootstrap: waiting for collector pipelines"
-sleep 15
+for _ in $(seq 1 30); do
+  setup_json="$(curl -fsS "${SIGNOZ_URL}/api/v1/version")"
+  if echo "$setup_json" | grep -q '"setupCompleted":true'; then
+    echo "signoz-bootstrap: ok"
+    echo "signoz-bootstrap: create a service account API key in Settings → Service Accounts and set SIGNOZ_API_KEY in .env.demo"
+    exit 0
+  fi
+  sleep 2
+done
 
-setup_json="$(curl -fsS "${SIGNOZ_URL}/api/v1/version")"
-if ! echo "$setup_json" | grep -q '"setupCompleted":true'; then
-  echo "signoz-bootstrap: error: setup did not complete" >&2
-  exit 1
-fi
-
-echo "signoz-bootstrap: ok"
-echo "signoz-bootstrap: create a service account API key in Settings → Service Accounts and set SIGNOZ_API_KEY in .env"
+echo "signoz-bootstrap: error: setup did not complete within 60 seconds" >&2
+exit 1

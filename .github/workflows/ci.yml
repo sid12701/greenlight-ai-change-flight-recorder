@@ -34,6 +34,15 @@ jobs:
       - run: npm run validate:telemetry
       - run: npm run validate:signoz-stack
       - run: npm run validate:signoz-assets
+      - name: Validate the generated local demo topology
+        run: |
+          cp .env.demo.example .env.demo
+          node scripts/demo-config.mjs secrets
+          docker compose \
+            --env-file deploy/signoz-images.env \
+            --env-file .workloads/greenlight.env \
+            -f deploy/compose.local.yaml \
+            config --quiet
       - run: git diff --check
 
   verify:

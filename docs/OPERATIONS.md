@@ -2,11 +2,11 @@
 
 ## Current production gate
 
-The local container topology is reproducible, non-root, read-only where practical,
-loopback-bound, resource-limited, and health-ordered. It is **not a production
-deployment**: the installed dependency set does not include the PostgreSQL driver,
-so the API and worker still use SQLite. Production promotion is blocked until the
-PostgreSQL adapter and its integration/restore tests pass.
+The local container topology is reproducible, non-root, read-only where
+practical, loopback-bound, resource-limited, health-ordered, and backed by the
+production PostgreSQL adapter. It is **not a production deployment**: it lacks a
+managed secret store, TLS ingress, signed application images, staging/canary
+promotion, and dated PostgreSQL/SigNoz restore evidence.
 
 Never expose the local SigNoz, OTLP, MCP, API, or Web ports beyond loopback. A
 production platform must place the collector, SigNoz, MCP, PostgreSQL, API, and
@@ -21,14 +21,14 @@ manifest, `.env`, build argument, or CI log:
 - GitHub App private key, installation ID, and webhook secret;
 - SigNoz service-account key, JWT secret, and bootstrap administrator credential;
 - PostgreSQL application, migration, backup, and restore credentials;
-- LMS deployment-provider credentials.
+- workload deployment-provider credentials when a hosted workload is used.
 
 Placeholder/default secret validation is blocking in production mode. Rotate all
 historical demo credentials before any network exposure.
 
 ## Immutable build and promotion
 
-1. Build API, worker, Web, and LMS images once on the protected release commit.
+1. Build API, worker, Web, and workload images once on the protected release commit.
 2. Run unit, integration, browser, workload, secret, dependency, SBOM, and image
    scans against those exact images.
 3. Sign each image and record its `sha256:` digest and embedded full Git SHA.
@@ -48,7 +48,7 @@ historical demo credentials before any network exposure.
 5. Re-run liveness, readiness, dependency, queue, receipt, and SigNoz checks.
 6. Record the rollback as an audit event. Do not rewrite or delete evidence.
 
-The LMS rollback is also digest-based: deploy the recorded last-known-good image
+The workload rollback is also digest-based: deploy the recorded last-known-good image
 digest, then verify its embedded SHA, configured health URL, deployment marker,
 and exact `service.version` in SigNoz.
 
@@ -67,12 +67,16 @@ and exact `service.version` in SigNoz.
 ## Local verification
 
 ```bash
-cp .env.example .env
-# Replace every placeholder and use the hosted LMS repository.
-docker compose -f deploy/compose.local.yaml config
-docker compose -f deploy/compose.local.yaml build
-docker compose -f deploy/compose.local.yaml up -d
+cp .env.demo.example .env.demo
+npm run demo:up
+npm run demo:status
 curl --fail http://127.0.0.1:4000/livez
 curl --fail http://127.0.0.1:4000/readyz
 curl --fail http://127.0.0.1:4173/healthz
 ```
+
+On the first run, create the SigNoz service-account key exactly as instructed
+by the bootstrap, add it to `.env.demo`, and rerun. Blnk is public and needs no
+GitHub token. `npm run demo:down` stops all demo services without deleting
+volumes; use the explicit per-service destructive reset commands only after
+backup and operator approval.

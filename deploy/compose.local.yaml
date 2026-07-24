@@ -1,6 +1,28 @@
 name: greenlight
 
 services:
+  postgres:
+    image: ${SIGNOZ_POSTGRES_IMAGE:?Load deploy/signoz-images.env}
+    environment:
+      POSTGRES_DB: greenlight
+      POSTGRES_USER: greenlight
+      POSTGRES_PASSWORD: ${GREENLIGHT_POSTGRES_PASSWORD:?Run npm run demo:up to generate local secrets}
+    volumes:
+      - greenlight-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greenlight -d greenlight"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
   api:
     build:
       context: ..
@@ -8,18 +30,25 @@ services:
     image: greenlight-api:0.1.0
     command: ["node", "apps/api/dist/server.js"]
     env_file:
-      - ../.env
+      - ../.env.demo
+      - ../.workloads/greenlight.env
     environment:
       GREENLIGHT_HOST: 0.0.0.0
-      GREENLIGHT_DATABASE_PATH: /app/data/greenlight.db
+      GREENLIGHT_DATABASE_URL: postgres://greenlight:${GREENLIGHT_POSTGRES_PASSWORD}@postgres:5432/greenlight
+      SIGNOZ_URL: http://host.docker.internal:8080
+      SIGNOZ_MCP_URL: http://host.docker.internal:8000/mcp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - "127.0.0.1:4000:4000"
-    volumes:
-      - greenlight-data:/app/data
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 10s
@@ -40,16 +69,23 @@ services:
     image: greenlight-worker:0.1.0
     command: ["node", "apps/api/dist/worker.js"]
     env_file:
-      - ../.env
+      - ../.env.demo
+      - ../.workloads/greenlight.env
     environment:
-      GREENLIGHT_DATABASE_PATH: /app/data/greenlight.db
-    volumes:
-      - greenlight-data:/app/data
+      GREENLIGHT_DATABASE_URL: postgres://greenlight:${GREENLIGHT_POSTGRES_PASSWORD}@postgres:5432/greenlight
+      SIGNOZ_URL: http://host.docker.internal:8080
+      SIGNOZ_MCP_URL: http://host.docker.internal:8000/mcp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
+      OTEL_SERVICE_NAME: greenlight-worker
+    extra_hosts:
+      - host.docker.internal:host-gateway
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
     restart: unless-stopped
     depends_on:
+      postgres:
+        condition: service_healthy
       api:
         condition: service_healthy
     deploy:
@@ -90,4 +126,4 @@ services:
           memory: 32M
 
 volumes:
-  greenlight-data: {}
+  greenlight-postgres: {}

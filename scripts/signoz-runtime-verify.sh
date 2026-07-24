@@ -15,7 +15,8 @@ pass() {
 
 command -v docker >/dev/null || fail "Docker is required"
 command -v foundryctl >/dev/null || fail "foundryctl is required"
-foundryctl version 2>&1 | grep -q "Version:  $(cat "${ROOT}/deploy/foundry.version")" ||
+FOUNDRY_VERSION_OUTPUT="$(foundryctl version 2>&1)"
+grep -q "Version:  $(cat "${ROOT}/deploy/foundry.version")" <<<"$FOUNDRY_VERSION_OUTPUT" ||
   fail "foundryctl version does not match deploy/foundry.version"
 pass "foundryctl $(cat "${ROOT}/deploy/foundry.version")"
 
@@ -56,8 +57,18 @@ curl --fail --silent "${SIGNOZ_MCP_LIVEZ_URL:-http://127.0.0.1:8000/livez}" >/de
   fail "MCP liveness failed"
 pass "MCP v0.9.0 liveness endpoint responds"
 
-node "${ROOT}/scripts/backdated-span-smoke.mjs" --current-only >/dev/null ||
-  fail "OTLP HTTP ingestion failed"
+OTLP_READY=0
+for _ in $(seq 1 12); do
+  if SMOKE_EXPORT_TIMEOUT_MS=3000 \
+    node "${ROOT}/scripts/backdated-span-smoke.mjs" --current-only \
+    >/dev/null 2>&1; then
+    OTLP_READY=1
+    break
+  fi
+  sleep 2
+done
+[[ "$OTLP_READY" == "1" ]] ||
+  fail "OTLP HTTP ingestion did not become ready within 60 seconds"
 pass "OTLP HTTP ingestion accepted a current span"
 
 echo "signoz-runtime: all pinned runtime checks passed"

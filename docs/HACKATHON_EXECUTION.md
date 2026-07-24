@@ -25,7 +25,7 @@ Status values:
 | H-02 | P0 | Required blog, video, and submission dry run | planned | Public URLs and completed form checklist |
 | H-03 | P0 | Public reproducible LMS/loan workload | complete | Blnk `v0.15.1` pinned; clean build, seed, outage/recovery, and 698 SigNoz spans verified |
 | H-04 | P0 | Digest-pinned compatible Foundry stack | validated | Fresh gauge/forge/cast/smoke/MCP passed; re-import needs a post-rotation API key |
-| H-05 | P0 | Actionable clean demo bootstrap | planned | One documented command succeeds or fails before startup with precise remediation |
+| H-05 | P0 | Actionable clean demo bootstrap | complete | One documented command succeeds or fails before startup with precise remediation |
 | H-06 | P0 | Production dependency vulnerabilities | planned | npm audit, SBOM and image scan have no blocking high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
@@ -156,6 +156,78 @@ digest set; an in-place database downgrade is not supported.
   old local service-account key; imported assets remain in the preserved
   database, but the idempotent import read-back must be rerun after a new key is
   issued.
+
+## H-05 — Actionable clean demo bootstrap
+
+### Judging impact and root cause
+
+The previous setup mixed an unchecked `.env`, host processes, SQLite, an
+implicit Node version, a private workload path, and manually ordered services.
+A judge could reach a late failure after several commands without knowing which
+dependency or credential was wrong. That first-run uncertainty was a screening
+risk even when the product code itself worked.
+
+### Implementation plan and architecture
+
+- Make `.env.demo.example` the checked-in demo contract and distinguish
+  repository-controlled defaults from the one externally issued SigNoz API
+  credential.
+- Resolve Node 24 deterministically, verify Docker, Compose, Foundry, ports,
+  public Blnk source, pinned SigNoz images, and configuration before startup.
+- Generate mode-0600 PostgreSQL, JWT, administrator, and local API secrets;
+  adopt and safely rotate an existing local SigNoz installation where needed.
+- Start SigNoz, Blnk, PostgreSQL, API, worker, and Web through health-gated
+  Compose models, then validate the exact running image digests, MCP, OTLP, and
+  every user-facing endpoint.
+- Run Foundry's complete generated collector pipeline in supported static-config
+  mode. Its generated OpAMP manager creates a new unbound agent identity after
+  container recreation, which leaves OTLP unusable until a human assigns an
+  organization; deterministic local and CI startup must not have that hidden
+  UI dependency.
+- Keep teardown non-destructive and make status/readiness independently
+  inspectable.
+
+Affected files are the demo environment contract, configuration validator,
+bootstrap/status/down scripts, API configuration and GitHub client, PostgreSQL
+driver, GreenLight and SigNoz Compose overrides, CI/acceptance gates, and
+operator documentation. The only database topology change is replacing the
+shared local SQLite file with the existing PostgreSQL adapter and a dedicated
+persistent local volume.
+
+### Testing, security, operations, and rollback
+
+Configuration tests cover malformed and duplicate keys, shell-safe values,
+placeholder credentials, optional anonymous GitHub access, migration of legacy
+settings, strong private secret generation, and idempotency. API regression
+tests cover anonymous public-repository requests and a failed PostgreSQL ping.
+Shell syntax, Compose normalization, build, lint, typecheck, unit/integration
+tests, image runtime identity, and live dependency health are blocking gates.
+
+Secrets are never printed or checked in, local listeners remain loopback-only,
+runtime containers use read-only filesystems where practical, and PostgreSQL is
+not published to the host. The API pool logs a sanitized error code instead of
+crashing or exposing a connection string. `npm run demo:down` is the rollback:
+it stops only this stack and preserves all volumes; the previous application
+commit can then be started against the same additive schema.
+
+### Validation evidence
+
+- Missing `.env.demo` failed before startup with one exact copy/configure/rerun
+  action; a missing service-account key stopped after SigNoz provisioning and
+  before GreenLight startup with one exact UI remediation.
+- A complete rerun verified Node `v24.14.0`, npm `11.7.0`, Docker `29.6.1`,
+  Foundry `v0.2.16`, the Blnk tag/SHA/patch, all six SigNoz image digests, and
+  every health endpoint.
+- Blnk source/seed state was reused idempotently; PostgreSQL, API, worker, and
+  Web started in health order. API/worker run as `node`, Web as UID `101`, and
+  application filesystems are read-only.
+- `/api/v1/status/dependencies` reported database, GitHub, and SigNoz healthy.
+  A real PostgreSQL outage changed `/readyz` from HTTP 200 to HTTP 503 with
+  `database=failed`; recovery restored HTTP 200 without restarting the API.
+- The live SigNoz API credential was accepted and stored only in ignored
+  mode-0600 local configuration. A full stop/start preserved all volumes, and
+  the static collector recovered without a new organization assignment; OTLP
+  and MCP runtime verification passed.
 
 ## H-07 — Receipt correctness and persisted CI details
 

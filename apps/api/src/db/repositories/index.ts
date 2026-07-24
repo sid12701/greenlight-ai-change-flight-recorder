@@ -41,8 +41,12 @@ export class Repositories {
   }
 
   async ping(): Promise<boolean> {
-    const row = await this.driver.get<{ ok: number }>("SELECT 1 AS ok");
-    return Number(row?.ok) === 1;
+    try {
+      const row = await this.driver.get<{ ok: number }>("SELECT 1 AS ok");
+      return Number(row?.ok) === 1;
+    } catch {
+      return false;
+    }
   }
 
   close(): Promise<void> {

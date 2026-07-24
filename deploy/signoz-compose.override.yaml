@@ -1,6 +1,16 @@
 services:
   ingester:
     image: ${SIGNOZ_OTEL_COLLECTOR_IMAGE:?Set the pinned signoz-otel-collector image by digest}
+    # Foundry's generated OpAMP manager creates a new random agent identity on
+    # each container recreation. SigNoz cannot bind that identity to an
+    # organization non-interactively, leaving OTLP ports open but unusable.
+    # The generated ingester.yaml is a complete official collector pipeline, so
+    # local/CI use the supported deterministic static-config mode instead.
+    command: !override
+      - -c
+      - |
+        /signoz-otel-collector migrate sync check &&
+        /signoz-otel-collector --config=/etc/otel-collector-config.yaml
     ports: !override
       - "127.0.0.1:4317:4317"
       - "127.0.0.1:4318:4318"
@@ -43,6 +53,10 @@ services:
       SIGNOZ_TELEMETRYSTORE_PROVIDER: clickhouse
       SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN: tcp://signoz-telemetrystore-clickhouse-0-0:9000
       SIGNOZ_TOKENIZER_JWT_SECRET: ${SIGNOZ_TOKENIZER_JWT_SECRET:?Set SIGNOZ_TOKENIZER_JWT_SECRET through a secret source}
+      SIGNOZ_USER_ROOT_ENABLED: "true"
+      SIGNOZ_USER_ROOT_EMAIL: ${SIGNOZ_BOOTSTRAP_EMAIL:?Set SIGNOZ_BOOTSTRAP_EMAIL through a secret source}
+      SIGNOZ_USER_ROOT_PASSWORD: ${SIGNOZ_BOOTSTRAP_PASSWORD:?Set SIGNOZ_BOOTSTRAP_PASSWORD through a secret source}
+      SIGNOZ_USER_ROOT_ORG_NAME: ${SIGNOZ_BOOTSTRAP_ORG_NAME:-greenlight-demo}
     ports: !override
       - "127.0.0.1:8080:8080"
     depends_on:
