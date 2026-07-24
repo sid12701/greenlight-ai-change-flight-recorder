@@ -36,6 +36,8 @@ describe("receipt assembler", () => {
           conclusion: "success",
           started_at: "2026-07-23T10:00:00.000Z",
           completed_at: "2026-07-23T10:05:00.000Z",
+          duration_ms: 300_000,
+          slowest_step: "Run tests",
           html_url: "https://github.com/demo/lms/actions/runs/100",
           is_primary: 1,
           emitted_trace_id: "feedfacefeedfacefeedfacefeedface",
@@ -110,6 +112,8 @@ describe("receipt assembler", () => {
     });
 
     expect(receipt.pipeline?.htmlUrl).toContain("github.com");
+    expect(receipt.pipeline?.durationMs).toBe(300_000);
+    expect(receipt.pipeline?.slowestStep).toBe("Run tests");
     expect(receipt.pipeline?.signozTraceUrl).toContain("feedface");
     expect(receipt.relatedPipelines).toHaveLength(1);
     expect(receipt.impact?.status).toBe("regressed");

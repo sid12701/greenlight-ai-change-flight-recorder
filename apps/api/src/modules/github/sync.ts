@@ -8,7 +8,7 @@ import { shouldAttachAiLink } from "../ci-telemetry/link.js";
 import type { GitHubClient } from "./client.js";
 import { DependencyError } from "../../http/errors.js";
 import { markPrimaryRuns } from "./primary-workflow.js";
-import { normalizeWorkflowRun } from "./normalize.js";
+import { findSlowestStep, normalizeWorkflowRun } from "./normalize.js";
 import type { SpanExporter } from "@opentelemetry/sdk-trace-base";
 import type { SpanContext } from "@greenlight/shared";
 
@@ -245,6 +245,7 @@ export async function syncWorkflowRuns(
       }
 
       const pipelineRunId = `run_${normalized.providerRunId}`;
+      const slowestStep = findSlowestStep(normalized);
       pipelineRows.push({
         id: pipelineRunId,
         change_id: changeId,
@@ -254,6 +255,8 @@ export async function syncWorkflowRuns(
         conclusion: normalized.conclusion,
         started_at: normalized.startedAtMs ? new Date(normalized.startedAtMs).toISOString() : null,
         completed_at: normalized.completedAtMs ? new Date(normalized.completedAtMs).toISOString() : null,
+        duration_ms: normalized.durationMs,
+        slowest_step: slowestStep?.name ?? null,
         html_url: normalized.htmlUrl,
         is_primary: isPrimary ? 1 : 0,
         emitted_trace_id: emittedTraceId,

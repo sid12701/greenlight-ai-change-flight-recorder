@@ -47,6 +47,8 @@ export interface PipelineRunRow {
   conclusion: string | null;
   started_at: string | null;
   completed_at: string | null;
+  duration_ms?: number | null;
+  slowest_step?: string | null;
   html_url: string;
   is_primary: 0 | 1;
   emitted_trace_id: string | null;
@@ -181,4 +183,3 @@ export interface JobRow {
   updated_at: string;
   result_json?: string | null;
 }
-

@@ -259,7 +259,12 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
       return;
     }
     const params = parseInput(CommitShaParamsSchema, request.params);
-    const receipt = getReceipt(repos, config.GITHUB_REPOSITORY, config.SIGNOZ_URL, params.commitSha);
+    const receipt = await getReceipt(
+      repos,
+      config.GITHUB_REPOSITORY,
+      config.SIGNOZ_URL,
+      params.commitSha,
+    );
     if (!receipt) {
       return reply.status(404).send({ error: "not_found", requestId: request.id });
     }

@@ -72,8 +72,9 @@ export function assembleReceipt(input: {
   const aiParsed = input.change.ai_traceparent
     ? extractAiTraceparentFromMessage(`AI-Traceparent: ${input.change.ai_traceparent}`)
     : null;
-
-  const slowestStep = input.normalizedRun ? findSlowestStep(input.normalizedRun) : null;
+  const normalizedSlowestStep = input.normalizedRun
+    ? findSlowestStep(input.normalizedRun)?.name ?? null
+    : null;
 
   return {
     change: {
@@ -100,8 +101,8 @@ export function assembleReceipt(input: {
           workflowName: primary.workflow_name,
           status: primary.status,
           conclusion: primary.conclusion,
-          durationMs: input.normalizedRun?.durationMs ?? null,
-          slowestStep: slowestStep?.name ?? null,
+          durationMs: primary.duration_ms ?? input.normalizedRun?.durationMs ?? null,
+          slowestStep: primary.slowest_step ?? normalizedSlowestStep,
           htmlUrl: primary.html_url,
           signozTraceUrl: primary.emitted_trace_id && primary.export_state === "verified"
             ? buildSignozTraceUrl(input.signozUrl, primary.emitted_trace_id)

@@ -95,11 +95,16 @@ describe("database migrations and repositories", () => {
       conclusion: "success",
       started_at: "2026-07-23T00:00:00.000Z",
       completed_at: "2026-07-23T00:05:00.000Z",
+      duration_ms: 300_000,
+      slowest_step: "Run tests",
       html_url: "https://github.com/demo/lms/actions/runs/1001",
       is_primary: 1,
       emitted_trace_id: null,
       synced_at: "2026-07-23T00:06:00.000Z",
     });
+    const persisted = await repos.getPrimaryPipelineRun("chg_1");
+    expect(persisted?.duration_ms).toBe(300_000);
+    expect(persisted?.slowest_step).toBe("Run tests");
 
     await expect(repos.upsertPipelineRun({
         id: "run_2",

@@ -57,6 +57,8 @@ describe("github sync", () => {
     expect(runs[0].is_primary).toBe(1);
     expect(runs[0].emitted_trace_id).toMatch(/^[0-9a-f]{32}$/);
     expect(runs[0].export_state).toBe("verified");
+    expect(runs[0].duration_ms).toBe(290_000);
+    expect(runs[0].slowest_step).toBe("Run tests");
   });
 
   it("fails closed without inserting a fabricated change when GitHub commit lookup fails", async () => {

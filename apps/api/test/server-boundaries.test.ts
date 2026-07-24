@@ -127,4 +127,19 @@ describe("HTTP boundaries", () => {
     expect(rejected.statusCode).toBe(403);
     expect(rejected.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  it("returns a typed 404 instead of a successful null receipt for an unknown commit", async () => {
+    const { app } = await setup();
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/changes/${"f".repeat(40)}`,
+      headers: { authorization: "Bearer reader-token-with-safe-length" },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      error: "not_found",
+    });
+    expect(response.json().requestId).toEqual(expect.any(String));
+  });
 });
