@@ -2,6 +2,11 @@
 
 Last updated: 2026-07-24
 
+> Historical planning record. “done” below means the original issue/PR was merged;
+> it does not mean the audited evidence or production acceptance criterion passed.
+> The authoritative current status is
+> [`docs/REMEDIATION_TRACKER.md`](REMEDIATION_TRACKER.md).
+
 ## Status overview
 
 | Issue | Status | Notes |
@@ -51,9 +56,10 @@ Last updated: 2026-07-24
 | Live MCP investigation fixture | done (`test/fixtures/signoz/mcp-investigation.json`) |
 | Full demo rehearsal capture | partial (baseline + smoke; regression/recovery pending `BAD_SHA`) |
 
-## Validation
+## Historical validation claims
 
-- `npm run verify` — passing (typecheck, unit tests, build)
+- `npm run verify` — passed before the deep audit; it did not include the compiled
+  start, blocking browser, integration, security, image, backup, or rollback gates
 - `bash scripts/signoz-smoke.sh` — passing after bootstrap
 - `integrations/lms/deploy.sh` + `verify.sh` — passing when chained
 

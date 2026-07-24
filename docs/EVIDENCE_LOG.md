@@ -4,6 +4,8 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
 
 ## Phase 1 — LMS baseline trace
 
+**Classification:** offline diagnostic only; not production acceptance evidence.
+
 - **SHA:** `2269d064f0be50e7f6485c0be38e3cdcef6137d2`
 - **Route:** `GET /api/v1/internal/home/overview`
 - **Verification:** `integrations/lms/verify.sh`
@@ -12,11 +14,18 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
 
 ## Phase 1 — SigNoz backdated span
 
+**Classification:** synthetic OTLP transport smoke test, not a Claude Code trace.
+
 - **Script:** `scripts/backdated-span-smoke.mjs`
 - **Evidence:** ClickHouse `signoz_traces.distributed_signoz_index_v3` trace lookup
 - **2026-07-24 traceId:** `7b5b1b39741a991f073d59e245fb7575`
 
 ## Phase 2 — Trace-linked LMS commit (GL-P2-T04)
+
+**Verification status:** invalid/unverified for the headline chain. The trace ID belongs
+to the synthetic backdated smoke span and the documented parent span
+`00f067aa0ba902b7` was not resolved in SigNoz. This record must not be presented as
+Claude provenance.
 
 - **Branch:** `gl-proof-evidence` (isolated from frozen `greenlight-demo` baseline)
 - **Commit:** `ea45b32e528e9be2e993bc4a46b4871d4752c038`
@@ -25,6 +34,12 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
 - **Verification:** `bash scripts/verify-trace-linked-commit.sh /Users/siddhant/Desktop/lms-greenlight-demo ea45b32e528e9be2e993bc4a46b4871d4752c038`
 
 ## Phase 6 — Regression / recovery
+
+**Verification status:** historical rehearsal only. These evaluations were created by
+the pre-remediation implementation, which widened windows, used direct ClickHouse
+fallbacks, recomputed the recovery baseline, and rendered a default threshold of 200
+while the process ran with `GREENLIGHT_MIN_SPANS=90`. They do not satisfy the current
+acceptance gate.
 
 - **BAD_SHA:** `c6618e1621ebc1765564446bac68f71293eb79be` (fixed-count `countByStatus` loop — ~1s p95 on home overview)
 - **Baseline SHA:** `2269d064f0be50e7f6485c0be38e3cdcef6137d2`
@@ -44,6 +59,9 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
 
 ## Phase 7 — MCP investigation
 
+**Verification status:** fixture only. The capture path did not establish an official
+MCP client network session, and the fixture therefore does not satisfy Track 3.
+
 - **Prompt:** `docs/MCP_DEMO.md`
 - **Fixture:** `test/fixtures/signoz/mcp-investigation.json`
 - **Validator:** `node scripts/verify-mcp-result.mjs` (passing)
@@ -51,6 +69,8 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
 - **2026-07-24 traceIds:** `d2a01baea9c2d0a4e87c727d6bfbc8b8`, `223a2592ac0dd07124906e6a0b567208`, `69663ed8314b82d546fbb7d00c86c257`
 
 ## Phase 7 — Demo rehearsal
+
+**Verification status:** historical and unverified for production acceptance.
 
 - **2026-07-24:** `scripts/demo-smoke.sh`, `scripts/demo-baseline.sh`, `integrations/lms/verify.sh` passed
 - **Baseline deployment ID:** `dep_2269d064f0be_baseline`
