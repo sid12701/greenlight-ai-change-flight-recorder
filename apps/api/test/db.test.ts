@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { migrate, openDatabase } from "../src/db/migrate.js";
+import { createRepositories, UnsupportedStoreError } from "../src/db/store.js";
 import { Repositories } from "../src/db/repositories/index.js";
+import { temporaryDatabase } from "./support/config.js";
 
 describe("database migrations and repositories", () => {
   let dbPath: string;
@@ -20,7 +22,7 @@ describe("database migrations and repositories", () => {
     return Repositories.create(dbPath);
   }
 
-  it("applies migrations on a fresh database", () => {
+  it("applies migrations on a fresh database", async () => {
     const repos = setup();
     const db = openDatabase(dbPath);
     const tables = db
@@ -41,7 +43,7 @@ describe("database migrations and repositories", () => {
         "schema_migrations",
       ]),
     );
-    expect(repos.listChanges()).toEqual([]);
+    expect(await repos.listChanges()).toEqual([]);
   });
 
   it("is idempotent when migrations run twice", () => {
@@ -55,16 +57,16 @@ describe("database migrations and repositories", () => {
     expect(count.count).toBeGreaterThan(0);
   });
 
-  it("enforces one primary pipeline per change", () => {
+  it("enforces one primary pipeline per change", async () => {
     const repos = setup();
-    repos.upsertRepository({
+    await repos.upsertRepository({
       id: "repo_1",
       provider: "github",
       owner: "demo",
       name: "lms",
       default_branch: "main",
     });
-    repos.upsertChange({
+    await repos.upsertChange({
       id: "chg_1",
       repository_id: "repo_1",
       commit_sha: "a".repeat(40),
@@ -84,7 +86,7 @@ describe("database migrations and repositories", () => {
       created_at: "2026-07-23T00:00:00.000Z",
     });
 
-    repos.upsertPipelineRun({
+    await repos.upsertPipelineRun({
       id: "run_1",
       change_id: "chg_1",
       provider_run_id: "1001",
@@ -99,8 +101,7 @@ describe("database migrations and repositories", () => {
       synced_at: "2026-07-23T00:06:00.000Z",
     });
 
-    expect(() =>
-      repos.upsertPipelineRun({
+    await expect(repos.upsertPipelineRun({
         id: "run_2",
         change_id: "chg_1",
         provider_run_id: "1002",
@@ -113,20 +114,19 @@ describe("database migrations and repositories", () => {
         is_primary: 1,
         emitted_trace_id: null,
         synced_at: "2026-07-23T00:06:00.000Z",
-      }),
-    ).toThrow();
+      })).rejects.toThrow();
   });
 
-  it("enforces one succeeded baseline deployment per service/environment", () => {
+  it("enforces one succeeded baseline deployment per service/environment", async () => {
     const repos = setup();
-    repos.upsertRepository({
+    await repos.upsertRepository({
       id: "repo_1",
       provider: "github",
       owner: "demo",
       name: "lms",
       default_branch: "main",
     });
-    repos.upsertChange({
+    await repos.upsertChange({
       id: "chg_1",
       repository_id: "repo_1",
       commit_sha: "b".repeat(40),
@@ -146,7 +146,7 @@ describe("database migrations and repositories", () => {
       created_at: "2026-07-23T00:00:00.000Z",
     });
 
-    repos.insertDeployment({
+    await repos.insertDeployment({
       id: "dep_base",
       change_id: "chg_1",
       service_name: "lms-backend",
@@ -158,8 +158,7 @@ describe("database migrations and repositories", () => {
       created_at: "2026-07-23T00:00:00.000Z",
     });
 
-    expect(() =>
-      repos.insertDeployment({
+    await expect(repos.insertDeployment({
         id: "dep_base_2",
         change_id: "chg_1",
         service_name: "lms-backend",
@@ -169,13 +168,12 @@ describe("database migrations and repositories", () => {
         deployed_at: "2026-07-23T01:00:00.000Z",
         emitted_trace_id: null,
         created_at: "2026-07-23T01:00:00.000Z",
-      }),
-    ).toThrow();
+      })).rejects.toThrow();
   });
 
-  it("rejects invalid ai_link_status values", () => {
+  it("rejects invalid ai_link_status values", async () => {
     const repos = setup();
-    repos.upsertRepository({
+    await repos.upsertRepository({
       id: "repo_1",
       provider: "github",
       owner: "demo",
@@ -183,8 +181,7 @@ describe("database migrations and repositories", () => {
       default_branch: "main",
     });
 
-    expect(() =>
-      repos.upsertChange({
+    await expect(repos.upsertChange({
         id: "chg_bad",
         repository_id: "repo_1",
         commit_sha: "c".repeat(40),
@@ -202,7 +199,55 @@ describe("database migrations and repositories", () => {
         deletions: 0,
         changed_paths_json: null,
         created_at: "2026-07-23T00:00:00.000Z",
-      }),
-    ).toThrow();
+      })).rejects.toThrow();
+  });
+
+  it("persists durable job results and clears retry errors on completion", async () => {
+    const repos = setup();
+    await repos.enqueueJob({
+      id: "job_result_test",
+      kind: "github_sync_latest",
+      payload_json: JSON.stringify({ repository: "demo/lms" }),
+    });
+    const claimed = await repos.claimNextJob(new Date().toISOString());
+    expect(claimed).toMatchObject({ id: "job_result_test", state: "running", attempts: 1 });
+
+    await repos.completeJob("job_result_test", new Date().toISOString(), {
+      synchronized: 2,
+    });
+    const completed = await repos.getJob("job_result_test");
+    expect(completed).toMatchObject({
+      state: "succeeded",
+      last_error: null,
+      result_json: JSON.stringify({ synchronized: 2 }),
+    });
+  });
+});
+
+describe("store selection", () => {
+  it("refuses an unsupported store rather than downgrading to the local file", async () => {
+    const database = temporaryDatabase();
+    try {
+      // Silently falling back to SQLite would give a deployment a store that
+      // does not survive a restart and cannot be shared between the API and
+      // the worker.
+      await expect(createRepositories({
+        databasePath: database.path,
+        connectionUrl: "mysql://user:pw@db.internal:3306/greenlight",
+      })).rejects.toThrow(UnsupportedStoreError);
+    } finally {
+      database.cleanup();
+    }
+  });
+
+  it("uses the local file store when no database URL is configured", async () => {
+    const database = temporaryDatabase();
+    try {
+      const repos = await createRepositories({ databasePath: database.path });
+      expect(await repos.ping()).toBe(true);
+      await repos.close();
+    } finally {
+      database.cleanup();
+    }
   });
 });
