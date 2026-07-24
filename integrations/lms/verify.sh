@@ -8,8 +8,8 @@ LMS_SHA="${1:-}"
 LMS_BACKEND_PORT="${LMS_BACKEND_PORT:-8081}"
 LMS_DEMO_ROUTE="${LMS_DEMO_ROUTE:-/api/v1/internal/home/overview}"
 SIGNOZ_CLICKHOUSE_CONTAINER="${SIGNOZ_CLICKHOUSE_CONTAINER:-signoz-telemetrystore-clickhouse-0-0}"
-LMS_LOGIN_EMAIL="${LMS_LOGIN_EMAIL:-ops.admin@bhawana.local}"
-LMS_LOGIN_PASSWORD="${LMS_LOGIN_PASSWORD:-ChangeMe123!}"
+LMS_LOGIN_EMAIL="${LMS_LOGIN_EMAIL:-}"
+LMS_LOGIN_PASSWORD="${LMS_LOGIN_PASSWORD:-}"
 
 fail() {
   echo "verify: error: $*" >&2
@@ -23,6 +23,8 @@ pass() {
 if [[ -z "$LMS_SHA" || ${#LMS_SHA} -ne 40 ]]; then
   fail "Usage: verify.sh <40-character-commit-sha>"
 fi
+[[ -n "$LMS_LOGIN_EMAIL" && -n "$LMS_LOGIN_PASSWORD" ]] ||
+  fail "LMS_LOGIN_EMAIL and LMS_LOGIN_PASSWORD are required"
 
 HEALTH="$(curl -fsS "http://127.0.0.1:${LMS_BACKEND_PORT}/actuator/health")"
 echo "$HEALTH" | grep -q '"status":"UP"' || fail "Actuator health not UP: $HEALTH"

@@ -5,16 +5,20 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/.env" 2>/dev/null || true
 
-: "${LMS_PATH:?LMS_PATH is required}"
 : "${GREENLIGHT_ADMIN_TOKEN:?GREENLIGHT_ADMIN_TOKEN is required}"
+: "${LMS_BASELINE_SHA:?LMS_BASELINE_SHA is required}"
+: "${LMS_BASELINE_IMAGE:?LMS_BASELINE_IMAGE must be pinned by digest}"
 
-BASELINE_SHA="${BASELINE_SHA:-2269d064f0be50e7f6485c0be38e3cdcef6137d2}"
-
-echo "demo-baseline: recording baseline deployment for ${BASELINE_SHA}"
-curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
-  -H "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{\"repository\":\"${GITHUB_REPOSITORY:-demo/lms}\",\"commitSha\":\"${BASELINE_SHA}\",\"serviceName\":\"lms-backend\",\"environmentName\":\"hackathon-demo\",\"role\":\"baseline\",\"status\":\"succeeded\",\"deployedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+echo "demo-baseline: deploying immutable baseline ${LMS_BASELINE_SHA}"
+DEPLOY_RESULT="$(
+  LMS_IMAGE="$LMS_BASELINE_IMAGE" \
+  LMS_DEPLOYMENT_SLOT=blue \
+  LMS_BACKEND_PORT="${LMS_BASELINE_PORT:-8081}" \
+  bash "${ROOT}/integrations/lms/deploy.sh" "$LMS_BASELINE_SHA" baseline |
+  tail -n 1
+)"
+echo "$DEPLOY_RESULT"
 
 echo "demo-baseline: generating load"
-node "${ROOT}/integrations/lms/load-home-overview.mjs"
+LMS_BASE_URL="${LMS_BASELINE_URL:-http://127.0.0.1:${LMS_BASELINE_PORT:-8081}}" \
+  node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250

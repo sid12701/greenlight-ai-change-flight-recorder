@@ -1,36 +1,33 @@
 #!/usr/bin/env bash
-# Deploy recovery build and evaluate against frozen baseline — GL-P6-T02
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT}/.env" 2>/dev/null || true
 
-: "${LMS_PATH:?LMS_PATH is required}"
 : "${GREENLIGHT_ADMIN_TOKEN:?GREENLIGHT_ADMIN_TOKEN is required}"
+: "${RECOVERY_SHA:?RECOVERY_SHA is required}"
+: "${LMS_RECOVERY_IMAGE:?LMS_RECOVERY_IMAGE must be pinned by digest}"
+: "${INCIDENT_ID:?INCIDENT_ID from the candidate evaluation is required}"
 
-RECOVERY_SHA="${RECOVERY_SHA:-${BASELINE_SHA:-2269d064f0be50e7f6485c0be38e3cdcef6137d2}}"
+echo "demo-recover: deploying immutable recovery ${RECOVERY_SHA}"
+DEPLOY_RESULT="$(
+  LMS_IMAGE="$LMS_RECOVERY_IMAGE" \
+  LMS_DEPLOYMENT_SLOT=blue \
+  LMS_BACKEND_PORT="${LMS_RECOVERY_PORT:-8081}" \
+  bash "${ROOT}/integrations/lms/deploy.sh" "$RECOVERY_SHA" recovery |
+  tail -n 1
+)"
+DEPLOYMENT_ID="$(node -e 'const value=JSON.parse(process.argv[1]);process.stdout.write(value.deploymentId)' "$DEPLOY_RESULT")"
 
-echo "demo-recover: deploying recovery ${RECOVERY_SHA}"
-LMS_PATH="$LMS_PATH" bash "${ROOT}/integrations/lms/deploy.sh" "$RECOVERY_SHA" recovery
-sleep 5
+LMS_BASE_URL="${LMS_RECOVERY_URL:-http://127.0.0.1:${LMS_RECOVERY_PORT:-8081}}" \
+  node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250
 
-curl -fsS -X POST "http://127.0.0.1:4000/api/v1/deployments" \
-  -H "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{\"repository\":\"${GITHUB_REPOSITORY:-demo/lms}\",\"commitSha\":\"${RECOVERY_SHA}\",\"serviceName\":\"lms-backend\",\"environmentName\":\"hackathon-demo\",\"role\":\"recovery\",\"status\":\"succeeded\",\"deployedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
-
-node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250
-
-echo "demo-recover: waiting for trace ingestion"
-sleep 15
-
-DEPLOYMENT_ID="$(sqlite3 "${GREENLIGHT_DATABASE_PATH:-${ROOT}/data/greenlight.db}" \
-  "SELECT id FROM deployments WHERE role='recovery' ORDER BY deployed_at DESC LIMIT 1")"
-
-curl -fsS -X POST "http://127.0.0.1:4000/api/v1/regressions/evaluate" \
-  -H "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "{\"deploymentId\":\"${DEPLOYMENT_ID}\",\"route\":\"/api/v1/internal/home/overview\",\"comparisonKind\":\"recovery\"}"
-
-echo "demo-recover: complete"
+JOB_RESPONSE="$(curl --fail --silent --show-error \
+  --request POST "${GREENLIGHT_API_URL:-http://127.0.0.1:4000}/api/v1/regressions/evaluate" \
+  --header "Authorization: Bearer ${GREENLIGHT_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data "$(printf '{"deploymentId":"%s","incidentId":"%s","route":"%s","comparisonKind":"recovery"}' \
+    "$DEPLOYMENT_ID" "$INCIDENT_ID" "${LMS_DEMO_ROUTE:-/api/v1/internal/home/overview}")")"
+JOB_ID="$(node -e 'const value=JSON.parse(process.argv[1]);process.stdout.write(value.jobId)' "$JOB_RESPONSE")"
+node "${ROOT}/scripts/wait-job.mjs" "$JOB_ID"

@@ -8,27 +8,25 @@ set -a
 source "${ROOT}/.env"
 set +a
 
-: "${LMS_PATH:?LMS_PATH is required}"
 : "${GREENLIGHT_ADMIN_TOKEN:?GREENLIGHT_ADMIN_TOKEN is required}"
 : "${BAD_SHA:?BAD_SHA is required}"
+: "${LMS_BASELINE_SHA:?LMS_BASELINE_SHA is required}"
+: "${RECOVERY_SHA:?RECOVERY_SHA is required}"
 
-BASELINE_SHA="${BASELINE_SHA:-2269d064f0be50e7f6485c0be38e3cdcef6137d2}"
-export OTEL_JAVA_AGENT_PATH="${OTEL_JAVA_AGENT_PATH:-${ROOT}/instrumentation/lms-java-agent/opentelemetry-javaagent.jar}"
 export GREENLIGHT_LOAD_SECONDS=90
 export GREENLIGHT_LOAD_TARGET=250
 
 echo "=== Phase 1: baseline traffic (90s) ==="
-LMS_PATH="$LMS_PATH" bash "${ROOT}/integrations/lms/deploy.sh" "$BASELINE_SHA" baseline
-node "${ROOT}/integrations/lms/load-home-overview.mjs"
+bash "${ROOT}/scripts/demo-baseline.sh"
 
-echo "=== Phase 2: wait 15s for window alignment ==="
-sleep 15
-
-echo "=== Phase 3: regression (bad deploy + load + evaluate) ==="
+echo "=== Phase 2: regression (bad deploy + load + evaluate) ==="
 export BAD_SHA
-bash "${ROOT}/scripts/demo-regression.sh" | tee /tmp/greenlight-regression.json
+bash "${ROOT}/scripts/demo-regression.sh"
+INCIDENT_ID="$(node -e 'const value=require(process.argv[1]);process.stdout.write(value.incidentId)' \
+  "${GREENLIGHT_REGRESSION_RESULT_PATH:-/tmp/greenlight-regression-result.json}")"
+export INCIDENT_ID
 
-echo "=== Phase 4: recovery ==="
-bash "${ROOT}/scripts/demo-recover.sh" | tee /tmp/greenlight-recovery.json
+echo "=== Phase 3: recovery ==="
+bash "${ROOT}/scripts/demo-recover.sh"
 
 echo "=== Rehearsal complete ==="

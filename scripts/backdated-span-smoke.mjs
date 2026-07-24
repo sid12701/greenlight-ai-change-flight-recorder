@@ -44,83 +44,59 @@ async function exportSpan({ startMs, name }) {
 }
 
 async function queryTraceViaApi(traceIdHex) {
-  const headers = { "Content-Type": "application/json" };
-  if (SIGNOZ_API_KEY) {
-    headers["SIGNOZ-API-KEY"] = SIGNOZ_API_KEY;
-  }
-
-  const end = Date.now();
-  const start = end - 24 * 60 * 60 * 1000;
-
   const body = {
-    start: String(start),
-    end: String(end),
+    schemaVersion: "v1",
+    start: Date.now() - 3 * 60 * 60 * 1000,
+    end: Date.now() + 60 * 1000,
+    requestType: "scalar",
     compositeQuery: {
-      queryType: "builder",
-      panelType: "list",
-      builderQueries: {
-        A: {
-          dataSource: "traces",
-          queryName: "A",
-          aggregateOperator: "noop",
-          filters: {
-            items: [
-              {
-                key: { key: "traceID", type: "tag" },
-                op: "=",
-                value: traceIdHex,
-              },
-            ],
-            op: "AND",
-          },
-          orderBy: [{ columnName: "timestamp", order: "desc" }],
-          limit: 5,
-          offset: 0,
+      queries: [{
+        type: "builder_query",
+        spec: {
+          name: "A",
+          signal: "traces",
+          disabled: false,
+          filter: { expression: `trace_id = '${traceIdHex}'` },
+          aggregations: [{ expression: "count()" }],
         },
-      },
+      }],
     },
   };
 
-  const response = await fetch(`${SIGNOZ_URL}/api/v5/query_range`, {
+  const response = await fetch(new URL("/api/v5/query_range", SIGNOZ_URL), {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json", "SIGNOZ-API-KEY": SIGNOZ_API_KEY },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`SigNoz query failed (${response.status}): ${text}`);
+    throw new Error(`SigNoz query failed (${response.status}): ${await response.text()}`);
   }
-
   return response.json();
 }
 
+/** Reads the scalar aggregation of the v5 response envelope. */
 function countSpans(result) {
-  return result?.data?.result?.[0]?.list?.length ?? 0;
+  const row = result?.data?.data?.results?.[0]?.data?.[0];
+  const value = Number(row?.at?.(-1));
+  return Number.isFinite(value) ? value : 0;
 }
 
-async function queryTraceViaClickHouse(traceIdHex) {
-  const { execFile } = await import("node:child_process");
-  const { promisify } = await import("node:util");
-  const execFileAsync = promisify(execFile);
-  const container =
-    process.env.SIGNOZ_CLICKHOUSE_CONTAINER ?? "signoz-telemetrystore-clickhouse-0-0";
-  const { stdout } = await execFileAsync("docker", [
-    "exec",
-    container,
-    "clickhouse-client",
-    "--query",
-    `SELECT count() FROM signoz_traces.distributed_signoz_index_v3 WHERE trace_id = '${traceIdHex}'`,
-  ]);
-  return Number(stdout.trim());
-}
-
+/**
+ * Resolves the exported span through the supported SigNoz API only.
+ *
+ * There is deliberately no telemetry-store fallback: reading ClickHouse
+ * directly would report success for a span the product itself could never
+ * query, which is precisely the failure this smoke test exists to catch.
+ */
 async function discoverTrace(traceIdHex) {
-  if (SIGNOZ_API_KEY) {
-    const result = await queryTraceViaApi(traceIdHex);
-    return countSpans(result);
+  if (!SIGNOZ_API_KEY) {
+    throw new Error(
+      "SIGNOZ_API_KEY is required: the smoke test verifies the same query path the application uses",
+    );
   }
-  return queryTraceViaClickHouse(traceIdHex);
+  return countSpans(await queryTraceViaApi(traceIdHex));
 }
 
 async function main() {

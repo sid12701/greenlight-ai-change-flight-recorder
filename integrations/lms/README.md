@@ -17,7 +17,10 @@ The Bhawana LMS is a **pre-existing monitored workload**. GreenLight never modif
 | Demo branch | `greenlight-demo` |
 | Upstream `main` at isolation time | `bfd571f3bc1a22c6e4c7d411c7a447cfffe8a7e0` (one commit after baseline; not used for the demo anchor) |
 
-The demo clone is intentionally checked out at the documented baseline SHA so provenance, telemetry `service.version`, and judge reproduction stay aligned with [PROVENANCE.md](../../PROVENANCE.md).
+The source clone is used only to build and test immutable images in CI. Deployment
+never checks out or builds source on the target host. Each image must be signed,
+addressed by digest, and carry the full source SHA in the
+`org.opencontainers.image.revision` label.
 
 ## Target route
 
@@ -25,17 +28,20 @@ The demo clone is intentionally checked out at the documented baseline SHA so pr
 GET /api/v1/internal/home/overview
 ```
 
-Backend listens on port **8081** during the hackathon demo (SigNoz UI uses 8080).
+The blue baseline/recovery slot listens on loopback port **8081** and the green
+candidate slot on **8082** (SigNoz UI uses 8080). Include both exact origins in
+`GREENLIGHT_HEALTH_ALLOWED_ORIGINS`; each load phase targets its own slot.
 
-## Create the demo clone
+## Obtain the demo clone
 
-Run once from any directory:
+Use the hosted, protected demo repository configured by `GITHUB_REPOSITORY`.
+Do not use a local-path remote as acceptance evidence. A local clone is only a
+development convenience:
 
 ```bash
-git clone /Users/siddhant/Desktop/lms /Users/siddhant/Desktop/lms-greenlight-demo
+git clone https://github.com/your-org/bhawana-lms-greenlight-demo.git /Users/siddhant/Desktop/lms-greenlight-demo
 cd /Users/siddhant/Desktop/lms-greenlight-demo
-git checkout 2269d064f0be50e7f6485c0be38e3cdcef6137d2
-git checkout -b greenlight-demo
+git checkout greenlight-demo
 ```
 
 Verify:
@@ -66,6 +72,22 @@ docker compose -f infra/docker-compose.yml up -d postgres rabbitmq
 ## Configuration
 
 Copy [demo-config.example](demo-config.example) values into your local `.env` or shell environment. See [workflow-trigger-contract.md](workflow-trigger-contract.md) for Backend CI proof-commit rules.
+
+## Immutable deployment
+
+```bash
+export LMS_IMAGE='ghcr.io/your-org/bhawana-lms@sha256:<64-hex-digest>'
+export LMS_ENV_FILE=/secure/path/lms-runtime.env
+export GITHUB_REPOSITORY=your-org/bhawana-lms-greenlight-demo
+export GREENLIGHT_ADMIN_TOKEN='<scoped deploy key>'
+bash integrations/lms/deploy.sh <full-40-character-sha> candidate
+```
+
+The script verifies the image revision label, starts a named blue/green slot with
+resource and filesystem restrictions, polls the configured health URL, submits
+an idempotent deployment event, and waits for the durable worker job result. It
+refuses mutable tags, mismatched SHAs, unconfigured repositories, or missing
+secret files.
 
 ## Judge access
 

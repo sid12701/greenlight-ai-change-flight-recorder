@@ -21,6 +21,15 @@ pass() {
   echo "preflight: ok: $*"
 }
 
+for command in node npm git curl docker python3; do
+  command -v "$command" >/dev/null 2>&1 || fail "Required command is missing: $command"
+done
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
+NODE_MAJOR="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+[[ "$NODE_MAJOR" == "24" ]] ||
+  fail "Node 24 LTS is required; found $(node --version)"
+pass "Host tools: Node $(node --version), npm $(npm --version), Git $(git --version | awk '{print $3}'), $(docker --version)"
+
 if [[ -z "${LMS_PATH:-}" ]]; then
   fail "LMS_PATH is not set. See integrations/lms/demo-config.example"
 fi
@@ -43,6 +52,12 @@ fi
 if [[ ! -d "$LMS_PATH/.git" ]]; then
   fail "LMS_PATH is not a Git repository: $LMS_PATH"
 fi
+
+LMS_REMOTE="$(git -C "$LMS_PATH" remote get-url origin 2>/dev/null || true)"
+if [[ ! "$LMS_REMOTE" =~ ^(https://|ssh://|git@) ]]; then
+  fail "LMS origin must be a hosted remote, not '$LMS_REMOTE'"
+fi
+pass "Hosted LMS origin is configured"
 
 HEAD_SHA="$(git -C "$LMS_PATH" rev-parse HEAD)"
 if [[ "$HEAD_SHA" != "$LMS_BASELINE_SHA" ]]; then

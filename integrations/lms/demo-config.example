@@ -7,3 +7,5 @@ LMS_BASELINE_SHA=2269d064f0be50e7f6485c0be38e3cdcef6137d2
 LMS_BACKEND_PORT=8081
 LMS_DEMO_ROUTE=/api/v1/internal/home/overview
 LMS_FORBIDDEN_PATH=/Users/siddhant/Desktop/lms
+LMS_LOGIN_EMAIL=<set-locally>
+LMS_LOGIN_PASSWORD=<set-locally>
