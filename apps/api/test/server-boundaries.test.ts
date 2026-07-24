@@ -29,7 +29,6 @@ describe("HTTP boundaries", () => {
       GITHUB_TOKEN: "github-test-token",
       GITHUB_REPOSITORY: "demo/lms",
       SIGNOZ_API_KEY: "signoz-test-token",
-      LMS_PATH: directory,
     });
     const app = await buildServer(config);
     cleanups.push(async () => {

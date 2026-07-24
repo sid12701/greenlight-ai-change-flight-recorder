@@ -16,6 +16,7 @@ export default tseslint.config(
       "**/coverage/**",
       "**/playwright-report/**",
       "**/test-results/**",
+      ".workloads/**",
       "pours/**",
       "casting.yaml.lock",
     ],

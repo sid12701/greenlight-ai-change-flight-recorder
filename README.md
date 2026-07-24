@@ -2,7 +2,8 @@
 
 GreenLight connects an AI coding session to the Git commit it produced, the CI run that validated it, the deployed application version, the resulting SigNoz telemetry, and the evidence that the application recovered.
 
-This repository is the new hackathon project. The pre-existing Bhawana LMS is used only as a monitored demo workload.
+The monitored loan-processing workload is the public Apache-2.0 Blnk
+`v0.15.1` release, fetched at an exact commit and kept outside this repository.
 
 ## Intended submission track
 
@@ -15,7 +16,7 @@ The repository does **not currently claim a completed Track 3 evidence chain**. 
 GreenLight is under production-readiness remediation. The monorepo includes:
 
 - SigNoz Foundry stack (`casting.yaml`, smoke scripts)
-- LMS deploy/verify/load tooling (`integrations/lms/`)
+- Public Blnk fetch/build/seed/load/failure tooling (`integrations/blnk/`)
 - GreenLight API + Web (`apps/api`, `apps/web`)
 - Demo scripts (`scripts/demo-*.sh`)
 
@@ -36,6 +37,12 @@ bash instrumentation/git-hooks/test.sh
 docker compose -f deploy/compose.local.yaml config --quiet
 ```
 
+Start the public workload and generate a seeded baseline:
+
+```bash
+bash integrations/blnk/up.sh
+```
+
 Copy `.env.example` to `.env` and replace every placeholder. In three terminals,
 start the already-built processes:
 
@@ -51,8 +58,8 @@ npm --workspace @greenlight/web run preview
 
 Then verify `http://127.0.0.1:4000/livez`,
 `http://127.0.0.1:4000/readyz`, and `http://127.0.0.1:4173`. For the real
-evidence chain, configure the hosted LMS repository, SigNoz service-account and
-MCP credentials, digest-pinned LMS images, and runtime secret file; run:
+evidence chain, make this GreenLight repository public and configure its GitHub
+Actions repository, SigNoz service-account, and MCP credentials; run:
 
 ```bash
 bash scripts/preflight.sh
@@ -74,7 +81,7 @@ not configured. See [the operations runbook](docs/OPERATIONS.md),
 Claude Code trace
   → AI-Traceparent Git trailer
   → reconstructed GitHub Actions trace
-  → LMS deployment with service.version=<SHA>
+  → public Blnk workload with pinned service.version
   → SigNoz regression evidence
   → GreenLight Change Receipt
   → recovery proof

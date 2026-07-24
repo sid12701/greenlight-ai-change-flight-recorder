@@ -2,6 +2,32 @@
 
 Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borrower data.
 
+## 2026-07-25 — public Blnk workload acceptance
+
+**Classification:** live local runtime and SigNoz evidence.
+
+- **Repository:** `https://github.com/blnkfinance/blnk.git`
+- **Release/SHA:** `v0.15.1` /
+  `c8fce93af4df6b1edb46ca97e570c55beff4cef9`
+- **Runtime:** non-root UID/GID `10001`, read-only filesystem, PostgreSQL and
+  Redis internal-only, generated local authentication key.
+- **Seed:** one synthetic loan ledger and two synthetic USD balances.
+- **Traffic:** 120 healthy requests, 40 harmless 404 requests, 60 recovery
+  requests, then a real database-outage cycle with 40 HTTP 500 requests and 60
+  successful post-recovery requests.
+- **SigNoz result:** `698` spans / `374` traces for
+  `service.name=blnk-loan-workload` and the exact release SHA; `42` error spans
+  (`40` `/balances` 500 spans plus `2` `/health` 503 spans), `6.02%` of spans in
+  the observed validation set.
+- **Final state:** Blnk API, PostgreSQL, and Redis healthy; worker running.
+- **Commands:** `integrations/blnk/up.sh`,
+  `integrations/blnk/failure-cycle.sh`, source verifier, contract tests,
+  Compose config validation, and read-only operator aggregation in the local
+  SigNoz trace store.
+
+The sections below are retained as historical audit context for the superseded
+private LMS integration and are not the current demo path.
+
 ## Phase 1 — LMS baseline trace
 
 **Classification:** offline diagnostic only; not production acceptance evidence.

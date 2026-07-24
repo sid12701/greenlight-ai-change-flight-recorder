@@ -6,7 +6,6 @@ const required = {
   GITHUB_TOKEN: "strong-github-token-value",
   GITHUB_REPOSITORY: "demo/lms",
   SIGNOZ_API_KEY: "strong-signoz-token-value",
-  LMS_PATH: "/tmp/lms",
 };
 
 describe("configuration safety", () => {

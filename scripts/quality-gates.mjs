@@ -30,15 +30,11 @@ const FORBIDDEN_PRODUCTION_DEPENDENCIES = [
   "distributed_signoz_index",
   "docker exec",
 ];
-const DIAGNOSTIC_ALLOWLIST = new Set([
-  "integrations/lms/verify.sh",
-  "scripts/quality-gates.mjs",
-]);
+const DIAGNOSTIC_ALLOWLIST = new Set(["scripts/quality-gates.mjs"]);
 
 const CREDENTIAL_PATTERNS = [
   /ChangeMe123!/i,
   /GreenlightDemo123!/,
-  /ops\.admin@bhawana\.local/i,
   /BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY/,
   /gh[pousr]_[A-Za-z0-9]{16,}/,
   /AKIA[0-9A-Z]{16}/,

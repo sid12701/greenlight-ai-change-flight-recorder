@@ -225,7 +225,7 @@ export function buildJobProcessor(input: {
       github,
       repository: config.GITHUB_REPOSITORY,
       commitSha,
-      defaultBranch: config.LMS_DEMO_BRANCH,
+      defaultBranch: config.GREENLIGHT_DEMO_BRANCH,
     });
   };
 
@@ -252,7 +252,7 @@ export function buildJobProcessor(input: {
     github,
     repository: config.GITHUB_REPOSITORY,
     primaryWorkflowId: config.GREENLIGHT_PRIMARY_WORKFLOW_ID,
-    defaultBranch: config.LMS_DEMO_BRANCH,
+    defaultBranch: config.GREENLIGHT_DEMO_BRANCH,
     exporterFactory,
     verifyExport,
     verifyAiSpan,
@@ -273,7 +273,7 @@ export function buildJobProcessor(input: {
         const body = parseInput(SyncLatestBodySchema, JSON.parse(job.payload_json));
         return syncLatestWorkflowRuns({
           ...syncOptions,
-          branch: body.branch ?? config.LMS_DEMO_BRANCH,
+          branch: body.branch ?? config.GREENLIGHT_DEMO_BRANCH,
           primaryWorkflowName:
             body.primaryWorkflowName ?? config.GREENLIGHT_PRIMARY_WORKFLOW_NAME,
         });

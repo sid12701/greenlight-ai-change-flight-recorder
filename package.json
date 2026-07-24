@@ -18,7 +18,7 @@
     "smoke:backdated": "node scripts/backdated-span-smoke.mjs",
     "clean": "npm run clean --workspaces --if-present",
     "build": "npm run build --workspace @greenlight/shared && npm run build --workspace @greenlight/api && npm run build --workspace @greenlight/web",
-    "test": "npm run test --workspace @greenlight/shared && npm run test --workspace @greenlight/api && npm run test --workspace @greenlight/web && node --test integrations/lms/load-home-overview.test.mjs scripts/signoz-assets.test.mjs",
+    "test": "npm run test --workspace @greenlight/shared && npm run test --workspace @greenlight/api && npm run test --workspace @greenlight/web && node --test integrations/blnk/workload.test.mjs scripts/signoz-assets.test.mjs",
     "typecheck": "npm run build --workspace @greenlight/shared && npm run typecheck --workspace @greenlight/api && npm run typecheck --workspace @greenlight/web",
     "verify": "npm run clean && npm run lint && npm run typecheck && npm test && npm run build",
     "test:compiled-start": "node scripts/compiled-start-smoke.mjs",

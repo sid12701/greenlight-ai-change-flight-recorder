@@ -13,6 +13,7 @@ pours/
 instrumentation/lms-java-agent/*.jar
 instrumentation/lms-java-agent/*.pid
 instrumentation/lms-java-agent/*.log
+.workloads/
 *.log
 *.pid
 .idea/

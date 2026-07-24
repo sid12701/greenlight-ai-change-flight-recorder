@@ -2,23 +2,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+bash "${ROOT}/integrations/blnk/up.sh"
+
+set -a
 # shellcheck disable=SC1091
-source "${ROOT}/.env" 2>/dev/null || true
+source "${ROOT}/.workloads/blnk.env"
+set +a
 
-: "${GREENLIGHT_ADMIN_TOKEN:?GREENLIGHT_ADMIN_TOKEN is required}"
-: "${LMS_BASELINE_SHA:?LMS_BASELINE_SHA is required}"
-: "${LMS_BASELINE_IMAGE:?LMS_BASELINE_IMAGE must be pinned by digest}"
-
-echo "demo-baseline: deploying immutable baseline ${LMS_BASELINE_SHA}"
-DEPLOY_RESULT="$(
-  LMS_IMAGE="$LMS_BASELINE_IMAGE" \
-  LMS_DEPLOYMENT_SLOT=blue \
-  LMS_BACKEND_PORT="${LMS_BASELINE_PORT:-8081}" \
-  bash "${ROOT}/integrations/lms/deploy.sh" "$LMS_BASELINE_SHA" baseline |
-  tail -n 1
-)"
-echo "$DEPLOY_RESULT"
-
-echo "demo-baseline: generating load"
-LMS_BASE_URL="${LMS_BASELINE_URL:-http://127.0.0.1:${LMS_BASELINE_PORT:-8081}}" \
-  node "${ROOT}/integrations/lms/load-home-overview.mjs" --requests 250
+echo "demo-baseline: generating healthy Blnk loan-ledger traffic"
+node "${ROOT}/integrations/blnk/load.mjs" \
+  --profile healthy \
+  --requests "${GREENLIGHT_LOAD_TARGET:-250}" \
+  --concurrency "${GREENLIGHT_LOAD_CONCURRENCY:-5}" \
+  --duration-seconds "${GREENLIGHT_LOAD_SECONDS:-90}"

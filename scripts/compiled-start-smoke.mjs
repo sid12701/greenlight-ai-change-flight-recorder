@@ -21,7 +21,6 @@ const child = spawn(process.execPath, ["apps/api/dist/server.js"], {
     GITHUB_TOKEN: "compiled-start-github",
     GITHUB_REPOSITORY: "demo/lms",
     SIGNOZ_API_KEY: "compiled-start-signoz",
-    LMS_PATH: tempDir,
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -65,7 +64,6 @@ try {
       GITHUB_TOKEN: "compiled-start-github",
       GITHUB_REPOSITORY: "demo/lms",
       SIGNOZ_API_KEY: "compiled-start-signoz",
-      LMS_PATH: tempDir,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

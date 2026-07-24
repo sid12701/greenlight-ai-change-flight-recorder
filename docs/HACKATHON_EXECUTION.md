@@ -23,7 +23,7 @@ Status values:
 |---|---|---|---|---|
 | H-01 | P0 | Real baseline → regression → recovery evidence chain | planned | Every stored AI/CI/deploy/evaluation/MCP ID resolves in one live SigNoz; signed manifest saved |
 | H-02 | P0 | Required blog, video, and submission dry run | planned | Public URLs and completed form checklist |
-| H-03 | P0 | Public reproducible LMS/loan workload | planned | Clean-machine pinned checkout/container, health, seed, failure and recovery |
+| H-03 | P0 | Public reproducible LMS/loan workload | complete | Blnk `v0.15.1` pinned; clean build, seed, outage/recovery, and 698 SigNoz spans verified |
 | H-04 | P0 | Digest-pinned compatible Foundry stack | planned | Fresh gauge/forge/cast/smoke/import/MCP pass |
 | H-05 | P0 | Actionable clean demo bootstrap | planned | One documented command succeeds or fails before startup with precise remediation |
 | H-06 | P0 | Production dependency vulnerabilities | planned | npm audit, SBOM and image scan have no blocking high/critical findings |
@@ -46,6 +46,59 @@ Status values:
 | H-23 | P2 | GitHub Check/PR receipt | planned | Scoped, idempotent optional publisher with contract tests |
 | H-24 | P2 | Evidence-completeness risk score | planned | Transparent deterministic score with no causal/AI claim |
 | H-25 | P2 | Second public workload adapter | planned | Same adapter contract passes against a second public service |
+
+## H-03 — Public reproducible loan workload
+
+### Judging impact and root cause
+
+The original demo path depended on a private, machine-specific Bhawana checkout
+and credentials. Judges and CI could not reproduce it, and the fallback was
+only a proposal. This made the product's central workload and SigNoz proof
+non-portable.
+
+### Implementation plan and architecture
+
+- Compare multiple maintained public lending/financial candidates and select
+  the smallest credible API workload with compatible licensing and native OTel.
+- Fetch the selected release from its public origin at an exact tag and commit;
+  do not vendor third-party source.
+- Build a project-owned non-root runtime image and run PostgreSQL, Redis,
+  migrations, API, and worker with health-gated Compose ordering.
+- Generate a local secret, seed only synthetic loan-ledger data, and provide
+  bounded healthy, not-found, real dependency-outage, and recovery traffic.
+- Preserve standard OTel resource metadata with one exact, verifier-enforced
+  compatibility patch.
+
+The selected dependency is Blnk `v0.15.1` at
+`c8fce93af4df6b1edb46ca97e570c55beff4cef9`, Apache-2.0. The comparison,
+security/maintenance review, residual risks, and rollback are in
+`integrations/blnk/DEPENDENCY_REVIEW.md`.
+
+### Testing, security, operations, and rollback
+
+Contract tests cover argument validation, bounded error traffic, seed creation,
+and idempotent reuse. The fetch verifier proves origin, tag, SHA, and that the
+approved OTel patch is the checkout's only modification. Compose validation,
+cold source build, migration, health, authentication, non-root identity,
+read-only runtime, seed, and dependency recovery are runtime gates.
+
+PostHog and Typesense are disabled, data stores are not host-published, the
+master key lives in an ignored mode-0600 file, capabilities are dropped, and
+`no-new-privileges` is set. `down.sh` preserves local data by default; the
+explicit `--volumes` option removes only this named Compose project's volumes.
+
+### Validation evidence
+
+- Exact public checkout, patch, image label, and non-root UID verified.
+- Cold Docker build and ordered migration/startup passed.
+- Missing auth returned 401; 180 baseline/recovery requests succeeded and 40
+  harmless not-found requests were bounded.
+- A real PostgreSQL outage produced 40 HTTP 500 requests; the safety trap
+  restarted the database and all 60 recovery requests succeeded.
+- SigNoz stored 698 versioned spans across 374 traces, including 42 error spans
+  (40 `/balances` 500 and two `/health` 503); final services were healthy.
+- `node --test integrations/blnk/workload.test.mjs`, Compose config validation,
+  ESLint, shell syntax, and `git diff --check` passed.
 
 ## H-07 — Receipt correctness and persisted CI details
 
