@@ -1,30 +1,14 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AppConfig } from "../src/config.js";
+import type {
+  ReadableSpan,
+  SpanExporter,
+} from "@opentelemetry/sdk-trace-base";
 import { Repositories } from "../src/db/repositories/index.js";
-import { buildServer } from "../src/server.js";
+import { buildServer } from "../src/app.js";
 import { DeploymentService } from "../src/modules/deployments/service.js";
+import { temporaryDatabase, testConfig } from "./support/config.js";
 
-const config = {
-  GREENLIGHT_PORT: 4000,
-  GREENLIGHT_DATABASE_PATH: "",
-  GREENLIGHT_ADMIN_TOKEN: "test-admin-token",
-  GITHUB_TOKEN: "test-github-token",
-  GITHUB_REPOSITORY: "demo/lms",
-  GREENLIGHT_PRIMARY_WORKFLOW_NAME: "Backend CI",
-  SIGNOZ_URL: "http://localhost:8080",
-  SIGNOZ_API_KEY: "test-signoz",
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
-  OTEL_SERVICE_NAME: "greenlight-api",
-  LMS_PATH: "/tmp/lms",
-  LMS_DEMO_BRANCH: "greenlight-demo",
-  GREENLIGHT_BASELINE_WINDOW_SECONDS: 90,
-  GREENLIGHT_WARMUP_SECONDS: 15,
-  GREENLIGHT_OBSERVED_WINDOW_SECONDS: 90,
-  GREENLIGHT_MIN_SPANS: 200,
-} satisfies AppConfig;
+let config = testConfig();
 
 describe("deployment routes", () => {
   let dbPath = "";
@@ -34,20 +18,20 @@ describe("deployment routes", () => {
     cleanup();
   });
 
-  function seed() {
-    const dir = mkdtempSync(join(tmpdir(), "greenlight-api-"));
-    dbPath = join(dir, "test.db");
-    cleanup = () => rmSync(dir, { recursive: true, force: true });
-    config.GREENLIGHT_DATABASE_PATH = dbPath;
+  async function seed() {
+    const database = temporaryDatabase();
+    dbPath = database.path;
+    cleanup = database.cleanup;
+    config = testConfig({ GREENLIGHT_DATABASE_PATH: dbPath });
     const repos = Repositories.create(dbPath);
-    repos.upsertRepository({
+    await repos.upsertRepository({
       id: "repo_1",
       provider: "github",
       owner: "demo",
       name: "lms",
       default_branch: "main",
     });
-    repos.upsertChange({
+    await repos.upsertChange({
       id: "chg_1",
       repository_id: "repo_1",
       commit_sha: "d".repeat(40),
@@ -70,8 +54,8 @@ describe("deployment routes", () => {
   }
 
   it("requires bearer auth for deployment recording", async () => {
-    seed();
-    const app = buildServer(config);
+    await seed();
+    const app = await buildServer(config);
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/deployments",
@@ -86,24 +70,174 @@ describe("deployment routes", () => {
       },
     });
     expect(response.statusCode).toBe(401);
+    await app.close();
   });
 
   it("records deployments through the service with health and version checks", async () => {
-    const repos = seed();
+    const repos = await seed();
+    let checkedUrl = "";
     const service = new DeploymentService(
       repos,
+      async (url) => {
+        checkedUrl = url;
+        return true;
+      },
       async () => true,
-      async () => true,
+      undefined,
+      { allowedHealthOrigins: ["http://lms.test:9081"] },
     );
     const result = await service.recordDeployment({
       repository: "demo/lms",
       commitSha: "d".repeat(40),
       serviceName: "lms-backend",
       environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://lms.test:9081/actuator/health",
+      imageDigest: `sha256:${"a".repeat(64)}`,
+      idempotencyKey: "deploy-test-baseline",
+      provider: "test",
       role: "baseline",
       status: "succeeded",
       deployedAt: "2026-07-23T12:00:00.000Z",
     });
     expect(result.deploymentId).toContain("dep_");
+    expect(checkedUrl).toBe("http://lms.test:9081/actuator/health");
+
+    const replay = await service.recordDeployment({
+      repository: "demo/lms",
+      commitSha: "d".repeat(40),
+      serviceName: "lms-backend",
+      environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://lms.test:9081/actuator/health",
+      imageDigest: `sha256:${"a".repeat(64)}`,
+      idempotencyKey: "deploy-test-baseline",
+      provider: "test",
+      role: "baseline",
+      status: "succeeded",
+      deployedAt: "2026-07-23T12:00:00.000Z",
+    });
+    expect(replay.replayed).toBe(true);
+    expect(await repos.getDeploymentsForChange("chg_1")).toHaveLength(1);
+  });
+
+  it("fails closed when the exact deployed version is not visible", async () => {
+    const repos = await seed();
+    const service = new DeploymentService(
+      repos,
+      async () => true,
+      async () => false,
+      undefined,
+      {
+        versionVisibilityTimeoutMs: 10,
+        allowedHealthOrigins: ["http://lms.test:9081"],
+      },
+    );
+    await expect(service.recordDeployment({
+      repository: "demo/lms",
+      commitSha: "d".repeat(40),
+      serviceName: "lms-backend",
+      environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://lms.test:9081/actuator/health",
+      imageDigest: `sha256:${"a".repeat(64)}`,
+      idempotencyKey: "deploy-unverified-version",
+      provider: "test",
+      role: "candidate",
+      status: "succeeded",
+      deployedAt: "2026-07-23T12:00:00.000Z",
+    })).rejects.toThrow(/not yet visible in SigNoz/);
+    expect(await repos.getDeploymentsForChange("chg_1")).toHaveLength(0);
+  });
+
+  it("rejects deployment health checks outside the configured origin allowlist", async () => {
+    const repos = await seed();
+    let called = false;
+    const service = new DeploymentService(
+      repos,
+      async () => {
+        called = true;
+        return true;
+      },
+      async () => true,
+      undefined,
+      { allowedHealthOrigins: ["https://deployments.internal.example"] },
+    );
+
+    await expect(service.recordDeployment({
+      repository: "demo/lms",
+      commitSha: "d".repeat(40),
+      serviceName: "lms-backend",
+      environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://169.254.169.254/latest/meta-data",
+      imageDigest: `sha256:${"a".repeat(64)}`,
+      idempotencyKey: "deploy-forbidden-health-origin",
+      provider: "test",
+      role: "candidate",
+      status: "succeeded",
+      deployedAt: "2026-07-23T12:00:00.000Z",
+    })).rejects.toThrow(/not in the configured allowlist/);
+    expect(called).toBe(false);
+  });
+
+  it("emits deployment markers under the deployed workload's resource identity", async () => {
+    const repos = await seed();
+    const spans: ReadableSpan[] = [];
+    const exporter: SpanExporter = {
+      export(batch, callback) {
+        spans.push(...batch);
+        callback({ code: 0 });
+      },
+      async shutdown() {},
+    };
+    let verifiedTraceId = "";
+    let expectedSpanCount = 0;
+    const service = new DeploymentService(
+      repos,
+      async () => true,
+      async () => true,
+      undefined,
+      {
+        allowedHealthOrigins: ["http://lms.test:9081"],
+        exporterFactory: () => exporter,
+        verifyTrace: async (traceId, spanCount) => {
+          verifiedTraceId = traceId;
+          expectedSpanCount = spanCount;
+          return true;
+        },
+      },
+    );
+
+    const result = await service.recordDeployment({
+      repository: "demo/lms",
+      commitSha: "d".repeat(40),
+      serviceName: "lms-backend",
+      environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://lms.test:9081/actuator/health",
+      imageDigest: `sha256:${"b".repeat(64)}`,
+      idempotencyKey: "deploy-trace-verification",
+      provider: "test",
+      role: "candidate",
+      status: "succeeded",
+      deployedAt: "2026-07-23T12:00:00.000Z",
+    });
+
+    expect(result.traceState).toBe("verified");
+    expect(expectedSpanCount).toBe(2);
+    expect(spans.map((span) => span.name).sort()).toEqual([
+      "deployment.started",
+      "deployment.succeeded",
+    ]);
+    expect(new Set(spans.map((span) => span.spanContext().traceId))).toEqual(
+      new Set([verifiedTraceId]),
+    );
+    // Deployment-impact queries filter on the workload's service name,
+    // version and environment; a marker emitted under the worker's identity
+    // could never be correlated with the telemetry it marks.
+    expect(spans[0].resource.attributes["service.name"]).toBe("lms-backend");
+    expect(spans[0].resource.attributes["service.version"]).toBe("d".repeat(40));
+    expect(spans[0].resource.attributes["deployment.environment.name"]).toBe("hackathon-demo");
   });
 });
