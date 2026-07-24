@@ -12,7 +12,7 @@
  * reads it back, and fails loudly on rejection.
  */
 import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,7 +60,7 @@ function readAssets(directory) {
     });
 }
 
-function validateDashboard({ file, payload }) {
+export function validateDashboard({ file, payload }) {
   if (payload.schemaVersion !== "v6") {
     fail(file, `schemaVersion must be "v6", got ${JSON.stringify(payload.schemaVersion)}`);
   }
@@ -124,7 +124,33 @@ function validateDashboard({ file, payload }) {
   }
 }
 
-function validateAlert({ file, payload }) {
+function validateErrorRateAlert(file, payload, queries) {
+  if (file !== "error-rate.json") {
+    return;
+  }
+  const errorQuery = queries.find((query) => query.spec?.name === "A");
+  const totalQuery = queries.find((query) => query.spec?.name === "B");
+  const formula = queries.find((query) => query.spec?.name === "F1");
+  if (errorQuery?.type !== "builder_query" || totalQuery?.type !== "builder_query") {
+    fail(file, "error-rate alert must define builder queries A (errors) and B (total)");
+  }
+  if (formula?.type !== "builder_formula" || formula.spec?.expression !== "A/B*100") {
+    fail(file, "error-rate alert must select formula F1 with expression A/B*100");
+  }
+  const errorFilter = errorQuery.spec?.filter?.expression;
+  const totalFilter = totalQuery.spec?.filter?.expression;
+  if (typeof errorFilter !== "string" || !errorFilter.endsWith(" AND has_error = true")) {
+    fail(file, "query A must count only errored spans using has_error = true");
+  }
+  if (errorFilter.slice(0, -" AND has_error = true".length) !== totalFilter) {
+    fail(file, "error and total queries must use the same service/version/environment/route scope");
+  }
+  if (payload.condition.selectedQueryName !== "F1" || payload.condition.targetUnit !== "%") {
+    fail(file, "error-rate alert must evaluate formula F1 as a percentage");
+  }
+}
+
+export function validateAlert({ file, payload }) {
   for (const field of ["alert", "alertType", "ruleType", "evalWindow", "frequency"]) {
     if (!payload[field]) {
       fail(file, `${field} is required`);
@@ -150,6 +176,14 @@ function validateAlert({ file, payload }) {
   if (!Array.isArray(payload.preferredChannels)) {
     fail(file, "preferredChannels must be an array; the importer fills it from SIGNOZ_ALERT_CHANNELS");
   }
+  if (payload.version !== "v5") {
+    fail(file, `version must be "v5" for Query Builder v5 alerts`);
+  }
+  const names = queries.map((query) => query.spec?.name);
+  if (names.some((name) => typeof name !== "string") || new Set(names).size !== names.length) {
+    fail(file, "every alert query needs a unique spec.name");
+  }
+  validateErrorRateAlert(file, payload, queries);
 }
 
 function requireEnv(name) {
@@ -278,7 +312,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`signoz-assets: ${error.message}`);
-  process.exitCode = 1;
-});
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  main().catch((error) => {
+    console.error(`signoz-assets: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

@@ -1,6 +1,7 @@
 {
   "schemaVersion": "v1",
-  "alert": "GreenLight — candidate error rate regression",
+  "version": "v5",
+  "alert": "GreenLight — candidate error rate high",
   "alertType": "TRACES_BASED_ALERT",
   "ruleType": "threshold_rule",
   "evalWindow": "5m",
@@ -22,24 +23,48 @@
               }
             ],
             "filter": {
+              "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route AND has_error = true"
+            }
+          }
+        },
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "B",
+            "signal": "traces",
+            "disabled": false,
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
               "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route"
             }
+          }
+        },
+        {
+          "type": "builder_formula",
+          "spec": {
+            "name": "F1",
+            "expression": "A/B*100",
+            "legend": "candidate error rate"
           }
         }
       ]
     },
     "op": ">",
-    "target": 5,
+    "target": 6,
     "matchType": "1",
-    "selectedQueryName": "A",
-    "targetUnit": ""
+    "selectedQueryName": "F1",
+    "targetUnit": "%"
   },
   "labels": {
     "severity": "critical",
     "owner": "greenlight"
   },
   "annotations": {
-    "summary": "Candidate service.version produced error spans above the configured absolute floor on the evaluated route.",
+    "summary": "Candidate service.version error rate exceeded the configured 6% absolute guardrail on the evaluated route.",
     "description": "Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain."
   },
   "preferredChannels": []

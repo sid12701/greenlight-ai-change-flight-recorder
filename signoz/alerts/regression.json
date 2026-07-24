@@ -1,5 +1,6 @@
 {
   "schemaVersion": "v1",
+  "version": "v5",
   "alert": "GreenLight — candidate p95 regression",
   "alertType": "TRACES_BASED_ALERT",
   "ruleType": "threshold_rule",

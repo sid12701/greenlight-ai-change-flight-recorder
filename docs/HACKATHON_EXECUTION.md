@@ -28,7 +28,7 @@ Status values:
 | H-05 | P0 | Actionable clean demo bootstrap | planned | One documented command succeeds or fails before startup with precise remediation |
 | H-06 | P0 | Production dependency vulnerabilities | planned | npm audit, SBOM and image scan have no blocking high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
-| H-08 | P0 | Correct, live-tested error-rate alert | planned | True rate query fires and resolves against generated traffic |
+| H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
 | H-09 | P0 | Visible compatible SigNoz dashboards | planned | All panels render in the browser and IDs are recorded |
 | H-10 | P0 | Judge landing state | planned | Empty, degraded and verified-demo paths are actionable |
 | H-11 | P1 | First-class custom metrics | planned | Metrics for verdicts, verification, queue and dependencies query in SigNoz |
@@ -96,3 +96,52 @@ down migration is used.
 Live SigNoz is not involved in this correctness unit. The later H-01 rehearsal
 will verify that the persisted CI trace and displayed timing refer to the same
 live run.
+
+## H-08 — True error-rate alert
+
+### Judging impact and root cause
+
+The rule named “candidate error rate regression” selected a single `count()`
+query over every matching span. It would fire when traffic exceeded five spans,
+regardless of whether any request failed. This creates false incidents and
+undermines the central SigNoz claim.
+
+### Implementation plan and architecture
+
+- Follow the official Query Builder v5 alert model: query A counts errored
+  spans, query B counts all spans over the identical service/version/
+  environment/route scope, and formula F1 computes `A/B*100`.
+- Evaluate F1 against the same 6% absolute guardrail used by the GreenLight
+  default regression policy, with percent as the threshold unit.
+- Mark both alert assets as Query Builder `v5`.
+- Export the asset validators for unit testing and add semantic validation
+  specific to the error-rate asset so a structurally valid count rule cannot
+  be mislabeled as a rate later.
+
+Affected components: SigNoz alert assets, asset validator, root test command,
+and the remediation tracker. No database or application runtime changes are
+required.
+
+### Testing, security, operations, and rollback
+
+- Asset validation must accept the production rule.
+- Negative tests remove the denominator/formula and mismatch the two scopes;
+  both must fail.
+- The alert importer remains the authoritative live API gate.
+- Notification channels stay environment-provided and are never committed.
+
+Rollback deletes/reimports the prior rule through the idempotent importer. The
+old count rule must not be restored under an “error rate” name; if formula
+support is unavailable, use an explicitly named error-count rule instead.
+
+### Validation evidence
+
+- `node --test scripts/signoz-assets.test.mjs` — semantic positive and negative
+  tests pass.
+- `npm run validate:signoz-assets` — three dashboards and two v5 alert rules
+  pass structural and semantic validation.
+- `npm run lint` — passed.
+
+Live import, generated failing/recovery traffic, notification delivery, and
+alert resolution remain part of H-04/H-09/H-01 because they require the pinned
+SigNoz stack and a configured local notification receiver.
