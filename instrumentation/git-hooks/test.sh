@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export GIT_CONFIG_NOSYSTEM=1
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_SYSTEM=/dev/null
+export GIT_COMMITTER_SIGNINGKEY=
+export GIT_AUTHOR_SIGNINGKEY=
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOOK_DIR="${ROOT}/instrumentation/git-hooks"
 VECTORS="${ROOT}/packages/shared/test-vectors/traceparent.json"

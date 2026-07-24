@@ -5,14 +5,140 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Actions are pinned by commit SHA. A mutable tag lets a third party change
+# what runs in CI without any change landing in this repository.
+env:
+  NODE_VERSION: "24"
+
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run quality
+      - run: npm run validate:config
+      - run: npm run validate:planning
+      - run: npm run validate:telemetry
+      - run: npm run validate:signoz-assets
+      - run: git diff --check
+
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - run: npm run test:coverage
+      - run: npm run test:compiled-migrations
+      - run: npm run test:compiled-start
+      - run: bash instrumentation/git-hooks/test.sh
+      - name: Fail if a test wrote a database into the workspace
+        run: |
+          if git status --porcelain | grep -E '\.db(-wal|-shm)?$'; then
+            echo "A test wrote a database into the workspace" >&2
+            exit 1
+          fi
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:smoke
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm sbom --sbom-format=cyclonedx > greenlight.cdx.json
+      - name: Fail if the built web bundle contains a credential
+        run: |
+          npm run build --workspace @greenlight/shared
+          npm run build --workspace @greenlight/web
+          if grep -rEq '(Bearer [A-Za-z0-9._-]{20,}|gh[pousr]_[A-Za-z0-9]{16,})' apps/web/dist/assets; then
+            echo "A credential was compiled into the public web bundle" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: greenlight-sbom
+          path: greenlight.cdx.json
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [quality, verify, security]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: docker build -f deploy/api.Dockerfile -t greenlight-api:${{ github.sha }} .
+      - run: docker build -f deploy/worker.Dockerfile -t greenlight-worker:${{ github.sha }} .
+      - run: docker build -f deploy/web.Dockerfile -t greenlight-web:${{ github.sha }} .
+      - name: Require non-root runtime users
+        run: |
+          test "$(docker image inspect greenlight-api:${{ github.sha }} --format '{{.Config.User}}')" = "node"
+          test "$(docker image inspect greenlight-worker:${{ github.sha }} --format '{{.Config.User}}')" = "node"
+          test "$(docker image inspect greenlight-web:${{ github.sha }} --format '{{.Config.User}}')" = "101"
+      - name: Scan images for known vulnerabilities
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          image-ref: greenlight-api:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+  lms:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require hosted workload configuration
+        run: test -n "${{ vars.LMS_REPOSITORY }}"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ vars.LMS_REPOSITORY }}
+          ref: ${{ vars.LMS_TEST_REF }}
+          token: ${{ secrets.LMS_REPOSITORY_TOKEN }}
+          path: lms
+      - name: Run full LMS backend suite
+        working-directory: lms/backend
+        run: ./mvnw --batch-mode test
+
+  required:
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [quality, verify, browser, security, images, lms]
+    steps:
+      - name: Require every gate
+        run: |
+          test '${{ needs.quality.result }}' = success
+          test '${{ needs.verify.result }}' = success
+          test '${{ needs.browser.result }}' = success
+          test '${{ needs.security.result }}' = success
+          test '${{ needs.images.result }}' = success
+          test '${{ needs.lms.result }}' = success

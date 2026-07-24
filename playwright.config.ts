@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
@@ -15,11 +17,14 @@ export default defineConfig({
       url: "http://127.0.0.1:4000/api/v1/health",
       reuseExistingServer: !process.env.CI,
       env: {
-        GREENLIGHT_ADMIN_TOKEN: "playwright-admin",
+        GREENLIGHT_ENV: "test",
+        GREENLIGHT_ADMIN_TOKEN: "playwright-admin-token-0123456789",
         GITHUB_TOKEN: "playwright-github-token",
         GITHUB_REPOSITORY: "demo/lms",
         SIGNOZ_API_KEY: "playwright-signoz",
-        LMS_PATH: "/tmp/lms",
+        // Without an explicit path the API writes ./data/greenlight.db into
+        // the workspace, where .gitignore does not cover it.
+        GREENLIGHT_DATABASE_PATH: join(tmpdir(), "greenlight-e2e", "greenlight.db"),
       },
     },
     {
