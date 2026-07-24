@@ -1,4 +1,5 @@
 import type { ChangeReceipt } from "@greenlight/shared";
+import { formatMilliseconds } from "../../formatters";
 
 export function CiSection({ receipt }: { receipt: ChangeReceipt }) {
   if (!receipt.pipeline) {
@@ -13,7 +14,8 @@ export function CiSection({ receipt }: { receipt: ChangeReceipt }) {
         <div><dt className="text-slate-400">Workflow</dt><dd>{receipt.pipeline.workflowName}</dd></div>
         <div><dt className="text-slate-400">Conclusion</dt><dd>{receipt.pipeline.conclusion ?? receipt.pipeline.status}</dd></div>
         <div><dt className="text-slate-400">Slowest step</dt><dd>{receipt.pipeline.slowestStep ?? "n/a"}</dd></div>
-        <div><dt className="text-slate-400">Duration</dt><dd>{receipt.pipeline.durationMs ?? "n/a"} ms</dd></div>
+        <div><dt className="text-slate-400">Duration</dt><dd>{formatMilliseconds(receipt.pipeline.durationMs)}</dd></div>
+        <div><dt className="text-slate-400">Export evidence</dt><dd>{receipt.pipeline.exportState}</dd></div>
       </dl>
       <div className="mt-4 flex flex-wrap gap-3">
         <a className="underline" href={receipt.pipeline.htmlUrl}>GitHub run</a>
@@ -21,6 +23,11 @@ export function CiSection({ receipt }: { receipt: ChangeReceipt }) {
           <a className="underline" href={receipt.pipeline.signozTraceUrl}>SigNoz trace</a>
         ) : null}
       </div>
+      {receipt.pipeline.exportState !== "verified" ? (
+        <p className="mt-3 text-sm text-amber-200">
+          The CI trace link is withheld until SigNoz verifies the reconstructed span tree.
+        </p>
+      ) : null}
       {receipt.relatedPipelines.length ? (
         <div className="mt-4">
           <h3 className="font-medium">Related workflows</h3>

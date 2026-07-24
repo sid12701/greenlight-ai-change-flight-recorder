@@ -11,10 +11,10 @@ export function EvidenceTimeline({ receipt }: { receipt: ChangeReceipt }) {
           <li key={stage} className="rounded-lg bg-slate-950 p-3 text-sm">
             <p className="font-medium">{stage}</p>
             <p className="text-slate-400">
-              {stage === "Claude" && receipt.change.aiLinkStatus}
+              {stage === "Claude" && receipt.change.aiVerificationState}
               {stage === "Commit" && receipt.change.shortSha}
-              {stage === "CI" && (receipt.pipeline?.workflowName ?? "missing")}
-              {stage === "Deploy" && (receipt.deployment?.status ?? "none")}
+              {stage === "CI" && (receipt.pipeline?.exportState ?? "missing")}
+              {stage === "Deploy" && (receipt.deployment?.versionState ?? "none")}
               {stage === "Impact" && (receipt.impact?.status ?? "none")}
               {stage === "Recovery" && (receipt.recovery?.status ?? "none")}
             </p>

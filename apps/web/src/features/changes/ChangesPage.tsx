@@ -19,10 +19,10 @@ export function ChangeRow({ change }: { change: ChangeSummary }) {
               {change.commitSubject ?? change.shortSha}
             </Link>
           </h2>
-          <p className="text-sm text-slate-400">{change.commitSha}</p>
+          <p className="break-all text-sm text-slate-400">{change.commitSha}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <StatusBadge label={`AI: ${change.aiLinkStatus}`} />
+          <StatusBadge label={`AI: ${change.aiVerificationState}`} />
           <StatusBadge label={`CI: ${change.primaryWorkflowConclusion ?? "none"}`} />
           <StatusBadge label={`Deploy: ${change.deploymentStatus ?? "none"}`} />
           <StatusBadge label={`Regression: ${change.regressionStatus ?? "none"}`} />
