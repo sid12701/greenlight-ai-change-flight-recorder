@@ -1,5 +1,12 @@
+/**
+ * Pure regression verdict logic.
+ *
+ * The evaluator only ever sees metrics that SigNoz actually answered with.
+ * Integration failures are handled by `RegressionService` before this point,
+ * so a missing metric here always means "SigNoz reported no data", never
+ * "SigNoz could not be reached".
+ */
 import type { RegressionStatus } from "@greenlight/shared";
-import type { SignozQueryResult } from "../signoz/client.js";
 
 export interface RegressionThresholds {
   latencyMultiplier: number;
@@ -21,9 +28,20 @@ export const DEFAULT_THRESHOLDS: RegressionThresholds = {
   recoveryErrorRateDeltaPct: 1,
 };
 
+export const CORRELATION_NOTE =
+  "Deployment correlation is evidence of temporal and version association, not proof that every observed failure was caused by the commit.";
+
+/** The metric set an evaluation compares. Every field is required to be present. */
+export interface ComparableMetrics {
+  requestCount: number | null;
+  p90Ms: number | null;
+  p95Ms: number | null;
+  errorRatePercent: number | null;
+}
+
 export interface EvaluationInput {
-  baseline: SignozQueryResult;
-  observed: SignozQueryResult;
+  baseline: ComparableMetrics;
+  observed: ComparableMetrics;
   comparisonKind: "deployment" | "recovery";
   thresholds?: RegressionThresholds;
 }
@@ -44,100 +62,17 @@ export interface EvaluationResult {
   thresholds: RegressionThresholds;
 }
 
-export function evaluateRegression(input: EvaluationInput): EvaluationResult {
-  const thresholds = input.thresholds ?? DEFAULT_THRESHOLDS;
-  const reasons: string[] = [];
-  const correlationNote =
-    "Deployment correlation is evidence of temporal and version association, not proof that every observed failure was caused by the commit.";
-
-  if (input.baseline.integrationError || input.observed.integrationError) {
-    return {
-      status: "insufficient_data",
-      reasons: ["SigNoz integration error prevented evaluation"],
-      baselineRequestCount: input.baseline.requestCount,
-      observedRequestCount: input.observed.requestCount,
-      baselineP95Ms: input.baseline.p95Ms,
-      observedP95Ms: input.observed.p95Ms,
-      baselineP90Ms: input.baseline.p90Ms,
-      observedP90Ms: input.observed.p90Ms,
-      baselineErrorRate: input.baseline.errorRate,
-      observedErrorRate: input.observed.errorRate,
-      latencyDeltaPct: null,
-      correlationNote,
-      thresholds,
-    };
-  }
-
-  const baselineCount = input.baseline.requestCount ?? 0;
-  const observedCount = input.observed.requestCount ?? 0;
-  if (baselineCount < thresholds.minSpans || observedCount < thresholds.minSpans) {
-    reasons.push(`Fewer than ${thresholds.minSpans} completed spans in one or both windows`);
-    return {
-      status: "insufficient_data",
-      reasons,
-      baselineRequestCount: input.baseline.requestCount,
-      observedRequestCount: input.observed.requestCount,
-      baselineP95Ms: input.baseline.p95Ms,
-      observedP95Ms: input.observed.p95Ms,
-      baselineP90Ms: input.baseline.p90Ms,
-      observedP90Ms: input.observed.p90Ms,
-      baselineErrorRate: input.baseline.errorRate,
-      observedErrorRate: input.observed.errorRate,
-      latencyDeltaPct: null,
-      correlationNote,
-      thresholds,
-    };
-  }
-
-  const baselineP95 = input.baseline.p95Ms ?? 0;
-  const observedP95 = input.observed.p95Ms ?? 0;
-  const latencyDeltaPct = baselineP95 === 0 ? null : ((observedP95 - baselineP95) / baselineP95) * 100;
-  const latencyRegressed =
-    observedP95 > baselineP95 * thresholds.latencyMultiplier &&
-    observedP95 > baselineP95 + thresholds.latencyAdditiveMs;
-
-  const baselineError = input.baseline.errorRate ?? 0;
-  const observedError = input.observed.errorRate ?? 0;
-  const errorRegressed =
-    observedError >= baselineError + thresholds.errorRateDeltaPct &&
-    observedError >= thresholds.errorRateAbsolutePct;
-
-  if (input.comparisonKind === "recovery") {
-    const recoveredLatency = observedP95 <= baselineP95 * thresholds.recoveryLatencyMultiplier;
-    const recoveredError = observedError <= baselineError + thresholds.recoveryErrorRateDeltaPct;
-    if (recoveredLatency && recoveredError) {
-      reasons.push("Observed latency and error rate returned within recovery bounds versus the original good baseline");
-      return buildResult("recovered", reasons, input, latencyDeltaPct, thresholds, correlationNote);
-    }
-    if (latencyRegressed || errorRegressed) {
-      reasons.push("Recovery deployment still exceeds regression thresholds");
-      return buildResult("regressed", reasons, input, latencyDeltaPct, thresholds, correlationNote);
-    }
-    reasons.push("Recovery deployment is healthy relative to the original baseline");
-    return buildResult("healthy", reasons, input, latencyDeltaPct, thresholds, correlationNote);
-  }
-
-  if (latencyRegressed) {
-    reasons.push("Observed p95 exceeded both 1.5x and baseline + 250ms");
-  }
-  if (errorRegressed) {
-    reasons.push("Observed error rate exceeded baseline by 2pp and reached at least 5%");
-  }
-  if (latencyRegressed || errorRegressed) {
-    return buildResult("regressed", reasons, input, latencyDeltaPct, thresholds, correlationNote);
-  }
-
-  reasons.push("Observed latency and error rate remained within configured thresholds");
-  return buildResult("healthy", reasons, input, latencyDeltaPct, thresholds, correlationNote);
+function isComplete(metrics: ComparableMetrics): boolean {
+  return [metrics.requestCount, metrics.p90Ms, metrics.p95Ms, metrics.errorRatePercent]
+    .every((value) => value !== null && Number.isFinite(value));
 }
 
-function buildResult(
+function result(
   status: RegressionStatus,
   reasons: string[],
   input: EvaluationInput,
-  latencyDeltaPct: number | null,
   thresholds: RegressionThresholds,
-  correlationNote: string,
+  latencyDeltaPct: number | null,
 ): EvaluationResult {
   return {
     status,
@@ -148,10 +83,104 @@ function buildResult(
     observedP95Ms: input.observed.p95Ms,
     baselineP90Ms: input.baseline.p90Ms,
     observedP90Ms: input.observed.p90Ms,
-    baselineErrorRate: input.baseline.errorRate,
-    observedErrorRate: input.observed.errorRate,
+    baselineErrorRate: input.baseline.errorRatePercent,
+    observedErrorRate: input.observed.errorRatePercent,
     latencyDeltaPct,
-    correlationNote,
+    correlationNote: CORRELATION_NOTE,
     thresholds,
   };
+}
+
+export function evaluateRegression(input: EvaluationInput): EvaluationResult {
+  const thresholds = input.thresholds ?? DEFAULT_THRESHOLDS;
+
+  if (!isComplete(input.baseline) || !isComplete(input.observed)) {
+    return result(
+      "insufficient_data",
+      ["One or more required SigNoz metrics were absent for the evaluated window"],
+      input,
+      thresholds,
+      null,
+    );
+  }
+
+  const baselineCount = input.baseline.requestCount as number;
+  const observedCount = input.observed.requestCount as number;
+  if (baselineCount < thresholds.minSpans || observedCount < thresholds.minSpans) {
+    return result(
+      "insufficient_data",
+      [`Fewer than ${thresholds.minSpans} completed spans in one or both windows`],
+      input,
+      thresholds,
+      null,
+    );
+  }
+
+  const baselineP95 = input.baseline.p95Ms as number;
+  const observedP95 = input.observed.p95Ms as number;
+  const baselineError = input.baseline.errorRatePercent as number;
+  const observedError = input.observed.errorRatePercent as number;
+  const latencyDeltaPct = baselineP95 === 0
+    ? null
+    : ((observedP95 - baselineP95) / baselineP95) * 100;
+
+  const latencyRegressed =
+    observedP95 > baselineP95 * thresholds.latencyMultiplier &&
+    observedP95 > baselineP95 + thresholds.latencyAdditiveMs;
+  const errorRegressed =
+    observedError >= baselineError + thresholds.errorRateDeltaPct &&
+    observedError >= thresholds.errorRateAbsolutePct;
+
+  if (input.comparisonKind === "recovery") {
+    const latencyRecovered = observedP95 <= baselineP95 * thresholds.recoveryLatencyMultiplier;
+    const errorRecovered = observedError <= baselineError + thresholds.recoveryErrorRateDeltaPct;
+    if (latencyRecovered && errorRecovered) {
+      return result(
+        "recovered",
+        ["Observed latency and error rate returned within recovery bounds versus the original good baseline"],
+        input,
+        thresholds,
+        latencyDeltaPct,
+      );
+    }
+    if (latencyRegressed || errorRegressed) {
+      return result(
+        "regressed",
+        ["Recovery deployment still exceeds regression thresholds"],
+        input,
+        thresholds,
+        latencyDeltaPct,
+      );
+    }
+    return result(
+      "healthy",
+      ["Recovery deployment is healthy relative to the original baseline but outside recovery bounds"],
+      input,
+      thresholds,
+      latencyDeltaPct,
+    );
+  }
+
+  const reasons: string[] = [];
+  if (latencyRegressed) {
+    reasons.push(
+      `Observed p95 exceeded both ${thresholds.latencyMultiplier}x and baseline + ${thresholds.latencyAdditiveMs}ms`,
+    );
+  }
+  if (errorRegressed) {
+    reasons.push(
+      `Observed error rate exceeded baseline by ${thresholds.errorRateDeltaPct}pp and reached at least ${thresholds.errorRateAbsolutePct}%`,
+    );
+  }
+  if (reasons.length > 0) {
+    return result("regressed", reasons, input, thresholds, latencyDeltaPct);
+  }
+
+  return result(
+    "healthy",
+    ["Observed latency and error rate remained within configured thresholds"],
+    input,
+    thresholds,
+    latencyDeltaPct,
+  );
 }
