@@ -4,9 +4,12 @@
 # GreenLight verifies a deployment by requiring the workload's SigNoz
 # `service.version` to equal the change's commit SHA. That check is only
 # meaningful if the running configuration is genuinely the configuration at
-# that commit, so this script refuses to deploy unless the working tree is at
-# the requested commit and `release.json` is unmodified. Baseline, candidate,
-# and recovery windows are then separately queryable in SigNoz by version.
+# that commit, so the deployed config is extracted from the commit itself
+# rather than read from the working tree. Baseline, candidate, and recovery
+# windows are then separately queryable in SigNoz by version.
+#
+# Extracting rather than checking out matters: a checkout would replace this
+# script and the compose file mid-deployment.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,13 +25,13 @@ fail() {
 
 [[ "${VERSION}" =~ ^[0-9a-f]{40}$ ]] || fail "usage: release.sh <40-char-commit-sha>"
 
-head_sha="$(git -C "${ROOT}" rev-parse HEAD)"
-if [[ "${head_sha}" != "${VERSION}" ]]; then
-  fail "working tree is at ${head_sha}, not ${VERSION}; check out that commit first"
-fi
-if ! git -C "${ROOT}" diff --quiet HEAD -- "${RELEASE_FILE}"; then
-  fail "${RELEASE_FILE} is modified; ${VERSION} would not describe what runs"
-fi
+git -C "${ROOT}" cat-file -e "${VERSION}^{commit}" 2>/dev/null ||
+  fail "${VERSION} is not a commit in this repository"
+
+DEPLOY_CONFIG="${ROOT}/.workloads/blnk-release.json"
+git -C "${ROOT}" show "${VERSION}:${RELEASE_FILE}" >"${DEPLOY_CONFIG}" ||
+  fail "${RELEASE_FILE} does not exist at ${VERSION}"
+export BLNK_RELEASE_CONFIG="${DEPLOY_CONFIG}"
 
 set -a
 # shellcheck disable=SC1090

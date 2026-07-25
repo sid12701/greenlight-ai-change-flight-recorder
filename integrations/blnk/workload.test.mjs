@@ -36,6 +36,7 @@ test("bounded error load counts application failures without aborting", async ()
   const result = await runLoad(
     options,
     async () => new Response("", { status: 404 }),
+    async () => {},
   );
   assert.deepEqual(result, {
     path: "/balances/bal_intentional_greenlight_404",
@@ -45,6 +46,27 @@ test("bounded error load counts application failures without aborting", async ()
     applicationErrors: 6,
     transportErrors: 0,
   });
+});
+
+test("load is spread across the requested duration rather than burst", async () => {
+  const options = parseLoadArgs(
+    ["--requests", "4", "--duration-seconds", "8", "--concurrency", "2"],
+    { BLNK_DEMO_KEY: "secret" },
+  );
+  const waits = [];
+  const result = await runLoad(
+    options,
+    async () => new Response("{}", { status: 200 }),
+    async (milliseconds) => {
+      waits.push(Math.round(milliseconds));
+    },
+  );
+
+  assert.equal(result.attempted, 4);
+  assert.equal(result.succeeded, 4);
+  // 4 requests across 8s is one every 2s; the first is issued immediately, so
+  // the remaining three each wait an additional interval.
+  assert.deepEqual(waits, [2000, 4000, 6000]);
 });
 
 test("seed creates synthetic ledger and balances then reuses verified state", async () => {

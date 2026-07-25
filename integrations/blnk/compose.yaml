@@ -21,11 +21,11 @@ x-blnk-common: &blnk-common
     # Keep this compatibility at the container boundary instead of patching
     # upstream application behavior.
     #
-    # This path is fixed so that the deployed configuration is whatever
-    # `release.json` contains at the deployed commit. Selecting a config by
-    # name at deploy time would let the running behavior differ from the
-    # commit that `service.version` reports.
-    - ./release.json:/tmp/blnk.json:ro
+    # Defaults to the working tree's release for a plain `up.sh`. `release.sh`
+    # overrides it with a file extracted from the deployed commit, so the
+    # running configuration is provably the configuration at the commit that
+    # `service.version` reports.
+    - ${BLNK_RELEASE_CONFIG:-./release.json}:/tmp/blnk.json:ro
   extra_hosts:
     - host.docker.internal:host-gateway
   read_only: true
