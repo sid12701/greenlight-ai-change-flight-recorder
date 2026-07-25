@@ -65,8 +65,17 @@ test("load is spread across the requested duration rather than burst", async () 
   assert.equal(result.attempted, 4);
   assert.equal(result.succeeded, 4);
   // 4 requests across 8s is one every 2s; the first is issued immediately, so
-  // the remaining three each wait an additional interval.
-  assert.deepEqual(waits, [2000, 4000, 6000]);
+  // the remaining three each wait until their scheduled offset. The waits are
+  // measured against a real clock, so they drift a few milliseconds below the
+  // exact schedule as the run progresses.
+  assert.equal(waits.length, 3);
+  for (const [index, wait] of waits.entries()) {
+    const expected = (index + 1) * 2000;
+    assert.ok(
+      Math.abs(wait - expected) <= 100,
+      `wait ${index} was ${wait}ms, expected about ${expected}ms`,
+    );
+  }
 });
 
 test("seed creates synthetic ledger and balances then reuses verified state", async () => {
