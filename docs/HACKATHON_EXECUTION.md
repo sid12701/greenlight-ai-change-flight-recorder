@@ -29,7 +29,7 @@ Status values:
 | H-06 | P0 | Production dependency vulnerabilities | complete | Production audit/SBOM and strict API, worker, and Web image scans report zero high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
-| H-09 | P0 | Visible compatible SigNoz dashboards | planned | All panels render in the browser and IDs are recorded |
+| H-09 | P0 | Visible compatible SigNoz dashboards | complete | All 14 panels render at v0.134.0 with zero query errors; IDs recorded; API spans carry `http.route` |
 | H-10 | P0 | Judge landing state | planned | Empty, degraded and verified-demo paths are actionable |
 | H-11 | P1 | First-class custom metrics | planned | Metrics for verdicts, verification, queue and dependencies query in SigNoz |
 | H-12 | P1 | API log/trace correlation | planned | API and worker logs query by request/job/commit and resolve trace IDs |
@@ -406,3 +406,91 @@ support is unavailable, use an explicitly named error-count rule instead.
 Live import, generated failing/recovery traffic, notification delivery, and
 alert resolution remain part of H-04/H-09/H-01 because they require the pinned
 SigNoz stack and a configured local notification receiver.
+
+## H-09 — Visible compatible SigNoz dashboards
+
+### Judging impact and root cause
+
+The three committed dashboards imported successfully through the API but did
+not render. Two independent defects were responsible.
+
+First, SigNoz `v0.134.0` stores dashboards in the v5 resource model yet its
+panel renderer still reads group-by fields through the legacy attribute keys
+(`key`/`dataType`/`type`). A widget carrying only the v5 keys
+(`name`/`fieldDataType`/`fieldContext`) saved cleanly and answered API queries,
+but the browser sent an empty group-by key and every grouped panel failed with
+`invalid query 'A': invalid empty key name for group by at index 0`. The
+importer had missed this because it built its own request from the widget
+instead of reproducing what the renderer sends.
+
+Second, the `http.route` attribute was never recorded on GreenLight API spans,
+so "API requests by route" grouped all traffic into one empty series. The
+process registered `@opentelemetry/instrumentation-fastify`, but that package
+patches CommonJS `require`; the API is ESM, so an `import` of Fastify was never
+wrapped and every span was named `GET` with no route. Because both the HTTP
+server span and the Fastify spans matched the panel filters, the request,
+latency, and error panels also counted three spans per request.
+
+### Implementation plan and architecture
+
+- Emit both key sets from the dashboard compiler so the stored dashboard stays
+  v5-native and renderable, deriving the legacy fields from the v5 ones rather
+  than duplicating them in the source definitions.
+- Rebuild the group-by in the importer's live check exactly as the renderer
+  does, so the check fails on the same input the browser fails on.
+- Replace the ineffective instrumentation with `@fastify/otel`, Fastify's
+  official plugin, registered explicitly in `buildServer`. Explicit
+  registration is deterministic and needs no ESM loader hook.
+- Skip readiness probes and per-hook spans so trace volume stays proportional
+  to real traffic.
+- Scope the API request/latency/error panels to `kind_string = 'Server'` so one
+  request contributes exactly one span.
+
+Affected components: dashboard compiler and importer, the three dashboard
+definitions, API telemetry bootstrap and server construction, and API
+dependencies. No database or infrastructure change is required.
+
+### Testing, security, operations, and rollback
+
+Unit tests assert that compiled group-by fields carry matching legacy and v5
+keys, and that a v5-only group-by renders as the empty key SigNoz rejects.
+Route-attribution tests assert the request span carries the matched route, that
+the parameterised route reports `/api/v1/changes/:commitSha` rather than a
+per-commit path that would explode dashboard cardinality, and that readiness
+probes are not traced.
+
+The importer is idempotent and updates by title, so dashboard IDs already
+published in receipts and demo documentation survive re-import. No credential
+is committed; the importer reads `SIGNOZ_API_KEY` from the environment.
+
+Rollback reverts the commit and re-runs `npm run signoz:import`; the dashboard
+IDs are preserved either way. Reverting the telemetry change restores the prior
+uninstrumented span names without affecting request handling.
+
+### Validation evidence
+
+- All three dashboards import with stable IDs and 14 panels; every panel is
+  executed through Query Builder v5 with no result-level error.
+- Browser verification at `v0.134.0`: all panels on all three dashboards render
+  with no error icon, and every `POST /api/v5/query_range` returns 200. Before
+  the fix the same page produced nine 400 responses.
+- The two temporary schema-probe dashboards created during investigation were
+  deleted; only the three GreenLight dashboards remain.
+- Live SigNoz confirms route attribution: `GET /api/v1/changes`,
+  `GET /api/v1/changes/:commitSha`, and `GET /api/v1/status/dependencies` each
+  carry the matching `http.route`, and `kind_string = 'Server'` isolates one
+  span per request.
+- `npm run verify` (147 tests), `npm run lint`, `npm run quality`, and
+  `npm audit --omit=dev` passed.
+
+### Remaining limitations
+
+Running both the HTTP instrumentation and `@fastify/otel` records three spans
+per request: the HTTP server span, the plugin's `request` span, and the route
+handler span. This is inherent to the supported combination — the HTTP
+instrumentation is still required for outbound GitHub and SigNoz client spans.
+Dashboard panels filter on `kind_string` so counts and percentiles are correct;
+the extra internal spans remain visible in trace detail views.
+
+Pipeline-health panels render but return no data until H-01 produces a real CI
+evidence chain for the `greenlight-ci` service.

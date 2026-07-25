@@ -11,14 +11,14 @@
         "kind": "TextVariable",
         "spec": {
           "name": "service",
-          "value": "lms-backend"
+          "value": "blnk-loan-workload"
         }
       },
       {
         "kind": "TextVariable",
         "spec": {
           "name": "version",
-          "value": ""
+          "value": "c8fce93af4df6b1edb46ca97e570c55beff4cef9"
         }
       },
       {
@@ -32,7 +32,7 @@
         "kind": "TextVariable",
         "spec": {
           "name": "route",
-          "value": "/api/v1/internal/home/overview"
+          "value": "/balances"
         }
       }
     ],

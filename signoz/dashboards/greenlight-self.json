@@ -35,13 +35,13 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api'"
+                      "expression": "service.name = 'greenlight-api' AND kind_string = 'Server'"
                     },
                     "groupBy": [
                       {
                         "name": "http.route",
                         "fieldDataType": "string",
-                        "fieldContext": "attribute"
+                        "fieldContext": "span"
                       }
                     ]
                   }
@@ -78,7 +78,7 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api'"
+                      "expression": "service.name = 'greenlight-api' AND kind_string = 'Server'"
                     }
                   }
                 }
@@ -114,7 +114,7 @@
                       }
                     ],
                     "filter": {
-                      "expression": "service.name = 'greenlight-api' AND has_error = true"
+                      "expression": "service.name = 'greenlight-api' AND kind_string = 'Server' AND has_error = true"
                     }
                   }
                 }
@@ -156,7 +156,7 @@
                       {
                         "name": "greenlight.job.kind",
                         "fieldDataType": "string",
-                        "fieldContext": "attribute"
+                        "fieldContext": "span"
                       }
                     ]
                   }
@@ -199,7 +199,7 @@
                       {
                         "name": "greenlight.job.kind",
                         "fieldDataType": "string",
-                        "fieldContext": "attribute"
+                        "fieldContext": "span"
                       }
                     ]
                   }

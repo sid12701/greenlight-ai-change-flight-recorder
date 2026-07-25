@@ -355,3 +355,10 @@ digest-pinned SigNoz runtime are now present and validated.
 
 Promotion remains gated on those items plus two clean end-to-end runs of the
 full acceptance chain.
+
+### Hackathon remediation round (2026-07-25) — H-09
+
+| Item | Outcome |
+|---|---|
+| **R-41 / R-42 dashboards** | **Closed at the rendering level.** The assets already imported, but no panel rendered. SigNoz `v0.134.0` stores dashboards in the v5 model while its renderer still reads group-by fields through the legacy `key`/`dataType`/`type` attributes, so grouped panels sent an empty group-by key and failed with `invalid empty key name for group by`. The compiler now derives both key sets from the v5 source definitions, and the importer's live check rebuilds the group-by the way the renderer does instead of constructing its own request — so this class of failure now fails the import rather than passing it. All 14 panels render; dashboard IDs are unchanged. |
+| **API route attribution** | **Fixed.** `@opentelemetry/instrumentation-fastify` patches CommonJS `require`; the API is ESM, so Fastify was never wrapped and every span was named `GET` with no `http.route`. Replaced with `@fastify/otel` registered explicitly in `buildServer`. API request/latency/error panels now scope to `kind_string = 'Server'` so one request contributes one span. |

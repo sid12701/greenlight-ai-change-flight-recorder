@@ -6,6 +6,7 @@
  * API restart can never lose accepted work.
  */
 import { randomUUID } from "node:crypto";
+import { FastifyOtelInstrumentation } from "@fastify/otel";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
 import { createRepositories } from "./db/store.js";
@@ -67,6 +68,22 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
     requestTimeout: config.GREENLIGHT_REQUEST_TIMEOUT_MS,
     genReqId: () => randomUUID(),
   });
+
+  // Registered explicitly rather than through OpenTelemetry's monkey-patching
+  // Fastify instrumentation, which cannot intercept an ESM `import` of Fastify
+  // and therefore left every span named `GET` with no `http.route`. The plugin
+  // names spans after the matched route template, which is what the SigNoz
+  // dashboards and service map group by.
+  await app.register(
+    new FastifyOtelInstrumentation({
+      // Matches the HTTP instrumentation's probe filter so readiness polling
+      // does not dominate trace volume.
+      ignorePaths: ({ url }) => ["/livez", "/readyz"].includes(url),
+      // One span per matched route is the useful unit; a span per lifecycle
+      // hook would multiply volume without adding diagnostic value.
+      instrumentHooks: false,
+    }).plugin(),
+  );
 
   const allowedOrigins = new Set(config.GREENLIGHT_ALLOWED_ORIGINS);
   const rateBuckets = new Map<string, { minute: number; count: number }>();

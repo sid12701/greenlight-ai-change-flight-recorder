@@ -179,3 +179,30 @@ MCP client network session, and the fixture therefore does not satisfy Track 3.
 - **Recovery deployment ID:** `dep_2269d064f0be_recovery`
 - **Load:** 254 requests per phase to `/api/v1/internal/home/overview`
 - **Full chain:** `scripts/demo-full-rehearsal.sh` — regression `regressed`, recovery `recovered`
+
+## H-09 — Rendered SigNoz dashboards and route attribution
+
+**Verification status:** verified live against the pinned SigNoz `v0.134.0`
+stack on 2026-07-25.
+
+- **Dashboard IDs** (stable across re-import, recorded in
+  `.workloads/signoz-dashboard-ids.json`):
+  - Deployment Impact — `019f97b7-a17e-72c6-beb3-44253bc45281`
+  - Self Observability — `019f97b7-e0da-7444-93c7-931905b27c6e`
+  - Pipeline Health — `019f97b7-e28b-75a0-9072-39dd20cf2cdf`
+- **Import:** 3 dashboards, 14 panels, every panel executed through
+  `POST /api/v5/query_range` with no result-level error.
+- **Browser evidence:** `audit/screenshots/05-signoz-pipeline-dashboard.png`,
+  `06-signoz-self-dashboard.png`, `07-signoz-deployment-dashboard.png`. All
+  panels render; no panel shows the query-error icon.
+- **Before/after:** the same pipeline-health page previously returned nine
+  `POST /api/v5/query_range` 400 responses with
+  `invalid empty key name for group by at index 0`; after the fix every panel
+  query returns 200.
+- **Route attribution** (ClickHouse, `greenlight-api`, 3-minute window):
+  `GET /api/v1/changes`, `GET /api/v1/changes/:commitSha`, and
+  `GET /api/v1/status/dependencies` each carry the matching `http.route` with
+  `kind_string = 'Server'`; before the change all spans were named `GET` with
+  an empty route.
+- **Cleanup:** the two temporary schema-probe dashboards created during the
+  investigation were deleted (HTTP 204).
