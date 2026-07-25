@@ -204,17 +204,37 @@ export function buildJobProcessor(input: {
   // Reconstructed spans carry the workflow's own timestamps, so verification
   // is bounded by that workflow's real time range plus an ingestion margin.
   const ingestionMarginMs = (config.GREENLIGHT_INGESTION_DELAY_SECONDS + 60) * 1_000;
-  const verifyExport = (
+
+  /**
+   * Confirms the exported trace tree is queryable, allowing for ingestion.
+   *
+   * Spans become visible only after the collector has written them, which takes
+   * seconds. Checking once immediately after export therefore answered "not
+   * visible" every time, and every reconstructed CI run was recorded as a failed
+   * export while its trace sat in SigNoz perfectly intact. Polling to a deadline
+   * distinguishes the two states this is meant to tell apart: a trace that never
+   * arrived, and one that had not arrived *yet*.
+   */
+  const verifyExport = async (
     traceId: string,
     expectedSpanCount: number,
     startMs: number,
     endMs: number,
-  ) => signoz.verifyTrace({
-    traceId,
-    expectedSpanCount,
-    startMs: Math.max(0, startMs - ingestionMarginMs),
-    endMs: Math.max(startMs + 1, endMs + ingestionMarginMs),
-  });
+  ) => {
+    const deadline = Date.now() + config.GREENLIGHT_INGESTION_DELAY_SECONDS * 1_000 + 30_000;
+    for (;;) {
+      const visible = await signoz.verifyTrace({
+        traceId,
+        expectedSpanCount,
+        startMs: Math.max(0, startMs - ingestionMarginMs),
+        endMs: Math.max(startMs + 1, endMs + ingestionMarginMs),
+      });
+      if (visible || Date.now() >= deadline) {
+        return visible;
+      }
+      await delay(3_000);
+    }
+  };
 
   // The window spans from the deployment instant (which may be in the past)
   // through now, plus an ingestion margin at both ends.
