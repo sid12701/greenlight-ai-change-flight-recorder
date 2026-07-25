@@ -99,7 +99,7 @@ export function ChangesPage({
             Record one by running a full baseline, regression, and recovery cycle:
           </p>
           <code className="mt-2 block break-all rounded bg-slate-950 px-2 py-2 font-mono text-xs text-amber-200">
-            npm run demo:rehearse
+            node scripts/demo-chain.mjs &lt;baseline-sha&gt; &lt;candidate-sha&gt; &lt;recovery-sha&gt;
           </code>
         </div>
       ) : null}

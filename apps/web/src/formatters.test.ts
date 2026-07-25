@@ -3,6 +3,7 @@ import {
   formatCount,
   formatMilliseconds,
   formatPercent,
+  formatRelativeTime,
 } from "./formatters";
 import { percentChange } from "./status";
 
@@ -28,5 +29,19 @@ describe("percent change", () => {
     expect(percentChange(0, 5)).toBeNull();
     expect(percentChange(null, 5)).toBeNull();
     expect(percentChange(5, null)).toBeNull();
+  });
+});
+
+describe("relative time", () => {
+  const now = Date.parse("2026-07-25T12:00:00.000Z");
+
+  it("describes how old evidence is in the reader's terms", () => {
+    expect(formatRelativeTime("2026-07-25T11:58:00.000Z", now)).toBe("2 minutes ago");
+    expect(formatRelativeTime("2026-07-25T09:00:00.000Z", now)).toBe("3 hours ago");
+    expect(formatRelativeTime("2026-07-22T12:00:00.000Z", now)).toBe("3 days ago");
+  });
+
+  it("reports an unparseable timestamp instead of rendering a plausible one", () => {
+    expect(formatRelativeTime("not-a-date", now)).toBe("invalid date");
   });
 });

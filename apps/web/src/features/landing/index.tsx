@@ -31,6 +31,10 @@ export function LandingPageContainer() {
       signozUrl={SIGNOZ_URL}
       state={state}
       status={status.data ?? null}
+      // When the answer was actually received, not when this rendered.
+      checkedAt={
+        status.dataUpdatedAt ? new Date(status.dataUpdatedAt).toISOString() : null
+      }
     />
   );
 }

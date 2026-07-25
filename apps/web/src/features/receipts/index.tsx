@@ -1,19 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchReceipt } from "../../api/client";
+import { ApiError, fetchReceipt } from "../../api/client";
 import { ReceiptPageView } from "./ReceiptPage";
+import { FailureNotice } from "./FailureNotice";
 
 export function ReceiptPage({ commitSha }: { commitSha: string }) {
   const query = useQuery({
     queryKey: ["receipt", commitSha],
     queryFn: () => fetchReceipt(commitSha),
     enabled: Boolean(commitSha),
+    // Authorisation and not-found do not become true by asking again, and
+    // retrying them only delays the message that explains what to do.
+    retry: (failureCount, error) =>
+      failureCount < 2 &&
+      error instanceof ApiError &&
+      error.code === "unavailable",
   });
 
   if (query.isLoading) {
     return <p role="status">Loading receipt…</p>;
   }
   if (query.isError || !query.data) {
-    return <p role="alert">Receipt unavailable.</p>;
+    return <FailureNotice error={query.error} />;
   }
   return <ReceiptPageView receipt={query.data} />;
 }

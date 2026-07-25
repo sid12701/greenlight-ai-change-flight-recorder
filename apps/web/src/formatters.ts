@@ -25,3 +25,37 @@ export function formatDateTime(value: string): string {
     }).format(date)
     : "invalid date";
 }
+
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["second", 1_000],
+  ["minute", 60_000],
+  ["hour", 3_600_000],
+  ["day", 86_400_000],
+];
+
+/**
+ * How old a piece of evidence is, in words.
+ *
+ * An absolute timestamp alone does not answer the question a reader is really
+ * asking, which is whether the verdict still describes what is running. The
+ * absolute time is kept alongside this, because "3 hours ago" is useless when
+ * comparing two receipts.
+ */
+export function formatRelativeTime(value: string, now: number = Date.now()): string {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return "invalid date";
+  }
+  const elapsed = timestamp - now;
+  const format = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  let unit: Intl.RelativeTimeFormatUnit = "day";
+  let scale = 86_400_000;
+  for (const [candidate, candidateScale] of RELATIVE_UNITS) {
+    if (Math.abs(elapsed) < candidateScale * 60 || candidate === "day") {
+      unit = candidate;
+      scale = candidateScale;
+      break;
+    }
+  }
+  return format.format(Math.round(elapsed / scale), unit);
+}
