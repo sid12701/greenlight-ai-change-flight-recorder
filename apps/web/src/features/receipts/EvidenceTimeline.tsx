@@ -1,4 +1,13 @@
 import type { ChangeReceipt } from "@greenlight/shared";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  GitCommitHorizontal,
+  Rocket,
+  RotateCcw,
+  Workflow,
+} from "lucide-react";
 import {
   TONE_CLASS,
   conclusionPresentation,
@@ -10,23 +19,11 @@ import {
 
 interface TimelineStage {
   name: string;
+  icon: LucideIcon;
   status: StatusPresentation;
-  /**
-   * A secondary fact that qualifies the stage without changing what it
-   * concluded. Kept separate from `status` so a detail about the evidence can
-   * never be read as the outcome — a CI run that passed while its reconstructed
-   * trace is still pending has passed.
-   */
   note?: string;
 }
 
-/**
- * Describes how far the reconstructed CI trace got.
- *
- * Reported as a note rather than as the stage's status: whether GreenLight
- * managed to export and confirm a span tree says nothing about whether the
- * pipeline itself succeeded.
- */
 function ciTelemetryNote(pipeline: ChangeReceipt["pipeline"]): string | undefined {
   if (!pipeline) {
     return undefined;
@@ -48,10 +45,12 @@ function stagesFor(receipt: ChangeReceipt): TimelineStage[] {
   return [
     {
       name: "AI session",
+      icon: Bot,
       status: verificationPresentation(receipt.change.aiVerificationState),
     },
     {
       name: "Commit",
+      icon: GitCommitHorizontal,
       status: {
         label: receipt.change.shortSha,
         tone: "neutral",
@@ -60,20 +59,24 @@ function stagesFor(receipt: ChangeReceipt): TimelineStage[] {
     },
     {
       name: "CI",
+      icon: Workflow,
       status: conclusionPresentation(receipt.pipeline?.conclusion ?? null),
       note: ciTelemetryNote(receipt.pipeline),
     },
     {
       name: "Deploy",
+      icon: Rocket,
       status: deploymentPresentation(deployment?.status ?? null),
-      note: deployment ? `version evidence ${deployment.versionState}` : undefined,
+      note: deployment ? `Version evidence ${deployment.versionState}` : undefined,
     },
     {
       name: "Impact",
+      icon: Activity,
       status: regressionPresentation(receipt.impact?.status ?? null),
     },
     {
       name: "Recovery",
+      icon: RotateCcw,
       status: regressionPresentation(receipt.recovery?.status ?? null),
     },
   ];
@@ -81,23 +84,38 @@ function stagesFor(receipt: ChangeReceipt): TimelineStage[] {
 
 export function EvidenceTimeline({ receipt }: { receipt: ChangeReceipt }) {
   return (
-    <section aria-label="Evidence timeline" className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h2 className="mb-4 text-xl font-semibold">Timeline</h2>
-      <ol className="grid gap-3 md:grid-cols-3">
-        {stagesFor(receipt).map((stage) => (
-          <li key={stage.name} className="rounded-lg bg-slate-950 p-3 text-sm">
-            <p className="font-medium">{stage.name}</p>
-            <p
-              className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium ${TONE_CLASS[stage.status.tone]}`}
-              title={stage.status.meaning}
-            >
-              <span className="sr-only">{stage.name}: </span>
-              {stage.status.label}
-              <span className="sr-only"> — {stage.status.meaning}</span>
-            </p>
-            {stage.note ? <p className="mt-1 text-xs text-slate-500">{stage.note}</p> : null}
-          </li>
-        ))}
+    <section aria-label="Evidence timeline" className="receipt-section timeline-section">
+      <div className="section-heading-row">
+        <div>
+          <p className="section-kicker">End-to-end lineage</p>
+          <h2>Evidence timeline</h2>
+        </div>
+        <span className="timeline-count">6 checkpoints</span>
+      </div>
+      <ol className="timeline-track">
+        {stagesFor(receipt).map((stage, index) => {
+          const Icon = stage.icon;
+          return (
+            <li key={stage.name} className={`timeline-stage timeline-stage--${stage.status.tone}`}>
+              <span className="timeline-index">0{index + 1}</span>
+              <span className="timeline-icon" aria-hidden="true">
+                <Icon size={18} />
+              </span>
+              <div>
+                <p>{stage.name}</p>
+                <span
+                  className={`status-chip ${TONE_CLASS[stage.status.tone]}`}
+                  title={stage.status.meaning}
+                >
+                  <span className="sr-only">{stage.name}: </span>
+                  {stage.status.label}
+                  <span className="sr-only"> — {stage.status.meaning}</span>
+                </span>
+                {stage.note ? <small>{stage.note}</small> : null}
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

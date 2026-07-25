@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeReceipt } from "@greenlight/shared";
+import { Check, Copy, RotateCcw } from "lucide-react";
 
 export function Actions({ receipt }: { receipt: ChangeReceipt }) {
   const [copied, setCopied] = useState(false);
@@ -16,18 +17,33 @@ export function Actions({ receipt }: { receipt: ChangeReceipt }) {
   }
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h2 className="text-xl font-semibold">Safe action</h2>
-      <p className="font-mono text-sm">{receipt.actions.revertCommand}</p>
-      <button
-        type="button"
-        className="mt-3 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900"
-        onClick={copyRevert}
-      >
-        Copy revert command
-      </button>
-      {copied ? <p className="mt-2 text-sm text-emerald-300">Copied to clipboard.</p> : null}
-      {copyError ? <p className="mt-2 text-sm text-amber-200">Clipboard blocked. Select the command manually.</p> : null}
+    <section className="safe-action">
+      <div className="safe-action-heading">
+        <span className="section-icon" aria-hidden="true"><RotateCcw size={19} /></span>
+        <div>
+          <p className="section-kicker">Operator control</p>
+          <h2>Safe action</h2>
+        </div>
+      </div>
+      <div className="command-row">
+        <code>{receipt.actions.revertCommand}</code>
+        <button
+          type="button"
+          className="copy-button"
+          onClick={copyRevert}
+        >
+          {copied ? <Check size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
+          {copied ? "Copied" : "Copy revert command"}
+        </button>
+      </div>
+      <p className="safe-action-note">
+        Reverts remain a human decision. GreenLight exposes the safest command;
+        it does not execute it.
+      </p>
+      <div aria-live="polite">
+        {copied ? <p className="action-feedback action-feedback--good">Copied to clipboard.</p> : null}
+        {copyError ? <p className="action-feedback action-feedback--warn">Clipboard blocked. Select the command manually.</p> : null}
+      </div>
     </section>
   );
 }

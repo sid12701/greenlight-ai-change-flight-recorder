@@ -19,6 +19,9 @@ export default tseslint.config(
       ".workloads/**",
       "pours/**",
       "casting.yaml.lock",
+      // Local tool scaffolding, never part of the project source.
+      ".codex/**",
+      ".claude/**",
     ],
   },
   js.configs.recommended,

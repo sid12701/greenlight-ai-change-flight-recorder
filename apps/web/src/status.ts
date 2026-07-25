@@ -17,10 +17,10 @@ export interface StatusPresentation {
 }
 
 export const TONE_CLASS: Record<Tone, string> = {
-  good: "bg-emerald-950/40 text-emerald-200 ring-1 ring-emerald-800",
-  bad: "bg-red-950/40 text-red-200 ring-1 ring-red-800",
-  warn: "bg-amber-950/40 text-amber-200 ring-1 ring-amber-800",
-  neutral: "bg-slate-800 text-slate-200 ring-1 ring-slate-700",
+  good: "status-chip--good text-emerald",
+  bad: "status-chip--bad text-red",
+  warn: "status-chip--warn text-amber",
+  neutral: "status-chip--neutral text-slate",
 };
 
 const REGRESSION: Record<RegressionStatus, StatusPresentation> = {
@@ -74,9 +74,13 @@ const VERIFICATION: Record<VerificationState, StatusPresentation> = {
     tone: "warn",
     meaning: "A trace was recorded but has not been confirmed in SigNoz",
   },
+  // An absent optional link is not a failure. `failed` and `invalid` mean a
+  // trace was claimed and did not resolve, which is a broken promise; `missing`
+  // means none was ever claimed. Rendering both in the failure colour tells a
+  // reader the product is broken when it is merely un-armed.
   missing: {
-    label: "Missing",
-    tone: "bad",
+    label: "Not linked",
+    tone: "warn",
     meaning: "No AI session trace was attached to this commit",
   },
   invalid: {

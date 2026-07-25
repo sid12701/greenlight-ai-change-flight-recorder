@@ -1,123 +1,227 @@
-import type { ChangeReceipt } from "@greenlight/shared";
-import { EvidenceTimeline } from "./EvidenceTimeline";
-import { CiSection } from "./CiSection";
-import { ImpactCards } from "./ImpactCards";
-import { RecoveryPanel } from "./RecoveryPanel";
-import { Actions } from "./Actions";
-import { VerdictBanner } from "./VerdictBanner";
-import { EvidenceFreshness } from "./EvidenceFreshness";
+import type { ChangeReceipt, ReceiptEvidenceLink } from "@greenlight/shared";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bot,
+  Box,
+  CalendarClock,
+  ChevronDown,
+  CircleGauge,
+  Fingerprint,
+  Layers3,
+  RadioTower,
+  ShieldCheck,
+  Workflow,
+} from "lucide-react";
+import { AppHeader } from "../../components/AppHeader";
 import { formatDateTime } from "../../formatters";
 import { verificationPresentation } from "../../status";
+import { Actions } from "./Actions";
+import { CiSection } from "./CiSection";
+import { EvidenceFreshness } from "./EvidenceFreshness";
+import { EvidenceTimeline } from "./EvidenceTimeline";
+import { ImpactCards } from "./ImpactCards";
+import { RecoveryPanel } from "./RecoveryPanel";
+import { VerdictBanner } from "./VerdictBanner";
 
-/**
- * Colour must follow the evidence state.
- *
- * Rendering "missing" or "invalid" in the success colour tells a reader the
- * opposite of what the receipt says, which is the one thing an evidence
- * product must never do.
- */
 function verificationTone(state: string): string {
   switch (state) {
     case "verified":
-      return "text-emerald-300";
+      return "verification-text verification-text--good text-emerald";
     case "unverified":
     case "pending":
-      return "text-amber-300";
     case "missing":
+      return "verification-text verification-text--warn text-amber";
     case "invalid":
     case "failed":
-      return "text-red-300";
+      return "verification-text verification-text--bad text-red";
     default:
-      return "text-slate-300";
+      return "verification-text text-slate";
   }
 }
 
-export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
+const EVIDENCE_ICON: Record<ReceiptEvidenceLink["kind"], LucideIcon> = {
+  ai_trace: Bot,
+  github_run: Workflow,
+  deployment_trace: Box,
+  signoz_trace: RadioTower,
+  signoz_dashboard: CircleGauge,
+};
+
+function DeploymentSection({ receipt }: { receipt: ChangeReceipt }) {
+  if (!receipt.deployment) {
+    return null;
+  }
+
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <header className="space-y-2">
-        <a className="text-sm text-slate-400 underline underline-offset-4" href="/changes">
-          ← All changes
-        </a>
-        <p className="text-sm uppercase tracking-wide text-slate-400">Change Receipt</p>
-        <h1 className="text-3xl font-bold">{receipt.change.commitSubject ?? receipt.change.shortSha}</h1>
-        <p className="break-all font-mono text-sm text-slate-300">{receipt.change.commitSha}</p>
-        <p className={`text-sm ${verificationTone(receipt.change.aiVerificationState)}`}>
-          AI link: {receipt.change.aiLinkStatus} (
-          {verificationPresentation(receipt.change.aiVerificationState).meaning})
-        </p>
-      </header>
-      {/* The decision comes before the evidence for it: a reader who stops
-          here still knows whether the change was safe and what moved. */}
-      <VerdictBanner receipt={receipt} />
-      <EvidenceFreshness receipt={receipt} />
-      <RecoveryPanel receipt={receipt} />
-      <ImpactCards receipt={receipt} />
-      {/* Everything below is the evidence behind the verdict. On a narrow
-          screen it would otherwise push the decision off the top, so it is
-          summarised and expandable rather than removed. */}
-      <details className="group" open>
-        <summary className="cursor-pointer list-none rounded-xl border border-slate-800 bg-slate-900 p-3 text-sm text-slate-300">
-          <span className="font-semibold text-slate-100">Evidence behind this verdict</span>
-          <span className="ml-2 text-slate-400">
-            timeline, CI, deployment and links — collapse to keep the verdict in view
-          </span>
-        </summary>
-        <div className="mt-4 space-y-6">
-          <EvidenceTimeline receipt={receipt} />
-          <CiSection receipt={receipt} />
-      {receipt.deployment ? (
-        <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <h2 className="text-xl font-semibold">Deployment</h2>
-          <dl className="mt-3 grid gap-2 text-sm md:grid-cols-2">
-            <div>
-              <dt className="text-slate-400">Version</dt>
-              <dd className="break-all font-mono">
-                {receipt.deployment.version ?? "unresolved"}
-              </dd>
-            </div>
-            <div><dt className="text-slate-400">Image digest</dt><dd className="break-all font-mono">{receipt.deployment.imageDigest ?? "unrecorded"}</dd></div>
-            <div>
-              <dt className="text-slate-400">Version evidence</dt>
-              <dd className={verificationTone(receipt.deployment.versionState)}>
-                {receipt.deployment.versionState}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Trace evidence</dt>
-              <dd className={verificationTone(receipt.deployment.traceState)}>
-                {receipt.deployment.traceState}
-              </dd>
-            </div>
-            <div><dt className="text-slate-400">Role</dt><dd>{receipt.deployment.role}</dd></div>
-            <div><dt className="text-slate-400">Ready at</dt><dd>{formatDateTime(receipt.deployment.deployedAt)}</dd></div>
-          </dl>
-        </section>
-      ) : null}
-      <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="text-xl font-semibold">Evidence</h2>
-        {receipt.evidence.length ? (
-          <ul className="mt-3 space-y-2 text-sm">
-            {receipt.evidence.map((item) => (
-              <li key={`${item.kind}-${item.label}`}>
-                {item.verificationState === "verified" ? (
-                  <a className="underline" href={item.url}>{item.label}</a>
-                ) : (
-                  <span className={verificationTone(item.verificationState)}>
-                    {item.label} ({item.verificationState}; link withheld)
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : <p className="mt-2 text-sm text-slate-400">No verified evidence links.</p>}
-      </section>
+    <section className="receipt-section deployment-section">
+      <div className="section-heading-row">
+        <div>
+          <p className="section-kicker">Immutable runtime identity</p>
+          <h2>Deployment</h2>
         </div>
-      </details>
-      <Actions receipt={receipt} />
-      <p className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-4 text-sm text-amber-100">
-        {receipt.caveat}
-      </p>
-    </main>
+        <span className="health-orb health-orb--good">
+          <ShieldCheck size={16} aria-hidden="true" />
+          Version verified
+        </span>
+      </div>
+      <dl className="fact-grid fact-grid--deployment">
+        <div>
+          <dt><Fingerprint size={15} aria-hidden="true" /> Version</dt>
+          <dd><code>{receipt.deployment.version ?? "unresolved"}</code></dd>
+        </div>
+        <div>
+          <dt><Box size={15} aria-hidden="true" /> Image digest</dt>
+          <dd><code>{receipt.deployment.imageDigest ?? "unrecorded"}</code></dd>
+        </div>
+        <div>
+          <dt><ShieldCheck size={15} aria-hidden="true" /> Version evidence</dt>
+          <dd className={verificationTone(receipt.deployment.versionState)}>
+            {receipt.deployment.versionState}
+          </dd>
+        </div>
+        <div>
+          <dt><RadioTower size={15} aria-hidden="true" /> Trace evidence</dt>
+          <dd className={verificationTone(receipt.deployment.traceState)}>
+            {receipt.deployment.traceState}
+          </dd>
+        </div>
+        <div>
+          <dt><Layers3 size={15} aria-hidden="true" /> Role</dt>
+          <dd>{receipt.deployment.role}</dd>
+        </div>
+        <div>
+          <dt><CalendarClock size={15} aria-hidden="true" /> Ready at</dt>
+          <dd>{formatDateTime(receipt.deployment.deployedAt)}</dd>
+        </div>
+      </dl>
+      {receipt.deployment.imageDigest &&
+        receipt.recovery?.imageDigest === receipt.deployment.imageDigest ? (
+          <p className="evidence-note">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>
+              Recovery carries the same image digest: the runtime artifact did not
+              change. The configuration-only difference is identified by{" "}
+              <code>service.version</code>.
+            </span>
+          </p>
+        ) : null}
+    </section>
+  );
+}
+
+function EvidenceLinks({ evidence }: { evidence: ReceiptEvidenceLink[] }) {
+  return (
+    <section className="receipt-section evidence-links-section">
+      <div className="section-heading-row">
+        <div>
+          <p className="section-kicker">Resolvable proof</p>
+          <h2>Evidence links</h2>
+        </div>
+        <span className="timeline-count">
+          {evidence.filter((item) => item.verificationState === "verified").length} verified
+        </span>
+      </div>
+      {evidence.length ? (
+        <ul className="evidence-link-list">
+          {evidence.map((item) => {
+            const Icon = EVIDENCE_ICON[item.kind];
+            return (
+              <li key={`${item.kind}-${item.label}`}>
+                <span className="evidence-link-icon" aria-hidden="true"><Icon size={17} /></span>
+                <div>
+                  {item.verificationState === "verified" ? (
+                    <a href={item.url}>
+                      {item.label}
+                      <ArrowUpRight size={15} aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className={verificationTone(item.verificationState)}>
+                      {item.label} ({item.verificationState}; link withheld)
+                    </span>
+                  )}
+                  <small>{item.kind.replaceAll("_", " ")}</small>
+                </div>
+                <span className={`evidence-state evidence-state--${item.verificationState}`}>
+                  {item.verificationState}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="section-description">No verified evidence links.</p>
+      )}
+    </section>
+  );
+}
+
+export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
+  const aiPresentation = verificationPresentation(receipt.change.aiVerificationState);
+
+  return (
+    <>
+      <AppHeader active="receipt" />
+      <main className="app-page receipt-page">
+        <header className="receipt-header">
+          <div className="receipt-header-main">
+            <p className="eyebrow">
+              <Fingerprint size={15} aria-hidden="true" />
+              Change receipt · immutable evidence
+            </p>
+            <h1>{receipt.change.commitSubject ?? receipt.change.shortSha}</h1>
+            <div className="receipt-identity">
+              <code>{receipt.change.commitSha}</code>
+              <span>{receipt.change.branch ?? "branch not recorded"}</span>
+              {receipt.change.committedAt ? (
+                <time dateTime={receipt.change.committedAt}>
+                  {formatDateTime(receipt.change.committedAt)}
+                </time>
+              ) : null}
+            </div>
+            <p className={verificationTone(receipt.change.aiVerificationState)}>
+              AI link: {aiPresentation.label.toLowerCase()} ({aiPresentation.meaning})
+            </p>
+          </div>
+          <a className="secondary-cta secondary-cta--compact" href={receipt.change.githubUrl}>
+            Open commit <ArrowUpRight size={15} aria-hidden="true" />
+          </a>
+        </header>
+
+        <VerdictBanner receipt={receipt} />
+        <EvidenceFreshness receipt={receipt} />
+        <RecoveryPanel receipt={receipt} />
+        <ImpactCards receipt={receipt} />
+
+        <details className="evidence-disclosure" open>
+          <summary>
+            <span>
+              <RadioTower size={18} aria-hidden="true" />
+              <strong>Evidence behind this verdict</strong>
+              <small>timeline, CI, deployment, and source links</small>
+            </span>
+            <ChevronDown size={19} aria-hidden="true" />
+          </summary>
+          <div className="evidence-detail-stack">
+            <EvidenceTimeline receipt={receipt} />
+            <div className="receipt-two-column">
+              <CiSection receipt={receipt} />
+              <DeploymentSection receipt={receipt} />
+            </div>
+            <EvidenceLinks evidence={receipt.evidence} />
+          </div>
+        </details>
+
+        <Actions receipt={receipt} />
+
+        <aside className="trust-caveat">
+          <ShieldCheck size={21} aria-hidden="true" />
+          <div>
+            <strong>Evidence boundary</strong>
+            <p>{receipt.caveat}</p>
+          </div>
+        </aside>
+      </main>
+    </>
   );
 }

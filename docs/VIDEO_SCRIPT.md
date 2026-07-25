@@ -17,12 +17,14 @@ npm run demo:status    # confirm before hitting record
 
 Have these open in tabs, in this order:
 
-1. `http://127.0.0.1:4173` — GreenLight landing
+0. The candidate PR on GitHub, checks tab, all 8 green — this is the opening shot
+1. `http://127.0.0.1:4173` — GreenLight landing (must show "3 of 4 links resolve"
+   and a live **Open the verified receipt** button; if it says "none has been
+   deployed and measured yet", the stack has no chain and the demo is not ready)
 2. `http://127.0.0.1:4173/changes/2fa6e2861eabf162a26af0d0ef012124865811df` — the regressed receipt
-3. The candidate PR on GitHub, checks tab visible (all 8 green)
-4. SigNoz — GreenLight — Deployment Impact dashboard, already loaded
-5. SigNoz — Alerts, already loaded
-6. `docs/MCP_DEMO.md` recorded result table
+3. SigNoz — GreenLight — Deployment Impact dashboard, already loaded
+4. SigNoz — Alerts, already loaded
+5. `docs/MCP_DEMO.md` recorded result table
 
 Run these first; each one must pass before recording:
 
@@ -43,8 +45,9 @@ Zoom the browser to about 125% so text is legible after compression.
 
 **Screen:** the candidate PR on GitHub, all eight checks green.
 
-> An AI wrote this change. It passed all eight CI checks, it was reviewed, and
-> it shipped. Then p95 latency on the affected endpoint rose 7.3 times.
+> A one-line config change — the kind a coding agent writes dozens of a day.
+> It passed all eight CI checks, it was reviewed, and it shipped. Then p95
+> latency on the affected endpoint rose 7.3 times.
 >
 > Nothing CI tests was wrong. This is the gap between "the pipeline is green"
 > and "production is fine."
@@ -62,7 +65,15 @@ Zoom the browser to about 125% so text is legible after compression.
 > to a commit, a CI run, a deployment, and the telemetry that followed — and
 > every one of those is an ID that has to resolve in a live SigNoz.
 
-## 0:45 – 1:35 · The receipt
+## 0:45 – 0:57 · The front door
+
+**Screen:** `http://127.0.0.1:4173` — the landing page. (~30 words; keep it moving.)
+
+> Dependencies healthy, one recorded chain, three of its four links resolving.
+> The fourth is the AI session, and it isn't linked on this commit — so the page
+> says that instead of rendering a confident blank.
+
+## 0:57 – 1:35 · The receipt
 
 **Screen:** the receipt page. Scroll slowly: verdict banner → impact → timeline.
 
@@ -87,8 +98,10 @@ Then the Alerts page.
 > All of that is SigNoz. Every link on the receipt is an ID that has to resolve
 > — here's one, open in SigNoz, the actual slow request.
 >
-> Two versions on one chart: the step is the deploy. And the same threshold as
-> an alert rule, firing right now on the deployed version.
+> Two versions on one chart: the step is the deploy. The same threshold exists
+> as an alert rule, and it deliberately doesn't pin a version — a version-scoped
+> rule could only ever describe a version that already existed when it was
+> written. It follows whatever is deployed.
 >
 > Traces answer the verdict — Query Builder v5, one query for latency, one for
 > `has_error`. Custom metrics carry what traces can't: verdicts decided, alert

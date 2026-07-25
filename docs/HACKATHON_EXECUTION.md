@@ -29,7 +29,7 @@ Status values:
 | H-06 | P0 | Production dependency vulnerabilities | complete | Production audit/SBOM and strict API, worker, and Web image scans report zero high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
-| H-09 | P0 | Visible compatible SigNoz dashboards | complete | All 14 panels render at v0.134.0 with zero query errors; IDs recorded; API spans carry `http.route` |
+| H-09 | P0 | Visible compatible SigNoz dashboards | complete | All 16 panels render at v0.134.0 with zero query errors; IDs recorded; API spans carry `http.route` |
 | H-10 | P0 | Judge landing state | complete | Empty, degraded, unreachable, and verified paths each state what happened and what to run |
 | H-11 | P1 | First-class custom metrics | complete | Verdicts, AI state, queue depth and dependency health all query in SigNoz |
 | H-12 | P1 | API log/trace correlation | complete | API and worker logs ship with trace context; a commit-filtered log resolves to its trace |
@@ -469,7 +469,7 @@ uninstrumented span names without affecting request handling.
 
 ### Validation evidence
 
-- All three dashboards import with stable IDs and 14 panels; every panel is
+- All three dashboards import with stable IDs and 16 panels; every panel is
   executed through Query Builder v5 with no result-level error.
 - Browser verification at `v0.134.0`: all panels on all three dashboards render
   with no error icon, and every `POST /api/v5/query_range` returns 200. Before

@@ -50,17 +50,39 @@ describe("evidence chain completeness", () => {
 });
 
 describe("featured change selection", () => {
-  it("prefers a recovered regression over a change that stayed healthy", () => {
+  // The regressed commit's receipt carries the impact block and the recovery
+  // panel; the `recovered` verdict belongs to the revert, whose own receipt has
+  // no regression to report. Featuring the revert sends a reader to the thinner
+  // artifact, which is what made this ordering worth pinning down in a test.
+  it("prefers the regressed change over the revert that recovered it", () => {
     const healthy = change({ commitSha: "b".repeat(40), regressionStatus: "healthy" });
+    const regressed = change({ commitSha: "d".repeat(40), regressionStatus: "regressed" });
     const recovered = change({ commitSha: "c".repeat(40), regressionStatus: "recovered" });
 
+    expect(selectFeaturedChange([healthy, recovered, regressed])?.commitSha).toBe("d".repeat(40));
     expect(selectFeaturedChange([healthy, recovered])?.commitSha).toBe("c".repeat(40));
   });
 
-  // Offering a partial chain as "the verified demo" is the overclaiming the
-  // receipt itself is built to avoid.
-  it("offers nothing when no chain is complete", () => {
+  // The AI session is optional evidence. Gating the featured receipt on it once
+  // meant a real, measured regression was reported to every reader as "no
+  // complete chain yet" — the product suppressing its own finding.
+  it("still features a measured verdict when the AI session is not linked", () => {
+    const measured = change({
+      aiLinkStatus: "missing",
+      aiVerificationState: "missing",
+      regressionStatus: "regressed",
+    });
+
+    expect(chainCompleteness(measured)).toBe("partial");
+    expect(selectFeaturedChange([measured])?.commitSha).toBe("a".repeat(40));
+  });
+
+  // A receipt can only report a verdict about a version that was deployed and
+  // measured; offering anything less as the demo would be overclaiming.
+  it("offers nothing without a deployment and a decided verdict", () => {
     expect(selectFeaturedChange([change({ deploymentStatus: null })])).toBeNull();
+    expect(selectFeaturedChange([change({ regressionStatus: "insufficient_data" })])).toBeNull();
+    expect(selectFeaturedChange([change({ regressionStatus: "integration_error" })])).toBeNull();
     expect(selectFeaturedChange([])).toBeNull();
   });
 });
@@ -89,6 +111,32 @@ describe("landing page", () => {
       "href",
       "http://signoz.test",
     );
+  });
+
+  it("offers the receipt and names the unresolved link when the AI session is missing", () => {
+    render(
+      <LandingPage
+        changes={[change({
+          aiLinkStatus: "missing",
+          aiVerificationState: "missing",
+          regressionStatus: "regressed",
+        })]}
+        signozUrl="http://signoz.test"
+        state="ready"
+        status={HEALTHY}
+      />,
+    );
+
+    // The receipt must stay one click away: this is the whole demo.
+    expect(screen.getByRole("link", { name: /Open the verified receipt/ })).toHaveAttribute(
+      "href",
+      `/changes/${"a".repeat(40)}`,
+    );
+    expect(screen.getByText(/3 of 4 links resolve/)).toBeInTheDocument();
+    // Stated in words, not by colour or a glyph alone.
+    expect(
+      screen.getByText(/not linked — No AI session trace is attached to this commit/),
+    ).toBeInTheDocument();
   });
 
   it("gives an empty install a runnable next action instead of a blank screen", () => {

@@ -1,6 +1,8 @@
 import { ChangesPage } from "../features/changes";
 import { LandingPage } from "../features/landing";
 import { ReceiptPage } from "../features/receipts";
+import { AppHeader } from "../components/AppHeader";
+import { ArrowLeft, FileQuestion } from "lucide-react";
 
 export type AppRoute =
   | { page: "landing" }
@@ -40,12 +42,21 @@ export function AppRoutes({
     return <ReceiptPage commitSha={route.commitSha} />;
   }
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-3xl font-bold">Page not found</h1>
-      <p className="text-slate-400">This GreenLight route does not exist.</p>
-      <a className="underline underline-offset-4" href="/">
-        Back to the overview
-      </a>
-    </main>
+    <>
+      <AppHeader active="overview" />
+      <main className="app-page failure-page">
+        <section className="failure-panel">
+          <span className="failure-icon" aria-hidden="true"><FileQuestion size={28} /></span>
+          <div>
+            <p className="section-kicker">404 · unknown route</p>
+            <h1>Page not found</h1>
+            <p>This GreenLight route does not exist.</p>
+            <a className="primary-cta" href="/">
+              <ArrowLeft size={16} aria-hidden="true" /> Back to overview
+            </a>
+          </div>
+        </section>
+      </main>
+    </>
   );
 }

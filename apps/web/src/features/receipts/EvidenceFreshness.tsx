@@ -1,4 +1,5 @@
 import type { ChangeReceipt } from "@greenlight/shared";
+import { Clock3 } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "../../formatters";
 
 /**
@@ -15,15 +16,18 @@ export function EvidenceFreshness({ receipt }: { receipt: ChangeReceipt }) {
     return null;
   }
   return (
-    <p className="text-sm text-slate-400">
-      Measured up to{" "}
-      <time dateTime={measuredTo} className="text-slate-300">
-        {formatDateTime(measuredTo)}
-      </time>{" "}
-      ({formatRelativeTime(measuredTo)}). Nothing after that time is covered by
-      this verdict.
+    <p className="freshness-bar">
+      <Clock3 size={15} aria-hidden="true" />
+      <span>
+        Measured up to{" "}
+        <time dateTime={measuredTo}>
+          {formatDateTime(measuredTo)}
+        </time>{" "}
+        ({formatRelativeTime(measuredTo)}). Nothing after that time is covered by
+        this verdict.
+      </span>
       {receipt.impact?.policyVersion
-        ? ` Policy ${receipt.impact.policyVersion}.`
+        ? <strong>Policy {receipt.impact.policyVersion}</strong>
         : null}
     </p>
   );

@@ -1,0 +1,116 @@
+/*
+ * GreenLight design tokens — "flight recorder" instrument panel.
+ *
+ * The product's whole argument is that a green pipeline and a red production
+ * are two different facts, so the palette makes exactly one promise: emerald
+ * means measured-and-within-policy, rose means measured-and-breached, amber
+ * means not measured. Nothing decorative is allowed to borrow those three.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Surfaces ------------------------------------------------------- */
+  --void: #04060a;
+  --base: #070a10;
+  --raise-1: rgba(148, 172, 214, 0.035);
+  --raise-2: rgba(148, 172, 214, 0.06);
+  --raise-3: rgba(148, 172, 214, 0.1);
+  --glass: rgba(10, 14, 22, 0.72);
+
+  /* Hairlines. A 1px line at low alpha reads as precision; a 1px line at
+     high alpha reads as a box. */
+  --line: rgba(148, 172, 214, 0.13);
+  --line-soft: rgba(148, 172, 214, 0.08);
+  --line-strong: rgba(148, 172, 214, 0.22);
+
+  /* ---- Ink ------------------------------------------------------------ */
+  --ink-1: #eaf0f8;
+  --ink-2: #a3b0c4;
+  --ink-3: #6d7a8d;
+  --ink-4: #4e5a6b;
+
+  /* ---- Signal colours ------------------------------------------------- */
+  --good: #34d399;
+  --good-bright: #6ee7b7;
+  --good-deep: #059669;
+  --good-wash: rgba(52, 211, 153, 0.1);
+  --good-line: rgba(52, 211, 153, 0.3);
+  --good-glow: rgba(52, 211, 153, 0.3);
+
+  --bad: #fb7185;
+  --bad-bright: #fda4af;
+  --bad-deep: #e11d48;
+  --bad-wash: rgba(251, 113, 133, 0.1);
+  --bad-line: rgba(251, 113, 133, 0.3);
+  --bad-glow: rgba(244, 63, 94, 0.32);
+
+  --warn: #fbbf24;
+  --warn-bright: #fcd34d;
+  --warn-wash: rgba(251, 191, 36, 0.1);
+  --warn-line: rgba(251, 191, 36, 0.28);
+
+  --cool: #56b8f0;
+  --cool-wash: rgba(86, 184, 240, 0.1);
+  --cool-line: rgba(86, 184, 240, 0.26);
+
+  /* ---- Type ----------------------------------------------------------- */
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace,
+    SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --text-3xs: 0.6875rem;
+  --text-2xs: 0.75rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.35rem, 1.1rem + 0.9vw, 1.75rem);
+  --text-2xl: clamp(1.7rem, 1.25rem + 1.8vw, 2.5rem);
+  --text-3xl: clamp(2.25rem, 1.4rem + 3.4vw, 3.9rem);
+  --text-mega: clamp(2.75rem, 1.6rem + 4.6vw, 4.75rem);
+
+  /* ---- Space ---------------------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.375rem;
+  --sp-6: 1.75rem;
+  --sp-7: 2.25rem;
+  --sp-8: 3rem;
+  --sp-9: 4rem;
+  --sp-10: 5.5rem;
+
+  /* ---- Radii ---------------------------------------------------------- */
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* ---- Elevation ------------------------------------------------------ */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 28px -18px rgba(0, 0, 0, 0.9),
+    0 2px 8px -4px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 40px 80px -48px rgba(0, 0, 0, 0.95),
+    0 12px 28px -20px rgba(0, 0, 0, 0.8);
+
+  /* The light edge along the top of a raised panel. Cheap, and it is what
+     makes a flat translucent rectangle read as a physical surface. */
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+
+  /* ---- Motion --------------------------------------------------------- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 140ms;
+  --t-mid: 240ms;
+  --t-slow: 420ms;
+
+  /* ---- Layout --------------------------------------------------------- */
+  --page-max: 1160px;
+  --page-pad: clamp(1rem, 0.4rem + 2.4vw, 2.5rem);
+}

@@ -1,13 +1,13 @@
 import type { ChangeReceipt } from "@greenlight/shared";
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  ShieldAlert,
+} from "lucide-react";
 import { formatMilliseconds, formatPercent } from "../../formatters";
-import { percentChange, regressionPresentation, TONE_CLASS } from "../../status";
+import { percentChange, regressionPresentation } from "../../status";
 
-/**
- * Reads the change in a metric the way a reader would say it out loud.
- *
- * "n/a" on its own tells a reader nothing about why; distinguishing a missing
- * measurement from an unchanged one matters when the verdict rests on it.
- */
 function Delta({
   label,
   baseline,
@@ -23,27 +23,21 @@ function Delta({
   const unavailable = baseline === null || observed === null;
 
   return (
-    <div>
-      <dt className="text-sm text-slate-400">{label}</dt>
-      <dd className="mt-1 text-lg font-semibold">
+    <div className="verdict-delta">
+      <dt>{label}</dt>
+      <dd>
         {unavailable ? (
-          <span className="text-slate-400">not measured</span>
+          <span className="muted-value">not measured</span>
         ) : (
           <>
-            <span className="text-slate-400">{format(baseline)}</span>
-            <span aria-label="changed to" className="px-2 text-slate-500">
-              →
-            </span>
-            <span>{format(observed)}</span>
+            <span>{format(baseline)}</span>
+            <ArrowRight size={17} aria-label="changed to" />
+            <strong>{format(observed)}</strong>
             {change === null ? null : (
-              <span
-                className={`ml-2 text-sm font-medium ${
-                  change > 0 ? "text-red-300" : "text-emerald-300"
-                }`}
-              >
+              <em className={change > 0 ? "delta-up" : "delta-down"}>
                 {change > 0 ? "+" : ""}
-                {change.toFixed(change >= 100 || change <= -100 ? 0 : 1)}%
-              </span>
+                {change.toFixed(Math.abs(change) >= 100 ? 0 : 1)}%
+              </em>
             )}
           </>
         )}
@@ -52,54 +46,77 @@ function Delta({
   );
 }
 
-/**
- * The verdict, first and largest.
- *
- * A reader who stops after this block should already know whether the change
- * was safe, what moved, and what was done about it. Everything below it is
- * supporting evidence for that sentence.
- */
 export function VerdictBanner({ receipt }: { receipt: ChangeReceipt }) {
   const status = receipt.impact?.status ?? null;
   const presentation = regressionPresentation(status);
   const recovered = status === "recovered" || receipt.recovery !== null;
+  const multiplier = receipt.impact?.baselineP95Ms && receipt.impact.observedP95Ms
+    ? receipt.impact.observedP95Ms / receipt.impact.baselineP95Ms
+    : null;
+  const Icon = presentation.tone === "bad" ? ShieldAlert : CheckCircle2;
 
   return (
     <section
       aria-labelledby="verdict-heading"
-      className={`rounded-xl p-6 ${TONE_CLASS[presentation.tone]}`}
+      className={`verdict-hero verdict-hero--${presentation.tone}`}
     >
-      <p className="text-sm uppercase tracking-wide opacity-80">Verdict</p>
-      <h2 id="verdict-heading" className="mt-1 text-4xl font-bold">
-        {presentation.label}
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm opacity-90">{presentation.meaning}</p>
+      <div className="verdict-overline">
+        <span>
+          <Icon size={17} aria-hidden="true" />
+          Production verdict
+        </span>
+        <code>{receipt.change.shortSha}</code>
+      </div>
+
+      <div className="verdict-grid">
+        <div className="verdict-copy">
+          <h2 id="verdict-heading">{presentation.label}</h2>
+          <p>{presentation.meaning}</p>
+          {receipt.impact ? (
+            <span className="route-pill">
+              <Activity size={15} aria-hidden="true" />
+              Route {receipt.impact.route}
+            </span>
+          ) : null}
+        </div>
+
+        {multiplier ? (
+          <div className="verdict-headline-metric">
+            <span>Latency shift</span>
+            <strong>{multiplier.toFixed(1)}×</strong>
+            <small>p95 after deployment</small>
+          </div>
+        ) : null}
+      </div>
 
       {receipt.impact ? (
-        <>
-          <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-            <Delta
-              baseline={receipt.impact.baselineP95Ms}
-              format={formatMilliseconds}
-              label="Latency p95"
-              observed={receipt.impact.observedP95Ms}
-            />
-            <Delta
-              baseline={receipt.impact.baselineErrorRate}
-              format={formatPercent}
-              label="Error rate"
-              observed={receipt.impact.observedErrorRate}
-            />
-          </dl>
-          <p className="mt-4 text-sm opacity-80">
-            Route <span className="font-mono">{receipt.impact.route}</span>
-            {recovered && receipt.recovery
-              ? ` · recovered by deployment ${receipt.recovery.deploymentId}`
-              : null}
-          </p>
-        </>
+        <dl className="verdict-deltas">
+          <Delta
+            baseline={receipt.impact.baselineP95Ms}
+            format={formatMilliseconds}
+            label="Latency p95"
+            observed={receipt.impact.observedP95Ms}
+          />
+          <Delta
+            baseline={receipt.impact.baselineErrorRate}
+            format={formatPercent}
+            label="Error rate"
+            observed={receipt.impact.observedErrorRate}
+          />
+          <div className="verdict-delta">
+            <dt>Recovery</dt>
+            <dd>
+              <strong>{recovered ? "Verified" : "Pending"}</strong>
+              {recovered && receipt.recovery ? (
+                <span className="verdict-recovery-sha">
+                  {receipt.recovery.version?.slice(0, 7) ?? "recorded"}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        </dl>
       ) : (
-        <p className="mt-4 text-sm opacity-80">
+        <p className="verdict-empty">
           Deploy this change and run an evaluation to produce a verdict.
         </p>
       )}

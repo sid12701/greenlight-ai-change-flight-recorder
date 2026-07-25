@@ -1,8 +1,12 @@
 # GreenLight — AI Change Flight Recorder
 
-An AI wrote a one-line config change. It passed all eight CI checks, was
-reviewed, merged, and deployed. p95 latency on the affected endpoint then rose
-7.3x.
+A coding agent writes a one-line config change — the kind it produces dozens of
+a day. It passes every CI check, gets reviewed, merged, and deployed. Latency on
+the affected endpoint then degrades, and nothing in the toolchain connects those
+facts.
+
+In the recorded run below that change is `2fa6e28`, it passed all eight CI
+checks, and p95 on `/balances` rose 7.3x.
 
 GreenLight records that gap. It ties an AI session to the commit it produced,
 the CI run that validated it, the immutable deployed version, the SigNoz
@@ -101,8 +105,15 @@ npm run demo:chain -- <baseline-sha> <candidate-sha> [recovery-sha]
 Each phase deploys a commit as an immutable version, fills the window
 GreenLight will actually measure with paced traffic, records the deployment,
 and asks for a verdict. Timings come from the API's own settings, so a window
-is never evaluated before it closes. A run takes about ten minutes; that is the
-measurement windows, not overhead.
+is never evaluated before it closes. A full three-phase run takes about ten
+minutes; that is the measurement windows, not overhead.
+
+The `role=baseline` deployment is then **frozen** and reused by later runs
+(see [`docs/DEMO_STATE.md`](docs/DEMO_STATE.md)), so a receipt's baseline and
+observed windows can sit hours apart in wall-clock time. That is intended: the
+comparison is scoped to an immutable `service.version`, so elapsed time between
+the two captures is not part of it. The receipt states this where it prints the
+two windows.
 
 **This scenario injects nothing.** It measures what the deployed version did, and
 asserts nothing about the candidate's traffic — deciding what observed failures

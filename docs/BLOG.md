@@ -1,7 +1,12 @@
 # A flight recorder for AI-authored change: building GreenLight on SigNoz
 
-An AI wrote a config change. It passed all eight CI checks. It was reviewed,
-merged, and deployed. p95 latency on the affected endpoint then rose 7.3x.
+A coding agent writes a config change — the kind it produces dozens of a day.
+It passes all eight CI checks. It is reviewed, merged, and deployed. Latency on
+the affected endpoint then degrades, and nothing in the toolchain connects
+those three facts to each other.
+
+In the run this post describes, that change is `2fa6e28`, and p95 on
+`/balances` rose 7.3x.
 
 Nothing was broken in a way CI could see, because nothing CI tests was wrong.
 That gap — between "the pipeline is green" and "production is fine" — is what
@@ -203,15 +208,28 @@ records the answers:
 
 | | baseline `6f458c9` | candidate `2fa6e28` |
 |---|---|---|
-| p95 | 1.59 ms | 8.31 ms |
-| error rate | 0% | 32.89% |
+| p95 | 1.58 ms | 9.39 ms |
+| error rate | 0% | 9.13% |
 
 Three trace IDs are cited and each one resolves. The capture has **no**
 direct-API fallback: if MCP can't answer, it fails and writes nothing, because
 a transcript that didn't come from MCP would misrepresent what it claims to be.
 
-These numbers are gathered independently of the receipt's own evaluation and
-over a wider window, so they corroborate the verdict instead of restating it.
+These numbers are gathered independently of the receipt's own evaluation, over
+a 15-hour window wide enough to contain both versions' traffic. The p95 pair
+corroborates the verdict: the receipt measured 1.44 ms → 10.45 ms inside its
+narrow windows, and MCP sees 1.58 ms → 9.39 ms across every request either
+version ever served.
+
+The error rates disagree, and that disagreement is the interesting part. The
+receipt reports 0% because no request failed inside the window it measured. MCP
+reports 9.13% because the wide window also contains an earlier
+`demo:dependency-failure` rehearsal of the same version, where the workload's
+database was stopped on purpose. Same `service.version`, different windows,
+different answers — which is precisely why a verdict is scoped to the window
+that was measured and not to everything a version ever did. A tool that
+reported one number for both would be concealing that distinction, and this one
+is built to expose it.
 
 ---
 

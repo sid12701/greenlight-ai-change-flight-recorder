@@ -19,5 +19,6 @@ instrumentation/lms-java-agent/*.log
 *.pid
 .idea/
 .vscode/
+.codex/
 tmp/
 GREENLIGHT_IMPLEMENTATION_PLAN.pre-deep-audit.md

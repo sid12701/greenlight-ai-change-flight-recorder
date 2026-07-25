@@ -1,7 +1,19 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * Stylesheet manifest. Order is load-bearing:
+ *
+ *   1. fonts, self-hosted so the demo renders identically offline
+ *   2. Tailwind's preflight, which is the only part of Tailwind still in use
+ *   3. tokens, then the design system layered on top of that reset
+ */
 
-body {
-  @apply bg-slate-950 text-slate-100 antialiased;
-}
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@import "./tailwind.css";
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./shell.css";
+@import "./landing.css";
+@import "./changes.css";
+@import "./receipt.css";

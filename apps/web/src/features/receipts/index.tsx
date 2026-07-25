@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, fetchReceipt } from "../../api/client";
 import { ReceiptPageView } from "./ReceiptPage";
 import { FailureNotice } from "./FailureNotice";
+import { AppHeader } from "../../components/AppHeader";
 
 export function ReceiptPage({ commitSha }: { commitSha: string }) {
   const query = useQuery({
@@ -17,7 +18,15 @@ export function ReceiptPage({ commitSha }: { commitSha: string }) {
   });
 
   if (query.isLoading) {
-    return <p role="status">Loading receipt…</p>;
+    return (
+      <>
+        <AppHeader active="receipt" />
+        <main className="app-page receipt-loading" aria-busy="true">
+          <p role="status">Loading receipt…</p>
+          <div aria-hidden="true"><span /><span /><span /></div>
+        </main>
+      </>
+    );
   }
   if (query.isError || !query.data) {
     return <FailureNotice error={query.error} />;

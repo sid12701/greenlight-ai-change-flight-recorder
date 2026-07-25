@@ -181,6 +181,20 @@ describe("receipt page", () => {
     const line = [...container.querySelectorAll("p")]
       .find((element) => element.textContent?.startsWith("AI link:"));
     expect(line?.className).not.toContain("emerald");
+    // Amber, not red: no trace was ever claimed for this commit.
+    expect(line?.className).toContain("amber");
+  });
+
+  // A claimed trace that does not resolve is a broken promise and must not
+  // share a colour with an optional link that was never armed.
+  it("renders a failed AI verification in the failure colour", () => {
+    const { container } = render(<ReceiptPageView receipt={{
+      ...receipt,
+      change: { ...receipt.change, aiLinkStatus: "linked" as const,
+        aiVerificationState: "failed" as const },
+    }} />);
+    const line = [...container.querySelectorAll("p")]
+      .find((element) => element.textContent?.startsWith("AI link:"));
     expect(line?.className).toContain("red");
   });
 

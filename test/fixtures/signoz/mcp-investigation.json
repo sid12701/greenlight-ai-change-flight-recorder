@@ -6,24 +6,24 @@
     "version": "v0.9.0"
   },
   "toolName": "signoz_aggregate_traces",
-  "capturedAt": "2026-07-25T10:32:48.902Z",
+  "capturedAt": "2026-07-25T20:49:50.075Z",
   "window": {
-    "start": "2026-07-25T07:32:48.107Z",
-    "end": "2026-07-25T10:32:48.107Z"
+    "start": "2026-07-25T05:49:46.145Z",
+    "end": "2026-07-25T20:49:46.145Z"
   },
   "serviceName": "blnk-loan-workload",
   "environmentName": "hackathon-demo",
   "route": "/balances",
   "baselineVersion": "6f458c91ccfd2dd0ba1e4f1445a19db66ccf52ee",
   "candidateVersion": "2fa6e2861eabf162a26af0d0ef012124865811df",
-  "baselineP95Ms": 1.5898715,
-  "candidateP95Ms": 8.3068806,
+  "baselineP95Ms": 1.5776485500000001,
+  "candidateP95Ms": 9.39203935,
   "baselineErrorRate": 0,
-  "candidateErrorRate": 32.89036544850498,
+  "candidateErrorRate": 9.132841328413283,
   "traceIds": [
-    "ab5b5ce0aaac5f85e38a8c3a8c1134dc",
-    "60c144bef0c3dfce7c30dccf17154b62",
-    "b4dcc40c949b8a77676702ad8a38cf2a"
+    "bfcb55f27513d8cbb5b6573e133a16a2",
+    "928eb5824b7441e05b932c4cdec5dbbd",
+    "c47722c22d00ec8a55ab4b0a2df01642"
   ],
   "note": "Deployment correlation is evidence of temporal and version association, not proof of causation."
 }

@@ -1,93 +1,182 @@
 import type { ChangeReceipt } from "@greenlight/shared";
 import {
+  Activity,
+  AlertTriangle,
+  Clock3,
+  Gauge,
+  Info,
+  Layers3,
+  SlidersHorizontal,
+} from "lucide-react";
+import {
   formatCount,
   formatDateTime,
   formatMilliseconds,
   formatPercent,
 } from "../../formatters";
 
-const STATUS_STYLE: Record<string, { label: string; className: string }> = {
-  healthy: { label: "Healthy", className: "bg-emerald-950/40 text-emerald-300" },
-  regressed: { label: "Regressed", className: "bg-red-950/40 text-red-300" },
-  recovered: { label: "Recovered", className: "bg-emerald-950/40 text-emerald-300" },
-  insufficient_data: { label: "Insufficient data", className: "bg-amber-950/40 text-amber-300" },
-  integration_error: { label: "Integration error", className: "bg-red-950/40 text-red-300" },
+const STATUS_LABEL: Record<string, string> = {
+  healthy: "Healthy",
+  regressed: "Regressed",
+  recovered: "Recovered",
+  insufficient_data: "Insufficient data",
+  integration_error: "Integration error",
 };
 
+function MetricCard({
+  icon: Icon,
+  label,
+  baseline,
+  observed,
+  tone = "neutral",
+}: {
+  icon: typeof Gauge;
+  label: string;
+  baseline: string;
+  observed: string;
+  tone?: "neutral" | "danger";
+}) {
+  return (
+    <article className={`impact-metric impact-metric--${tone}`}>
+      <div className="impact-metric-label">
+        <Icon size={17} aria-hidden="true" />
+        <h3>{label}</h3>
+      </div>
+      <div className="impact-metric-values">
+        <span><small>Baseline</small>{baseline}</span>
+        <span><small>Observed</small><strong>{observed}</strong></span>
+      </div>
+    </article>
+  );
+}
+
 export function ImpactCards({ receipt }: { receipt: ChangeReceipt }) {
-  // No evaluation has been produced yet. This is distinct from the
-  // `insufficient_data` verdict, which means an evaluation ran and found too
-  // little traffic to decide.
   if (!receipt.impact) {
     return (
-      <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="text-xl font-semibold">Impact</h2>
-        <p className="mt-2 text-sm text-slate-400">
-          No impact evaluation has been recorded for this change yet.
-        </p>
+      <section className="receipt-section empty-impact">
+        <div className="section-icon"><Activity size={20} aria-hidden="true" /></div>
+        <div>
+          <p className="section-kicker">Production signal</p>
+          <h2>Impact</h2>
+          <p>No impact evaluation has been recorded for this change yet.</p>
+        </div>
       </section>
     );
   }
+
   if (receipt.impact.status === "integration_error") {
     return (
-      <section role="alert" className="rounded-xl border border-red-900/50 bg-red-950/30 p-4">
-        <h2 className="text-xl font-semibold">Impact unavailable</h2>
-        <p className="mt-2 text-sm">
-          SigNoz could not provide verified metrics for the persisted window, so no
-          verdict was reached. This is a dependency failure, not a healthy result.
-        </p>
+      <section role="alert" className="receipt-section receipt-section--danger">
+        <AlertTriangle size={22} aria-hidden="true" />
+        <div>
+          <h2>Impact unavailable</h2>
+          <p>
+            SigNoz could not provide verified metrics for the persisted window, so no
+            verdict was reached. This is a dependency failure, not a healthy result.
+          </p>
+        </div>
       </section>
     );
   }
 
-  const status = STATUS_STYLE[receipt.impact.status ?? "unknown"] ??
-    { label: receipt.impact.status ?? "unknown", className: "bg-slate-800 text-slate-200" };
+  const status = receipt.impact.status ?? "unknown";
+  const baselineP95 = receipt.impact.baselineP95Ms;
+  const observedP95 = receipt.impact.observedP95Ms;
+  const chartMax = Math.max(baselineP95 ?? 0, observedP95 ?? 0, 1);
+  const baselineWidth = ((baselineP95 ?? 0) / chartMax) * 100;
+  const observedWidth = ((observedP95 ?? 0) / chartMax) * 100;
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold">Impact</h2>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}>
-          {status.label}
+    <section className="receipt-section impact-section" aria-labelledby="impact-heading">
+      <div className="section-heading-row">
+        <div>
+          <p className="section-kicker">Measured production impact · before and after</p>
+          <h2 id="impact-heading">Impact</h2>
+        </div>
+        <span className={`status-chip status-chip--${status === "regressed" ? "bad" : "good"}`}>
+          {STATUS_LABEL[status] ?? status}
         </span>
       </div>
-      <p className="text-sm text-slate-400">Route {receipt.impact.route}</p>
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <article className="rounded-lg bg-slate-950 p-4">
-          <h3 className="font-medium">p95</h3>
-          <p>{formatMilliseconds(receipt.impact.baselineP95Ms)} → {formatMilliseconds(receipt.impact.observedP95Ms)}</p>
-        </article>
-        <article className="rounded-lg bg-slate-950 p-4">
-          <h3 className="font-medium">Error rate</h3>
-          <p>{formatPercent(receipt.impact.baselineErrorRate)} → {formatPercent(receipt.impact.observedErrorRate)}</p>
-        </article>
-        <article className="rounded-lg bg-slate-950 p-4">
-          <h3 className="font-medium">Samples</h3>
-          <p>{formatCount(receipt.impact.baselineRequestCount)} / {formatCount(receipt.impact.observedRequestCount)}</p>
-        </article>
+
+      <div className="impact-layout">
+        <figure
+          className="latency-figure"
+          aria-label={`Latency p95 changed from ${formatMilliseconds(baselineP95)} to ${formatMilliseconds(observedP95)}`}
+        >
+          <figcaption>
+            <span>p95 latency comparison</span>
+            <code>{receipt.impact.route}</code>
+          </figcaption>
+          <div className="comparison-row">
+            <span>Baseline</span>
+            <div className="comparison-track">
+              <div className="comparison-fill comparison-fill--baseline" style={{ width: `${baselineWidth}%` }} />
+            </div>
+            <strong>{formatMilliseconds(baselineP95)}</strong>
+          </div>
+          <div className="comparison-row">
+            <span>Observed</span>
+            <div className="comparison-track">
+              <div className="comparison-fill comparison-fill--observed" style={{ width: `${observedWidth}%` }} />
+            </div>
+            <strong>{formatMilliseconds(observedP95)}</strong>
+          </div>
+          <p className="chart-insight">
+            <AlertTriangle size={15} aria-hidden="true" />
+            {receipt.impact.reasons.join(" · ")}
+          </p>
+        </figure>
+
+        <div className="impact-metric-grid">
+          <MetricCard
+            icon={Gauge}
+            label="p95"
+            baseline={formatMilliseconds(baselineP95)}
+            observed={formatMilliseconds(observedP95)}
+            tone={status === "regressed" ? "danger" : "neutral"}
+          />
+          <MetricCard
+            icon={Activity}
+            label="Error rate"
+            baseline={formatPercent(receipt.impact.baselineErrorRate)}
+            observed={formatPercent(receipt.impact.observedErrorRate)}
+          />
+          <MetricCard
+            icon={Layers3}
+            label="Samples"
+            baseline={formatCount(receipt.impact.baselineRequestCount)}
+            observed={formatCount(receipt.impact.observedRequestCount)}
+          />
+        </div>
       </div>
-      <ul className="mt-4 list-disc pl-5 text-sm text-slate-300">
-        {receipt.impact.reasons.map((reason) => (
-          <li key={reason}>{reason}</li>
-        ))}
-      </ul>
-      <dl className="mt-4 grid gap-2 border-t border-slate-800 pt-4 text-sm md:grid-cols-2">
+
+      <dl className="evidence-facts">
         <div>
-          <dt className="text-slate-400">Baseline window</dt>
+          <dt><Clock3 size={15} aria-hidden="true" /> Baseline window</dt>
           <dd>{formatDateTime(receipt.impact.baselineWindow.start)} – {formatDateTime(receipt.impact.baselineWindow.end)}</dd>
         </div>
         <div>
-          <dt className="text-slate-400">Observed window</dt>
+          <dt><Clock3 size={15} aria-hidden="true" /> Observed window</dt>
           <dd>{formatDateTime(receipt.impact.observedWindow.start)} – {formatDateTime(receipt.impact.observedWindow.end)}</dd>
         </div>
         <div>
-          <dt className="text-slate-400">Applied policy</dt>
+          <dt><SlidersHorizontal size={15} aria-hidden="true" /> Applied policy</dt>
           <dd>
             {receipt.impact.policyVersion}; min {formatCount(receipt.impact.thresholds.minSpans)} spans;
             p95 &gt; {receipt.impact.thresholds.latencyMultiplier}× and +{formatMilliseconds(receipt.impact.thresholds.latencyAdditiveMs)}
           </dd>
         </div>
       </dl>
+
+      <p className="evidence-note">
+        <Info size={16} aria-hidden="true" />
+        <span>
+          The baseline is the frozen last-known-good deployment{" "}
+          <code>{receipt.impact.baselineVersion?.slice(0, 7) ?? "unresolved"}</code>.
+          The comparison is scoped to immutable <code>service.version</code>, not
+          elapsed wall-clock time.
+        </span>
+      </p>
     </section>
   );
 }
