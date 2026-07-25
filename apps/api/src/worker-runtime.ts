@@ -31,6 +31,22 @@ import type { Logger } from "./observability/logger.js";
 
 export const WORKER_SERVICE_NAME = "greenlight-worker";
 const IDLE_POLL_MS = 250;
+
+/**
+ * Reads the commit a job is about, when it names one.
+ *
+ * Not every job kind carries a commit, and none is invented for those that do
+ * not: an absent `commit_sha` means the job genuinely was not about a single
+ * commit, which is more useful than a guessed one.
+ */
+function commitShaFromPayload(payloadJson: string): string | undefined {
+  try {
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+    return typeof payload.commitSha === "string" ? payload.commitSha : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const STALE_LOCK_MS = 5 * 60_000;
 
 export interface WorkerDependencies {
@@ -99,12 +115,21 @@ export async function runWorker(dependencies: WorkerDependencies): Promise<void>
       continue;
     }
 
-    const jobLogger = logger.child({ job_id: job.id, job_kind: job.kind, attempt: job.attempts });
+    // A reader investigating an incident arrives holding a commit, not a job
+    // id, so jobs that name one carry it on their logs and spans.
+    const commitSha = commitShaFromPayload(job.payload_json);
+    const jobLogger = logger.child({
+      job_id: job.id,
+      job_kind: job.kind,
+      attempt: job.attempts,
+      ...(commitSha ? { commit_sha: commitSha } : {}),
+    });
     await tracer.startActiveSpan(`job ${job.kind}`, async (span) => {
       span.setAttributes({
         "greenlight.job.id": job.id,
         "greenlight.job.kind": job.kind,
         "greenlight.job.attempt": job.attempts,
+        ...(commitSha ? { "greenlight.commit.sha": commitSha } : {}),
       });
       const startedAt = now();
       try {

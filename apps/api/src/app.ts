@@ -29,6 +29,7 @@ import { getReceipt } from "./modules/receipts/assembler.js";
 import { BaselineRequiredError } from "./modules/regressions/baseline-resolver.js";
 import { SignozClient, SignozIntegrationError } from "./modules/signoz/client.js";
 import { registerRuntimeMetrics } from "./observability/metrics.js";
+import { createOtelLogStream } from "./observability/otel-log-stream.js";
 export interface ServerDependencies {
   repos?: Repositories;
   signoz?: SignozClient;
@@ -79,6 +80,9 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
         ],
         censor: "[redacted]",
       },
+      // Redaction is applied by pino before the record reaches this stream, so
+      // what is forwarded to SigNoz is already censored.
+      stream: createOtelLogStream({ service: config.OTEL_SERVICE_NAME }),
     },
     bodyLimit: config.GREENLIGHT_BODY_LIMIT_BYTES,
     requestTimeout: config.GREENLIGHT_REQUEST_TIMEOUT_MS,
