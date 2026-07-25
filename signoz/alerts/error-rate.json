@@ -1,11 +1,16 @@
 {
   "schemaVersion": "v1",
   "version": "v5",
-  "alert": "GreenLight — candidate error rate high",
+  "alert": "GreenLight — deployed error rate high",
   "alertType": "TRACES_BASED_ALERT",
   "ruleType": "threshold_rule",
-  "evalWindow": "5m",
+  "evalWindow": "1m",
   "frequency": "1m",
+  "variables": [
+    { "kind": "TextVariable", "spec": { "name": "service", "value": "blnk-loan-workload" } },
+    { "kind": "TextVariable", "spec": { "name": "environment", "value": "hackathon-demo" } },
+    { "kind": "TextVariable", "spec": { "name": "route", "value": "/balances" } }
+  ],
   "condition": {
     "compositeQuery": {
       "schemaVersion": "v1",
@@ -23,7 +28,7 @@
               }
             ],
             "filter": {
-              "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route AND has_error = true"
+              "expression": "service.name = $service AND deployment.environment.name = $environment AND http.route = $route AND has_error = true"
             }
           }
         },
@@ -39,7 +44,7 @@
               }
             ],
             "filter": {
-              "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route"
+              "expression": "service.name = $service AND deployment.environment.name = $environment AND http.route = $route"
             }
           }
         },
@@ -48,7 +53,7 @@
           "spec": {
             "name": "F1",
             "expression": "A/B*100",
-            "legend": "candidate error rate"
+            "legend": "deployed error rate"
           }
         }
       ]
@@ -64,8 +69,8 @@
     "owner": "greenlight"
   },
   "annotations": {
-    "summary": "Candidate service.version error rate exceeded the configured 6% absolute guardrail on the evaluated route.",
-    "description": "Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain."
+    "summary": "Errored spans exceeded 6% of all spans on the evaluated route for whatever version is currently deployed.",
+    "description": "A true rate: errored spans over all spans for the same scope, as a Query Builder v5 formula, rather than a raw error count that would rise with traffic alone. Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain and the version that was running."
   },
   "preferredChannels": []
 }

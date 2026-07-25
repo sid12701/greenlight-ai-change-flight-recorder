@@ -140,6 +140,18 @@ export function validateDashboard({ file, payload }) {
       if (!Array.isArray(spec.aggregations) || spec.aggregations.length === 0) {
         fail(file, `${where} query ${index}: builder query needs at least one aggregation`);
       }
+      // A duration aggregation returns nanoseconds. Rendered without a unit
+      // SigNoz prints the raw integer, so a p95 of 8.17ms reads as "8170000"
+      // and the axis is unreadable at a glance — which for a panel whose whole
+      // job is to make a latency change legible defeats the panel.
+      const aggregatesDuration = spec.aggregations
+        .some((aggregation) => String(aggregation.expression ?? "").includes("duration_nano"));
+      if (aggregatesDuration && panel.spec.unit !== "ns") {
+        fail(file, `${where}: a duration aggregation must declare spec.unit "ns"`);
+      }
+      if (panel.spec.unit !== undefined && typeof panel.spec.unit !== "string") {
+        fail(file, `${where}: spec.unit must be a SigNoz y-axis unit string`);
+      }
       for (const [groupIndex, field] of (spec.groupBy ?? []).entries()) {
         if (!field.name || !field.fieldDataType) {
           fail(file, `${where} query ${index} groupBy ${groupIndex}: name and fieldDataType are required`);
@@ -318,7 +330,7 @@ function widgetDefaults(id, panel, queryData, queryId) {
     thresholds: [],
     timePreferance: "GLOBAL_TIME",
     title: panel.spec.display.name,
-    yAxisUnit: "",
+    yAxisUnit: panel.spec.unit ?? "",
   };
 }
 
@@ -380,11 +392,71 @@ function validateErrorRateAlert(file, payload, queries) {
     fail(file, "query A must count only errored spans using has_error = true");
   }
   if (errorFilter.slice(0, -" AND has_error = true".length) !== totalFilter) {
-    fail(file, "error and total queries must use the same service/version/environment/route scope");
+    fail(file, "error and total queries must use the same service/environment/route scope");
   }
   if (payload.condition.selectedQueryName !== "F1" || payload.condition.targetUnit !== "%") {
     fail(file, "error-rate alert must evaluate formula F1 as a percentage");
   }
+}
+
+/**
+ * Reads an asset's declared scope into the map `expandVariables` consumes.
+ *
+ * Dashboards carry variables under `spec`; alert rules have no `spec`, so they
+ * declare theirs at the top level. Both use the same shape so a scope reads the
+ * same wherever it appears.
+ */
+function declaredVariables(file, variables) {
+  const entries = new Map();
+  for (const [index, variable] of (variables ?? []).entries()) {
+    if (!variable.spec?.name) {
+      fail(file, `variable ${index}: spec.name is required`);
+    }
+    if (variable.spec.value === undefined || variable.spec.value === "") {
+      fail(file, `variable ${index}: spec.value must be a non-empty default`);
+    }
+    entries.set(variable.spec.name, variable.spec.value);
+  }
+  return entries;
+}
+
+/**
+ * Resolves an alert rule's scope into the payload SigNoz will store.
+ *
+ * SigNoz substitutes variables into dashboard queries at render time; alert
+ * rules have no equivalent, and an unresolved `$service` is stored verbatim as
+ * part of the filter. The rule is then accepted, listed, and permanently
+ * inactive, because nothing matches a literal `$service`. Expanding here keeps
+ * the scope declared once and readable while guaranteeing what reaches SigNoz
+ * can actually match spans.
+ */
+export function compileAlert({ file, payload }) {
+  const variables = declaredVariables(file, payload.variables);
+  const queries = (payload.condition?.compositeQuery?.queries ?? []).map((query) => {
+    const expression = query.spec?.filter?.expression;
+    if (typeof expression !== "string") {
+      return query;
+    }
+    return {
+      ...query,
+      spec: {
+        ...query.spec,
+        filter: { ...query.spec.filter, expression: expandVariables(file, expression, variables) },
+      },
+    };
+  });
+
+  // `variables` is GreenLight's own field, describing the scope to expand.
+  // SigNoz never sees it, so it is dropped rather than forwarded.
+  const rule = { ...payload };
+  delete rule.variables;
+  return {
+    ...rule,
+    condition: {
+      ...payload.condition,
+      compositeQuery: { ...payload.condition.compositeQuery, queries },
+    },
+  };
 }
 
 export function validateAlert({ file, payload }) {
@@ -421,6 +493,30 @@ export function validateAlert({ file, payload }) {
     fail(file, "every alert query needs a unique spec.name");
   }
   validateErrorRateAlert(file, payload, queries);
+
+  // Compiling proves every referenced variable has a value. Re-reading the
+  // result proves none survived, because a rule that reaches SigNoz holding a
+  // literal `$service` is accepted, listed, and permanently unable to fire.
+  const compiled = compileAlert({ file, payload });
+  for (const query of compiled.condition.compositeQuery.queries) {
+    const expression = query.spec?.filter?.expression;
+    if (typeof expression === "string" && /\$[A-Za-z_]/.test(expression)) {
+      fail(file, `filter still contains an unexpanded variable after compilation: ${expression}`);
+    }
+  }
+
+  // An alert scoped to one immutable service.version can only ever describe a
+  // version that was already deployed when the rule was written, so it cannot
+  // warn about the next one. Alerts follow the environment and route; deciding
+  // what a specific version did is the receipt's job, not the alert's.
+  for (const query of compiled.condition.compositeQuery.queries) {
+    if (query.spec?.filter?.expression?.includes("service.version")) {
+      fail(
+        file,
+        "alert filters must not pin service.version; a version-scoped rule cannot fire for a future deployment",
+      );
+    }
+  }
 }
 
 function requireEnv(name) {
@@ -603,7 +699,55 @@ function writeDashboardIds(baseUrl, imported) {
   );
 }
 
-async function replaceAlert(baseUrl, apiKey, payload, channels) {
+const ALERT_CHANNEL_NAME = "greenlight-receiver";
+
+/**
+ * Ensures a notification channel exists, and returns its name.
+ *
+ * SigNoz refuses to store a rule with no channel ("at least one channel is
+ * required"), so without this the alert rules simply never import and the
+ * product ships with an empty Alerts page. The channel points at GreenLight's
+ * own receiver, which is where an alert about a deployed version should land:
+ * the system that can say which change was running when it fired.
+ *
+ * An operator-supplied SIGNOZ_ALERT_CHANNELS wins, so a real deployment can
+ * route to Slack or PagerDuty without touching this.
+ */
+async function ensureAlertChannel(baseUrl, apiKey, webhookUrl, webhookKey) {
+  const existing = await signozRequest(baseUrl, apiKey, "/api/v1/channels");
+  const found = (existing.body?.data ?? []).find((channel) => channel.name === ALERT_CHANNEL_NAME);
+  if (found) {
+    return ALERT_CHANNEL_NAME;
+  }
+
+  const created = await signozRequest(baseUrl, apiKey, "/api/v1/channels", {
+    method: "POST",
+    body: JSON.stringify({
+      name: ALERT_CHANNEL_NAME,
+      type: "webhook",
+      webhook_configs: [{
+        send_resolved: true,
+        url: webhookUrl,
+        // The username is the key's id and the password is the key itself, so
+        // the webhook uses an ordinary scoped API key rather than a second kind
+        // of secret.
+        http_config: {
+          basic_auth: { username: "signoz-alert-webhook", password: webhookKey },
+        },
+      }],
+    }),
+  });
+  if (!created.ok) {
+    throw new Error(
+      `SigNoz rejected the "${ALERT_CHANNEL_NAME}" channel (HTTP ${created.status}): ` +
+      JSON.stringify(created.body?.error ?? created.body),
+    );
+  }
+  return ALERT_CHANNEL_NAME;
+}
+
+async function replaceAlert(baseUrl, apiKey, asset, channels) {
+  const payload = compileAlert(asset);
   const body = { ...payload, preferredChannels: channels };
   const existing = await signozRequest(baseUrl, apiKey, "/api/v2/rules");
   for (const rule of existing.body?.data ?? []) {
@@ -662,15 +806,17 @@ async function main() {
   writeDashboardIds(baseUrl, importedDashboards);
   console.log(`signoz-assets: recorded dashboard IDs in ${DASHBOARD_ID_PATH}`);
 
+  // SigNoz will not store a rule without a channel, so one is provisioned
+  // rather than skipping the alerts and shipping an empty Alerts page.
   if (channels.length === 0) {
-    console.warn(
-      "signoz-assets: SIGNOZ_ALERT_CHANNELS is not set; skipping alert import " +
-      "(SigNoz requires at least one notification channel)",
-    );
-    return;
+    const webhookKey = requireEnv("GREENLIGHT_ALERT_WEBHOOK_KEY");
+    const webhookUrl = process.env.GREENLIGHT_ALERT_WEBHOOK_URL ??
+      "http://host.docker.internal:4000/api/v1/integrations/signoz/alerts";
+    channels.push(await ensureAlertChannel(baseUrl, apiKey, webhookUrl, webhookKey));
+    console.log(`signoz-assets: using notification channel "${channels[0]}" -> ${webhookUrl}`);
   }
   for (const asset of alerts) {
-    const { id } = await replaceAlert(baseUrl, apiKey, asset.payload, channels);
+    const { id } = await replaceAlert(baseUrl, apiKey, asset, channels);
     console.log(`signoz-assets: imported ${asset.file} as rule ${id}`);
   }
 }

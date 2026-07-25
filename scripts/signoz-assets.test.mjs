@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  compileAlert,
   compileDashboard,
   renderedGroupBy,
   replaceDashboard,
@@ -10,6 +11,7 @@ import {
 } from "./signoz-assets.mjs";
 
 const errorRatePath = join(import.meta.dirname, "..", "signoz", "alerts", "error-rate.json");
+const regressionAlertPath = join(import.meta.dirname, "..", "signoz", "alerts", "regression.json");
 const deploymentDashboardPath = join(
   import.meta.dirname,
   "..",
@@ -54,6 +56,65 @@ test("the validator rejects a traffic-count query disguised as an error rate", (
   );
 });
 
+test("alert rules reach SigNoz with their scope resolved to literals", () => {
+  // SigNoz substitutes variables into dashboard queries at render time. Alert
+  // rules have no equivalent, so an unresolved `$service` is stored verbatim,
+  // matches nothing, and leaves a rule that is listed but can never fire.
+  for (const [file, path] of [
+    ["error-rate.json", errorRatePath],
+    ["regression.json", regressionAlertPath],
+  ]) {
+    const payload = JSON.parse(readFileSync(path, "utf8"));
+    const compiled = compileAlert({ file, payload });
+
+    assert.equal(compiled.variables, undefined, "GreenLight's own field must not be sent to SigNoz");
+    for (const query of compiled.condition.compositeQuery.queries) {
+      const expression = query.spec.filter?.expression;
+      if (typeof expression !== "string") continue;
+      assert.doesNotMatch(expression, /\$[A-Za-z_]/, `${file} left a variable unexpanded`);
+      assert.match(expression, /service\.name = 'blnk-loan-workload'/);
+    }
+  }
+});
+
+test("the validator rejects an alert whose scope has no declared value", () => {
+  const payload = readErrorRateAlert();
+  payload.variables = payload.variables.filter((variable) => variable.spec.name !== "route");
+
+  assert.throws(
+    () => validateAlert({ file: "error-rate.json", payload }),
+    /variable \$route without a non-empty default/,
+  );
+});
+
+test("the validator rejects an alert pinned to one immutable service.version", () => {
+  // A version-scoped rule can only describe a version that already existed when
+  // the rule was written, so it cannot warn about the next deployment.
+  const payload = readErrorRateAlert();
+  for (const query of payload.condition.compositeQuery.queries) {
+    if (query.spec.filter) {
+      query.spec.filter.expression = query.spec.filter.expression
+        .replace("service.name = $service", "service.name = $service AND service.version = 'abc'");
+    }
+  }
+
+  assert.throws(
+    () => validateAlert({ file: "error-rate.json", payload }),
+    /must not pin service\.version/,
+  );
+});
+
+test("the p95 alert threshold separates this route's healthy and regressed latency", () => {
+  // A threshold above the regressed value can never fire; one below the healthy
+  // value fires constantly. Both make the rule decoration rather than a signal.
+  const payload = JSON.parse(readFileSync(regressionAlertPath, "utf8"));
+  const targetMs = payload.condition.target / 1_000_000;
+
+  assert.equal(payload.condition.targetUnit, "ns");
+  assert.ok(targetMs > 1.44, `threshold ${targetMs}ms must sit above the healthy p95`);
+  assert.ok(targetMs < 10.45, `threshold ${targetMs}ms must sit below the regressed p95`);
+});
+
 test("the validator rejects mismatched error and total scopes", () => {
   const payload = readErrorRateAlert();
   const total = payload.condition.compositeQuery.queries
@@ -62,7 +123,55 @@ test("the validator rejects mismatched error and total scopes", () => {
 
   assert.throws(
     () => validateAlert({ file: "error-rate.json", payload }),
-    /same service\/version\/environment\/route scope/,
+    /same service\/environment\/route scope/,
+  );
+});
+
+test("latency panels declare a nanosecond axis so durations render readably", () => {
+  const { widgets } = compileDashboard(dashboardAsset());
+  const latency = widgets.filter((widget) => widget.title.toLowerCase().includes("p9"));
+
+  assert.ok(latency.length > 0, "the dashboard should chart latency");
+  for (const widget of latency) {
+    assert.equal(widget.yAxisUnit, "ns", `${widget.title} must declare its unit`);
+  }
+});
+
+test("the validator rejects a duration panel with no declared unit", () => {
+  const payload = readDeploymentDashboard();
+  delete payload.spec.panels["latency-p95"].spec.unit;
+
+  assert.throws(
+    () => compileDashboard({ file: "deployment-impact.json", payload }),
+    /must declare spec\.unit "ns"/,
+  );
+});
+
+test("the dashboard can compare two deployed versions on one chart", () => {
+  // A panel pinned to a single service.version can only ever show one
+  // deployment, so a before/after comparison is impossible to see. The
+  // comparison the receipt asserts has to be drawable.
+  const { widgets } = compileDashboard(dashboardAsset());
+  const comparison = widgets.find((widget) => widget.title === "p95 by deployed version");
+
+  assert.ok(comparison, "expected a version-comparison panel");
+  const [query] = comparison.query.builder.queryData;
+  assert.doesNotMatch(query.filter.expression, /service\.version/);
+  assert.deepEqual(query.groupBy.map((field) => field.key), ["service.version"]);
+});
+
+test("the deployment dashboard opens on a version that has telemetry", () => {
+  // The default is what a judge sees before touching anything. Pointing it at a
+  // version that was never deployed renders every panel empty.
+  const payload = readDeploymentDashboard();
+  const version = payload.spec.variables
+    .find((variable) => variable.spec.name === "version").spec.value;
+
+  assert.match(version, /^[0-9a-f]{40}$/);
+  assert.notEqual(
+    version,
+    "c8fce93af4df6b1edb46ca97e570c55beff4cef9",
+    "the upstream Blnk commit is never deployed as a service.version",
   );
 });
 
@@ -73,20 +182,31 @@ test("dashboard definitions compile deterministically to UI-native v5 widgets", 
   assert.deepEqual(first, second);
   assert.equal(first.version, "v5");
   assert.equal(first.title, "GreenLight — Deployment Impact");
-  assert.equal(first.widgets.length, 5);
+  assert.equal(first.widgets.length, Object.keys(readDeploymentDashboard().spec.panels).length);
   assert.equal(first.layout.length, first.widgets.length);
   assert.ok(first.layout.every((item) => first.widgets.some((widget) => widget.id === item.i)));
   assert.ok(first.widgets.every((widget) => widget.panelTypes === "graph"));
   assert.ok(first.widgets.every((widget) => widget.query.builder.queryData[0].dataSource === "traces"));
 
-  const requestFilter = first.widgets[0].query.builder.queryData[0].filter.expression;
-  assert.doesNotMatch(requestFilter, /\$/);
-  assert.match(requestFilter, /service\.name = 'blnk-loan-workload'/);
-  assert.match(
-    requestFilter,
-    /service\.version = 'c8fce93af4df6b1edb46ca97e570c55beff4cef9'/,
-  );
-  assert.match(requestFilter, /http\.route = '\/balances'/);
+  // Every filter is fully expanded, whichever panel it belongs to.
+  for (const widget of first.widgets) {
+    assert.doesNotMatch(widget.query.builder.queryData[0].filter.expression, /\$/);
+  }
+
+  // The single-version panels carry the declared default; the comparison panels
+  // deliberately do not pin a version, so they are excluded here.
+  const declaredVersion = readDeploymentDashboard().spec.variables
+    .find((variable) => variable.spec.name === "version").spec.value;
+  const singleVersion = first.widgets
+    .map((widget) => widget.query.builder.queryData[0].filter.expression)
+    .filter((expression) => expression.includes("service.version"));
+
+  assert.ok(singleVersion.length > 0, "expected panels scoped to one deployed version");
+  for (const expression of singleVersion) {
+    assert.match(expression, /service\.name = 'blnk-loan-workload'/);
+    assert.ok(expression.includes(`service.version = '${declaredVersion}'`));
+    assert.match(expression, /http\.route = '\/balances'/);
+  }
 });
 
 test("dashboard compilation rejects an unset import variable", () => {
@@ -202,8 +322,9 @@ test("dashboard import updates by title, preserves the ID, and executes every pa
   try {
     const result = await replaceDashboard("http://signoz.test", "test-key", asset);
     assert.equal(result.id, "dashboard-stable-id");
-    assert.equal(result.panelCount, 5);
-    assert.equal(result.panelResults.length, 5);
+    // Derived from the definition so adding a panel does not need a test edit.
+    assert.equal(result.panelCount, compiled.widgets.length);
+    assert.equal(result.panelResults.length, compiled.widgets.length);
     assert.ok(result.panelResults.every((panel) => panel.series === 1));
     assert.equal(
       calls.filter((call) => call.path === "/api/v5/query_range").length,

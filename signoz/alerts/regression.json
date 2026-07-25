@@ -1,11 +1,16 @@
 {
   "schemaVersion": "v1",
   "version": "v5",
-  "alert": "GreenLight — candidate p95 regression",
+  "alert": "GreenLight — deployed p95 regression",
   "alertType": "TRACES_BASED_ALERT",
   "ruleType": "threshold_rule",
-  "evalWindow": "5m",
+  "evalWindow": "1m",
   "frequency": "1m",
+  "variables": [
+    { "kind": "TextVariable", "spec": { "name": "service", "value": "blnk-loan-workload" } },
+    { "kind": "TextVariable", "spec": { "name": "environment", "value": "hackathon-demo" } },
+    { "kind": "TextVariable", "spec": { "name": "route", "value": "/balances" } }
+  ],
   "condition": {
     "compositeQuery": {
       "schemaVersion": "v1",
@@ -23,14 +28,14 @@
               }
             ],
             "filter": {
-              "expression": "service.name = $service AND service.version = $version AND deployment.environment.name = $environment AND http.route = $route"
+              "expression": "service.name = $service AND deployment.environment.name = $environment AND http.route = $route"
             }
           }
         }
       ]
     },
     "op": ">",
-    "target": 500000000,
+    "target": 5000000,
     "matchType": "1",
     "selectedQueryName": "A",
     "targetUnit": "ns"
@@ -40,8 +45,8 @@
     "owner": "greenlight"
   },
   "annotations": {
-    "summary": "Candidate service.version p95 latency exceeded the regression threshold on the evaluated route.",
-    "description": "Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain."
+    "summary": "p95 latency on the evaluated route exceeded 5ms for whatever version is currently deployed.",
+    "description": "The threshold sits above this route's healthy p95 of roughly 1.4ms and below the roughly 10ms a connection-churn regression produces, so it separates the two rather than restating either. Deployment correlation is evidence of temporal and version association, not proof of causation. Open the GreenLight change receipt for the verified evidence chain and the version that was running."
   },
   "preferredChannels": []
 }
