@@ -1,5 +1,5 @@
 import {
-  context,
+  ROOT_CONTEXT,
   trace,
   type Link,
   type SpanContext as OtelSpanContext,
@@ -70,6 +70,16 @@ export async function synthesizeCiTrace(
     links.push({ context: toOtelContext(input.aiSpanContext) });
   }
 
+  // Started from ROOT_CONTEXT, never from the ambient one.
+  //
+  // Reconstruction runs inside an instrumented worker job, so `context.active()`
+  // holds that job's span. Taking it as a parent silently made every
+  // reconstructed pipeline a child of the sync that produced it: each run
+  // inherited the worker's trace ID, several runs synthesized in one job landed
+  // in a single trace, and the trace ID recorded against each pipeline row was
+  // the worker's rather than the run's. A reconstructed workflow is its own
+  // trace — its relationship to the AI session is carried by a link, and its
+  // relationship to the sync is not a parent-child one.
   const rootSpan = tracer.startSpan(
     `Reconstructed GitHub Actions: ${input.run.workflowName}`,
     {
@@ -87,10 +97,11 @@ export async function synthesizeCiTrace(
         "greenlight.reconstructed_at": new Date(input.reconstructionAtMs).toISOString(),
       },
     },
+    ROOT_CONTEXT,
   );
   const rootSpanContext = rootSpan.spanContext();
 
-  const rootContext = trace.setSpan(context.active(), rootSpan);
+  const rootContext = trace.setSpan(ROOT_CONTEXT, rootSpan);
 
   for (const job of input.run.jobs) {
     const jobSpan = tracer.startSpan(

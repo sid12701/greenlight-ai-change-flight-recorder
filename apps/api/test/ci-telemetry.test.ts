@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { context, trace } from "@opentelemetry/api";
+import { ExportResultCode } from "@opentelemetry/core";
+import {
+  BasicTracerProvider,
+  type ReadableSpan,
+  type SpanExporter,
+} from "@opentelemetry/sdk-trace-base";
 import { describe, expect, it } from "vitest";
 import {
   buildNormalizedRunFromFixture,
@@ -26,6 +33,66 @@ describe("ci trace synthesizer", () => {
 
     expect(result.spanCount).toBeGreaterThanOrEqual(3);
     expect(result.traceId).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("gives each run its own trace, even inside an active span", async () => {
+    // Reconstruction runs inside an instrumented worker job. If the root span
+    // adopts the ambient context, every run synthesized in one job shares the
+    // worker's trace ID, several runs merge into a single trace, and the ID
+    // recorded against each pipeline row identifies the sync rather than the run.
+    const run = buildNormalizedRunFromFixture(fixture);
+    const provider = new BasicTracerProvider();
+    const ambient = provider.getTracer("test").startSpan("job github_sync_runs");
+    const ambientTraceId = ambient.spanContext().traceId;
+
+    const [first, second] = await context.with(
+      trace.setSpan(context.active(), ambient),
+      async () => [
+        await synthesizeCiTrace({
+          run,
+          repository: "demo/lms",
+          reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
+        }),
+        await synthesizeCiTrace({
+          run,
+          repository: "demo/lms",
+          reconstructionAtMs: Date.parse("2026-07-23T10:07:00Z"),
+        }),
+      ],
+    );
+    ambient.end();
+
+    expect(first.traceId).not.toBe(ambientTraceId);
+    expect(second.traceId).not.toBe(ambientTraceId);
+    expect(first.traceId).not.toBe(second.traceId);
+  });
+
+  it("keeps every reconstructed span inside the trace it reports", async () => {
+    const run = buildNormalizedRunFromFixture(fixture);
+    // `InMemorySpanExporter` discards its spans on shutdown, and the
+    // synthesizer shuts down the provider it built, so the recorded spans have
+    // to outlive it to be inspected.
+    const spans: ReadableSpan[] = [];
+    const exporter: SpanExporter = {
+      export: (batch, resultCallback) => {
+        spans.push(...batch);
+        resultCallback({ code: ExportResultCode.SUCCESS });
+      },
+      shutdown: async () => {},
+      forceFlush: async () => {},
+    };
+    const result = await synthesizeCiTrace({
+      run,
+      repository: "demo/lms",
+      reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
+    }, exporter);
+
+    expect(spans).toHaveLength(result.spanCount);
+    expect(new Set(spans.map((span) => span.spanContext().traceId))).toEqual(
+      new Set([result.traceId]),
+    );
+    // Exactly one span has no parent, so SigNoz can build the tree.
+    expect(spans.filter((span) => span.parentSpanContext === undefined)).toHaveLength(1);
   });
 
   it("maps failed conclusions to error status", async () => {
