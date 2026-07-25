@@ -156,7 +156,7 @@ jobs:
       - name: Build the pinned non-root workload image
         env:
           BLNK_DEMO_KEY: ci-only-not-a-runtime-secret
-        run: docker compose -f integrations/blnk/compose.yaml build blnk-server
+        run: docker compose -f integrations/blnk/compose.yaml build server
 
   required:
     if: always()
