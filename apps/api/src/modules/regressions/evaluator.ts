@@ -10,6 +10,18 @@ import type { RegressionStatus } from "@greenlight/shared";
 
 export interface RegressionThresholds {
   latencyMultiplier: number;
+  /**
+   * Minimum absolute p95 rise, in milliseconds, before a latency regression may
+   * be reported.
+   *
+   * This is a *measurement-significance* floor, not a user-perception one. Its
+   * job is to stop timer resolution and scheduling jitter from being reported
+   * as a regression; deciding whether a real rise matters to a user is the
+   * reader's call, not the evaluator's. Setting it to a perceptible duration
+   * makes the guard scale-dependent: it silently exempts every endpoint whose
+   * baseline is far below it, which is exactly where a large multiplicative
+   * regression is easiest to cause and hardest to notice.
+   */
   latencyAdditiveMs: number;
   errorRateDeltaPct: number;
   errorRateAbsolutePct: number;
@@ -18,15 +30,65 @@ export interface RegressionThresholds {
   recoveryErrorRateDeltaPct: number;
 }
 
-export const DEFAULT_THRESHOLDS: RegressionThresholds = {
-  latencyMultiplier: 1.5,
-  latencyAdditiveMs: 250,
-  errorRateDeltaPct: 2,
-  errorRateAbsolutePct: 5,
-  minSpans: 200,
-  recoveryLatencyMultiplier: 1.2,
-  recoveryErrorRateDeltaPct: 1,
-};
+/**
+ * Every policy that has ever decided a verdict, kept by version.
+ *
+ * Policies are immutable and additive. A stored evaluation records the version
+ * that decided it, so an old receipt can still be explained with the rules it
+ * was actually measured against rather than with today's.
+ */
+export const REGRESSION_POLICIES = {
+  /**
+   * The original policy. Its 250 ms floor was chosen as a duration a user would
+   * notice, which made it unreachable for any endpoint faster than that: a
+   * 1.4 ms route would have to reach 251 ms — a 174x regression — before
+   * latency could be reported at all.
+   */
+  v1: {
+    latencyMultiplier: 1.5,
+    latencyAdditiveMs: 250,
+    errorRateDeltaPct: 2,
+    errorRateAbsolutePct: 5,
+    minSpans: 200,
+    recoveryLatencyMultiplier: 1.2,
+    recoveryErrorRateDeltaPct: 1,
+  },
+  /**
+   * Replaces the perception floor with a resolution floor. 2 ms is comfortably
+   * above OpenTelemetry span timing granularity and ordinary scheduling jitter,
+   * so a rise that clears both it and the 1.5x multiplier is a real measured
+   * change at any service scale. The multiplier still suppresses small absolute
+   * rises on slow endpoints, which is what the original floor was reaching for.
+   */
+  v2: {
+    latencyMultiplier: 1.5,
+    latencyAdditiveMs: 2,
+    errorRateDeltaPct: 2,
+    errorRateAbsolutePct: 5,
+    minSpans: 200,
+    recoveryLatencyMultiplier: 1.2,
+    recoveryErrorRateDeltaPct: 1,
+  },
+} as const satisfies Record<string, RegressionThresholds>;
+
+export type PolicyVersion = keyof typeof REGRESSION_POLICIES;
+
+export const CURRENT_POLICY_VERSION: PolicyVersion = "v2";
+
+/** The policy new evaluations are decided with. */
+export const DEFAULT_THRESHOLDS: RegressionThresholds =
+  REGRESSION_POLICIES[CURRENT_POLICY_VERSION];
+
+/**
+ * Resolves a stored `policy_version` to its threshold set.
+ *
+ * An unrecognised version resolves to `v1` rather than to the current policy:
+ * a row written before a policy existed predates it, and describing an old
+ * verdict with newer rules would misstate how it was decided.
+ */
+export function thresholdsForPolicyVersion(version: string | null | undefined): RegressionThresholds {
+  return REGRESSION_POLICIES[version as PolicyVersion] ?? REGRESSION_POLICIES.v1;
+}
 
 export const CORRELATION_NOTE =
   "Deployment correlation is evidence of temporal and version association, not proof that every observed failure was caused by the commit.";
@@ -132,7 +194,16 @@ export function evaluateRegression(input: EvaluationInput): EvaluationResult {
     observedError >= thresholds.errorRateAbsolutePct;
 
   if (input.comparisonKind === "recovery") {
-    const latencyRecovered = observedP95 <= baselineP95 * thresholds.recoveryLatencyMultiplier;
+    // Recovery uses the same resolution floor as the regression rule, for
+    // consistency rather than for leniency. A purely multiplicative bound is
+    // tighter than measurement noise at millisecond scale: against a 1.44ms
+    // baseline it demands 1.73ms, so an observed 2.08ms — a rise of 0.64ms —
+    // would be reported as "not recovered" while the identical rise is, by the
+    // same policy, too small to be called a regression. A rise cannot be
+    // simultaneously beneath notice and disqualifying.
+    const latencyRecovered =
+      observedP95 <= baselineP95 * thresholds.recoveryLatencyMultiplier ||
+      observedP95 - baselineP95 <= thresholds.latencyAdditiveMs;
     const errorRecovered = observedError <= baselineError + thresholds.recoveryErrorRateDeltaPct;
     if (latencyRecovered && errorRecovered) {
       return result(

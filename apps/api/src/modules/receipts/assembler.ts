@@ -12,7 +12,10 @@ import type {
 import { findSlowestStep, type normalizeWorkflowRun } from "../github/normalize.js";
 import { buildSignozTraceUrl } from "../ci-telemetry/link.js";
 import { z } from "zod";
-import { DEFAULT_THRESHOLDS, type RegressionThresholds } from "../regressions/evaluator.js";
+import {
+  thresholdsForPolicyVersion,
+  type RegressionThresholds,
+} from "../regressions/evaluator.js";
 
 const RegressionThresholdsSchema = z.object({
   latencyMultiplier: z.number(),
@@ -27,18 +30,20 @@ const RegressionThresholdsSchema = z.object({
 /**
  * Returns the threshold set the evaluation was actually decided with.
  *
- * Current defaults are only used when nothing was persisted; merging them
- * over a stored policy would present today's configuration as the policy a
- * past verdict was measured against.
+ * The stored values win, because they are the only record of what the verdict
+ * was measured against. When they are absent or unreadable the evaluation's own
+ * policy version is resolved instead — never the current defaults, which would
+ * present today's configuration as the policy a past verdict was decided under.
  */
 function thresholdsFor(evaluation: RegressionEvaluationRow): RegressionThresholds {
+  const recordedPolicy = thresholdsForPolicyVersion(evaluation.policy_version);
   if (!evaluation.thresholds_json) {
-    return DEFAULT_THRESHOLDS;
+    return recordedPolicy;
   }
   const parsed = RegressionThresholdsSchema.safeParse(
     JSON.parse(evaluation.thresholds_json) as unknown,
   );
-  return parsed.success ? parsed.data : DEFAULT_THRESHOLDS;
+  return parsed.success ? parsed.data : recordedPolicy;
 }
 
 export function assembleReceipt(input: {

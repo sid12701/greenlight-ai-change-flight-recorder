@@ -12,6 +12,7 @@ import { ConflictError, DependencyError, RetryAfterError } from "../../http/erro
 import { SignozIntegrationError, type SignozClient, type WindowMetrics } from "../signoz/client.js";
 import { recordRegressionVerdict } from "../../observability/metrics.js";
 import {
+  CURRENT_POLICY_VERSION,
   DEFAULT_THRESHOLDS,
   evaluateRegression,
   type ComparableMetrics,
@@ -37,8 +38,6 @@ interface ResolvedComparison {
   snapshot: BaselineSnapshotRow;
   incident?: RegressionIncidentRow;
 }
-
-const POLICY_VERSION = "v1";
 
 function shortHash(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 12);
@@ -189,7 +188,7 @@ export class RegressionService {
         baseline_error_rate: evaluation.baselineErrorRate,
         observed_error_rate: evaluation.observedErrorRate,
         thresholds_json: JSON.stringify(evaluation.thresholds),
-        policy_version: POLICY_VERSION,
+        policy_version: CURRENT_POLICY_VERSION,
         status: evaluation.status,
         reasons_json: JSON.stringify(evaluation.reasons),
         integration_error_code: null,
@@ -317,7 +316,7 @@ export class RegressionService {
         baseline_error_rate: null,
         observed_error_rate: null,
         thresholds_json: JSON.stringify(input.thresholds),
-        policy_version: POLICY_VERSION,
+        policy_version: CURRENT_POLICY_VERSION,
         status: "integration_error",
         reasons_json: JSON.stringify([message]),
         integration_error_code: code,
