@@ -36,7 +36,7 @@ function isHttpOrigin(value: string): boolean {
 export const ApiKeySchema = z.object({
   id: z.string().min(1),
   key: z.string().min(24),
-  scopes: z.array(z.enum(["read", "sync", "deploy", "evaluate", "admin"])).min(1),
+  scopes: z.array(z.enum(["read", "sync", "deploy", "evaluate", "notify", "admin"])).min(1),
 });
 
 export type ApiKey = z.infer<typeof ApiKeySchema>;
@@ -65,7 +65,20 @@ export const AppConfigSchema = z.object({
   GITHUB_REPOSITORY: z.string().regex(/^[^/]+\/[^/]+$/),
   GREENLIGHT_PRIMARY_WORKFLOW_NAME: z.string().default("Backend CI"),
   GREENLIGHT_PRIMARY_WORKFLOW_ID: z.coerce.number().int().positive().optional(),
+  /** Where this process reaches SigNoz. Inside a container that is not an origin a browser can resolve. */
   SIGNOZ_URL: z.string().url().default("http://localhost:8080"),
+  /**
+   * Where a *reader* reaches SigNoz.
+   *
+   * Every trace and dashboard link on a receipt is published to a browser, so
+   * it must be built from an origin that browser can resolve. A containerised
+   * API reaches SigNoz over the Docker host gateway, and a link built from that
+   * origin resolves nowhere outside the container — which for a product whose
+   * claim is that every ID resolves in a live SigNoz is the one link that must
+   * never be wrong. Defaults to SIGNOZ_URL, which is correct whenever the API
+   * and the reader share a network view.
+   */
+  SIGNOZ_PUBLIC_URL: z.string().url().optional(),
   SIGNOZ_API_KEY: z.string().min(1),
   SIGNOZ_MCP_URL: z.string().url().default("http://localhost:8000/mcp"),
   SIGNOZ_DEPLOYMENT_DASHBOARD_ID: z.string().min(1).optional(),
@@ -144,6 +157,16 @@ export const AppConfigSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
+
+/**
+ * The SigNoz origin to publish in links a reader will open.
+ *
+ * Resolved through one function so no call site can accidentally publish the
+ * server-to-server origin.
+ */
+export function signozPublicUrl(config: AppConfig): string {
+  return config.SIGNOZ_PUBLIC_URL ?? config.SIGNOZ_URL;
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = AppConfigSchema.safeParse(env);

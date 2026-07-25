@@ -62,6 +62,11 @@ export interface SignozClientOptions {
   randomImpl?: () => number;
   nowImpl?: () => number;
   deploymentDashboardId?: string;
+  /**
+   * Origin used to build links a reader will open, when it differs from the
+   * origin this process queries. Defaults to the query origin.
+   */
+  publicBaseUrl?: string;
   /** Total attempts per request, including the first. */
   maxAttempts?: number;
   requestTimeoutMs?: number;
@@ -86,12 +91,19 @@ export class SignozClient {
   private readonly nowImpl: () => number;
   private readonly maxAttempts: number;
   private readonly requestTimeoutMs: number;
+  /**
+   * Origin for links handed to a reader, which is not always the origin used to
+   * query. Held separately from `baseUrl` so a link can never inherit a
+   * container-internal host by omission.
+   */
+  private readonly publicBaseUrl: string;
 
   constructor(
     private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly options: SignozClientOptions = {},
   ) {
+    this.publicBaseUrl = options.publicBaseUrl ?? baseUrl;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.sleepImpl = options.sleepImpl ??
       ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
@@ -284,7 +296,7 @@ export class SignozClient {
     if (!dashboardId) {
       return null;
     }
-    const url = new URL(`/dashboard/${encodeURIComponent(dashboardId)}`, this.baseUrl);
+    const url = new URL(`/dashboard/${encodeURIComponent(dashboardId)}`, this.publicBaseUrl);
     url.searchParams.set("service", window.serviceName);
     url.searchParams.set("version", window.serviceVersion);
     url.searchParams.set("environment", window.environmentName);
@@ -300,6 +312,6 @@ export class SignozClient {
         false,
       );
     }
-    return new URL(`/trace/${traceId.toLowerCase()}`, this.baseUrl).toString();
+    return new URL(`/trace/${traceId.toLowerCase()}`, this.publicBaseUrl).toString();
   }
 }

@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { parseApiKeys, type AppConfig, type ApiKey } from "../config.js";
 
-export type Scope = "read" | "sync" | "deploy" | "evaluate" | "admin";
+export type Scope = "read" | "sync" | "deploy" | "evaluate" | "notify" | "admin";
 
 export interface Principal {
   id: string;
@@ -38,14 +38,35 @@ function configuredKeys(config: AppConfig): ApiKey[] {
   return parsed;
 }
 
+/**
+ * Extracts the presented secret from either supported scheme.
+ *
+ * Bearer is what GreenLight's own clients use. Basic exists because SigNoz's
+ * webhook notification channel offers no other way to authenticate itself: it
+ * sends a username and password and no custom headers. The username carries the
+ * key's id and the password carries the key, so a webhook credential is an
+ * ordinary scoped API key rather than a second kind of secret to manage.
+ */
+function presentedSecret(authorization: string): string | null {
+  if (authorization.startsWith("Bearer ")) {
+    return authorization.slice("Bearer ".length);
+  }
+  if (authorization.startsWith("Basic ")) {
+    const decoded = Buffer.from(authorization.slice("Basic ".length), "base64").toString("utf8");
+    const separator = decoded.indexOf(":");
+    return separator === -1 ? null : decoded.slice(separator + 1);
+  }
+  return null;
+}
+
 export function authenticate(
   authorization: string | undefined,
   config: AppConfig,
 ): Principal | null {
-  if (!authorization?.startsWith("Bearer ")) {
+  const token = authorization ? presentedSecret(authorization) : null;
+  if (token === null || token === "") {
     return null;
   }
-  const token = authorization.slice("Bearer ".length);
 
   // Every candidate is compared so that the time taken does not reveal which
   // key matched, or how many keys precede it in the list.

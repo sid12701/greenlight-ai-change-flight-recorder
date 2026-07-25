@@ -8,7 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { FastifyOtelInstrumentation } from "@fastify/otel";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
-import type { AppConfig } from "./config.js";
+import { signozPublicUrl, type AppConfig } from "./config.js";
 import { createRepositories } from "./db/store.js";
 import type { Repositories } from "./db/repositories/index.js";
 import { authenticate, hasScope, type Principal, type Scope } from "./http/auth.js";
@@ -19,6 +19,7 @@ import {
   EvaluationBodySchema,
   JobParamsSchema,
   SyncLatestBodySchema,
+  SignozAlertNotificationSchema,
   SyncRunsBodySchema,
   parseInput,
 } from "./http/schemas.js";
@@ -28,7 +29,7 @@ import { PrimaryWorkflowConfigurationError } from "./modules/github/primary-work
 import { getReceipt } from "./modules/receipts/assembler.js";
 import { BaselineRequiredError } from "./modules/regressions/baseline-resolver.js";
 import { SignozClient, SignozIntegrationError } from "./modules/signoz/client.js";
-import { registerRuntimeMetrics } from "./observability/metrics.js";
+import { recordAlertNotification, registerRuntimeMetrics } from "./observability/metrics.js";
 import { createOtelLogStream } from "./observability/otel-log-stream.js";
 export interface ServerDependencies {
   repos?: Repositories;
@@ -47,6 +48,7 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
       maxAttempts: config.SIGNOZ_QUERY_MAX_ATTEMPTS,
       requestTimeoutMs: config.SIGNOZ_QUERY_TIMEOUT_MS,
       deploymentDashboardId: config.SIGNOZ_DEPLOYMENT_DASHBOARD_ID,
+      publicBaseUrl: signozPublicUrl(config),
     });
   const github = dependencies.github ??
     new GitHubClient({ token: config.GITHUB_TOKEN, repository: config.GITHUB_REPOSITORY });
@@ -299,7 +301,7 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
     const receipt = await getReceipt(
       repos,
       config.GITHUB_REPOSITORY,
-      config.SIGNOZ_URL,
+      signozPublicUrl(config),
       params.commitSha,
     );
     if (!receipt) {
@@ -349,6 +351,40 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
     const body = parseInput(EvaluationBodySchema, request.body);
     const job = await enqueueWork(request, principal, "regression_evaluate", body);
     return reply.status(202).send({ jobId: job.id, state: job.state });
+  });
+
+  /**
+   * Receives alert notifications from SigNoz.
+   *
+   * SigNoz refuses to store a rule that has no notification channel, so a
+   * webhook pointed here is what makes GreenLight's alert rules importable at
+   * all. It also closes a real loop: the same system that decides verdicts from
+   * SigNoz telemetry learns when SigNoz's own guardrails fired, and each
+   * notification is logged with trace context so it lands back in SigNoz beside
+   * the spans that triggered it.
+   *
+   * SigNoz's webhook channel authenticates with a username and password and
+   * sends no custom headers, so this route is reached with basic auth carrying
+   * a scoped API key. It records and acknowledges; it never decides anything.
+   */
+  app.post("/api/v1/integrations/signoz/alerts", async (request, reply) => {
+    if (!authorize(request, reply, "notify")) {
+      return;
+    }
+    const body = parseInput(SignozAlertNotificationSchema, request.body);
+    for (const alert of body.alerts) {
+      const alertName = alert.labels.alertname ?? "unnamed";
+      recordAlertNotification({ alertName, status: alert.status });
+      request.log.info({
+        alert_name: alertName,
+        alert_status: alert.status,
+        severity: alert.labels.severity,
+        service_name: alert.labels["service.name"],
+        starts_at: alert.startsAt,
+        ends_at: alert.endsAt,
+      }, "signoz alert notification received");
+    }
+    return reply.status(202).send({ received: body.alerts.length });
   });
 
   app.get("/api/v1/jobs/:jobId", async (request, reply) => {

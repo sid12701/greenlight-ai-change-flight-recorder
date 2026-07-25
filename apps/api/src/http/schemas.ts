@@ -68,6 +68,25 @@ export const JobParamsSchema = z.object({
   jobId: EntityIdSchema,
 }).strict();
 
+/**
+ * The Alertmanager-shaped payload SigNoz posts to a webhook channel.
+ *
+ * Deliberately permissive about fields GreenLight does not read: this is a
+ * third party's envelope, and rejecting a notification because SigNoz added a
+ * field would lose the alert rather than record it. Only what is read is
+ * constrained.
+ */
+export const SignozAlertNotificationSchema = z.object({
+  alerts: z.array(z.object({
+    status: z.string().min(1).max(64).default("firing"),
+    labels: z.record(z.string(), z.string()).default({}),
+    annotations: z.record(z.string(), z.string()).default({}),
+    startsAt: z.string().max(64).optional(),
+    endsAt: z.string().max(64).optional(),
+    generatorURL: z.string().max(2048).optional(),
+  }).passthrough()).max(100),
+}).passthrough();
+
 export function parseInput<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
   value: unknown,

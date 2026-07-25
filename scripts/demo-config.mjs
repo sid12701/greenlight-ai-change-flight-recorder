@@ -234,6 +234,32 @@ export function validateSecretFile(path, requiredKeys) {
   return values;
 }
 
+/**
+ * Adds the SigNoz alert webhook credential, leaving existing secrets alone.
+ *
+ * Written as an in-place addition rather than as part of the initial file so a
+ * stack provisioned before alerting existed gains the credential on the next
+ * run instead of failing validation. Rotating the other secrets to add one
+ * would invalidate a running deployment's database password.
+ */
+function ensureAlertWebhookKey(greenlightPath) {
+  const values = parseEnv(readFileSync(greenlightPath, "utf8"));
+  if (values.has("GREENLIGHT_ALERT_WEBHOOK_KEY")) {
+    return;
+  }
+  const alertWebhookKey = randomSecret();
+  values.set("GREENLIGHT_ALERT_WEBHOOK_KEY", alertWebhookKey);
+  // `notify` can only post alert notifications. A compromised webhook
+  // credential cannot deploy, evaluate, or read.
+  values.set(
+    "GREENLIGHT_API_KEYS",
+    JSON.stringify([
+      { id: "signoz-alert-webhook", key: alertWebhookKey, scopes: ["notify"] },
+    ]),
+  );
+  writeSecretFile(greenlightPath, values);
+}
+
 export function ensureSecretFiles(base = root, adoptRunning = false) {
   const workloadDirectory = join(base, ".workloads");
   const signozPath = join(workloadDirectory, "signoz.env");
@@ -276,6 +302,7 @@ export function ensureSecretFiles(base = root, adoptRunning = false) {
       ],
     ]));
   }
+  ensureAlertWebhookKey(greenlightPath);
 
   validateSecretFile(signozPath, [
     "SIGNOZ_POSTGRES_PASSWORD",
@@ -285,6 +312,7 @@ export function ensureSecretFiles(base = root, adoptRunning = false) {
   validateSecretFile(greenlightPath, [
     "GREENLIGHT_ADMIN_TOKEN",
     "GREENLIGHT_POSTGRES_PASSWORD",
+    "GREENLIGHT_ALERT_WEBHOOK_KEY",
   ]);
   return { signozPath, greenlightPath };
 }

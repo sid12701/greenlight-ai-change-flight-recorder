@@ -5,7 +5,7 @@
  * OpenTelemetry can patch the HTTP client the integrations use. The runtime
  * itself lives in `worker-runtime.ts` and has no import-time side effects.
  */
-import { loadConfig } from "./config.js";
+import { loadConfig, signozPublicUrl } from "./config.js";
 import { createRepositories } from "./db/store.js";
 import { GitHubClient } from "./modules/github/client.js";
 import { SignozClient } from "./modules/signoz/client.js";
@@ -37,6 +37,7 @@ async function main() {
     maxAttempts: config.SIGNOZ_QUERY_MAX_ATTEMPTS,
     requestTimeoutMs: config.SIGNOZ_QUERY_TIMEOUT_MS,
     deploymentDashboardId: config.SIGNOZ_DEPLOYMENT_DASHBOARD_ID,
+    publicBaseUrl: signozPublicUrl(config),
   });
   const github = new GitHubClient({
     token: config.GITHUB_TOKEN,

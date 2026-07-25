@@ -331,6 +331,32 @@ describe("signoz trace verification", () => {
     expect(client.buildTraceUrl(traceId)).toBe(`http://signoz.test/trace/${traceId}`);
     expect(() => client.buildTraceUrl("../../etc/passwd")).toThrow(SignozIntegrationError);
   });
+
+  it("publishes links on the reader's origin, not the origin it queries", () => {
+    // A containerised API queries SigNoz over the Docker host gateway. A link
+    // built from that origin resolves nowhere in a reader's browser, so both
+    // link builders must use the public origin while queries keep using the
+    // internal one.
+    const client = clientWith((async () => jsonResponse({})) as unknown as typeof fetch, {
+      publicBaseUrl: "http://127.0.0.1:8080",
+      deploymentDashboardId: "dash-1",
+    });
+
+    expect(client.buildTraceUrl(traceId)).toBe(`http://127.0.0.1:8080/trace/${traceId}`);
+    expect(client.buildDashboardUrl({
+      serviceName: "blnk-loan-workload",
+      serviceVersion: "abc",
+      environmentName: "hackathon-demo",
+      route: "/balances",
+      startMs: 1,
+      endMs: 2,
+    })).toContain("http://127.0.0.1:8080/dashboard/dash-1");
+  });
+
+  it("falls back to the query origin when no public origin is configured", () => {
+    const client = clientWith((async () => jsonResponse({})) as unknown as typeof fetch);
+    expect(client.buildTraceUrl(traceId)).toBe(`http://signoz.test/trace/${traceId}`);
+  });
 });
 
 describe("error rate", () => {

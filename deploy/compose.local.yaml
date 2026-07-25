@@ -36,6 +36,9 @@ services:
       GREENLIGHT_HOST: 0.0.0.0
       GREENLIGHT_DATABASE_URL: postgres://greenlight:${GREENLIGHT_POSTGRES_PASSWORD}@postgres:5432/greenlight
       SIGNOZ_URL: http://host.docker.internal:8080
+      # Links published to a browser must use an origin that browser can
+      # resolve; host.docker.internal exists only inside the container.
+      SIGNOZ_PUBLIC_URL: http://127.0.0.1:8080
       SIGNOZ_MCP_URL: http://host.docker.internal:8000/mcp
       OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
     extra_hosts:
@@ -74,6 +77,9 @@ services:
     environment:
       GREENLIGHT_DATABASE_URL: postgres://greenlight:${GREENLIGHT_POSTGRES_PASSWORD}@postgres:5432/greenlight
       SIGNOZ_URL: http://host.docker.internal:8080
+      # Links published to a browser must use an origin that browser can
+      # resolve; host.docker.internal exists only inside the container.
+      SIGNOZ_PUBLIC_URL: http://127.0.0.1:8080
       SIGNOZ_MCP_URL: http://host.docker.internal:8000/mcp
       OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
       OTEL_SERVICE_NAME: greenlight-worker

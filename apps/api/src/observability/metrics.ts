@@ -24,6 +24,7 @@ function meter() {
  */
 let verdictCounter: ReturnType<ReturnType<typeof meter>["createCounter"]> | undefined;
 let verificationCounter: ReturnType<ReturnType<typeof meter>["createCounter"]> | undefined;
+let alertNotificationCounter: ReturnType<ReturnType<typeof meter>["createCounter"]> | undefined;
 
 /** Records a persisted regression verdict. */
 export function recordRegressionVerdict(input: {
@@ -49,6 +50,23 @@ export function recordAiVerificationState(state: string): void {
     valueType: ValueType.INT,
   });
   verificationCounter.add(1, { state });
+}
+
+/**
+ * Records an alert notification SigNoz delivered to GreenLight.
+ *
+ * Counted here rather than inferred from SigNoz's own rule state, because the
+ * two answer different questions: SigNoz knows whether a rule is firing, and
+ * this knows whether the notification reached the system that is supposed to
+ * act on it. A rule that fires into a broken channel looks healthy from inside
+ * SigNoz.
+ */
+export function recordAlertNotification(input: { alertName: string; status: string }): void {
+  alertNotificationCounter ??= meter().createCounter("greenlight.alerts.notifications", {
+    description: "SigNoz alert notifications received, by rule and status",
+    valueType: ValueType.INT,
+  });
+  alertNotificationCounter.add(1, { alert: input.alertName, status: input.status });
 }
 
 export interface RuntimeMetricSources {
