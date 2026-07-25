@@ -1,22 +1,45 @@
-# A flight recorder for AI-authored change: building GreenLight on SigNoz
+# CI said green. Production said otherwise: building an AI change flight recorder on SigNoz
 
-An AI wrote a one-line config change. It passed all eight CI checks. It got reviewed, merged, deployed. p95 latency on the affected endpoint then went up 7.3x.
+A one-line configuration change passed every CI check, was reviewed, and
+shipped. Production p95 latency on the affected endpoint then rose **7.3×**.
 
-Nothing was broken in a way CI could see, because nothing CI tests was actually wrong. That gap — "the pipeline is green" vs. "production is fine" — is what I built GreenLight to record, for the **Agents of SigNoz** hackathon by WeMakeDevs and SigNoz (Track 3, Build Your Own).
+Nothing was broken in a way CI could see. The value was valid, the file parsed,
+the tests passed, and the container built. The failure lived in the gap between
+“the pipeline is green” and “the change is safe.”
 
-This post walks through what GreenLight does, how it leans on SigNoz for basically everything it claims, and the three bugs that only showed up once I stopped reading the code and started running it.
+That gap is what I built **GreenLight** to record for the
+[WeMakeDevs × SigNoz hackathon](https://www.wemakedevs.org/hackathons/signoz),
+Track 3: Build Your Own.
 
-Repo: `https://github.com/sid12701/greenlight-ai-change-flight-recorder`
-Demo video: *[YouTube link — placeholder, recording per `docs/VIDEO_SCRIPT.md`]*
-Screenshots referenced below live in `audit/screenshots/` in the repo.
+- [Source code and reproducible setup](https://github.com/sid12701/greenlight-ai-change-flight-recorder)
+- [Watch the 2:25 demo video on YouTube](https://www.youtube.com/watch?v=QiWLpvP3vXc)
+- [Download the H.264/AAC demo file](signoz-hackathon-end-to-end-demo.mp4)
 
-**AI assistance disclosure:** planning and implementation used Claude Code and other AI coding assistants throughout, as permitted by the hackathon rules. AI is a tool here, not a co-author — every commit is authored and reviewed under my own Git identity (see `PROVENANCE.md`).
+![GreenLight overview](assets/screenshots/greenlight-overview.jpg)
 
----
+## The problem
 
-## The bug that started it
+AI coding tools can produce and ship changes faster than a person can manually
+follow each one into production. CI tells us whether a change passed its known
+checks. Observability tells us what the running system did. What is usually
+missing is a trustworthy link between those two stories.
 
-Here's the entire diff that caused the regression I use as GreenLight's running example:
+GreenLight is for the engineer holding a commit SHA during an incident and
+asking:
+
+1. Which CI run approved this exact commit?
+2. Which immutable version was deployed?
+3. What did latency and errors do while that version served traffic?
+4. Can every supporting trace, log, and dashboard link still be opened?
+5. Did a later version measurably recover the service?
+
+GreenLight turns those answers into a change receipt. When evidence is missing,
+the receipt says so. It never converts an absent link into a confident blank.
+
+## The one-line regression
+
+The recorded candidate is commit
+[`2fa6e28`](https://github.com/sid12701/greenlight-ai-change-flight-recorder/commit/2fa6e2861eabf162a26af0d0ef012124865811df):
 
 ```diff
    "data_source": {
@@ -28,156 +51,242 @@ Here's the entire diff that caused the regression I use as GreenLight's running 
    },
 ```
 
-Reads like sensible tuning — "recycle pooled DB connections periodically." The commit message says exactly that.
+It reads like ordinary connection-pool tuning. But Blnk is written in Go, and a
+JSON number decoded into `time.Duration` is interpreted as nanoseconds.
+`1000000` is not roughly sixteen minutes; it is **one millisecond**. The service
+discarded PostgreSQL connections almost as soon as it opened them.
 
-`conn_max_lifetime` is a Go `time.Duration`. Decoded from JSON, a `time.Duration` is nanoseconds. `1000000` isn't the ~16 minutes it looks like. It's **one millisecond**. The service dutifully tore down every Postgres connection almost the instant it opened one and spent its time reconnecting instead of serving requests. On `/balances`, p95 went from 1.44 ms to 10.45 ms and p90 from 1.19 ms to 8.71 ms.
+The change passed all eight CI checks. Under measured traffic on `/balances`,
+p95 moved from **1.44 ms to 10.45 ms**. A later revert,
+[`c65cd73`](https://github.com/sid12701/greenlight-ai-change-flight-recorder/commit/c65cd730b405b88c6d83a7b0f7d7c024f98e1dcd),
+measured **2.1 ms**, so recovery was observed rather than assumed.
 
-No test catches this. No type error, no lint failure, no schema violation — it's a valid integer in a valid field. You find it in production or you don't find it. That's the exact class of failure GreenLight is built around.
+![Regression receipt showing the 7.3x p95 change](assets/screenshots/greenlight-regression-receipt.jpg)
 
-## What GreenLight actually does
+## The workflow
 
-It ties an AI-authored change to what happened after it shipped:
+GreenLight records this chain:
 
-```
-AI session ──▶ commit ──▶ CI run ──▶ deployment ──▶ telemetry window ──▶ verdict
-```
-
-```mermaid
-flowchart LR
-  AI["Claude Code session"] -->|AI-Traceparent Git trailer| GH["GitHub commit + Actions run"]
-  GH -->|reconstructed CI spans| GL["GreenLight API + worker"]
-  GL -->|deploys as service.version| WL["Blnk workload (Apache-2.0, third-party)"]
-  WL -->|OTLP traces| SZ["SigNoz: traces · metrics · logs · MCP"]
-  GL -->|Query Builder v5 + MCP| SZ
-  SZ -->|measured windows| RC["Change Receipt: verdict + evidence"]
-  GL --> RC
+```text
+AI session → commit → CI run → immutable deploy → telemetry window → verdict
 ```
 
-Every arrow above is an ID that has to resolve in a live SigNoz. If one doesn't resolve, the receipt says so instead of quietly rendering a confident blank. That "say so, don't fake it" rule is the actual design principle underneath everything else — I'll come back to it.
+The comparison unit is the deployed version, not elapsed wall-clock time. Each
+Blnk deployment reports its commit SHA as `service.version`, and the verdict
+queries use the same scope:
 
-The comparison unit is the **immutable deployed version**. Every deployment reports its commit SHA as `service.version`, and every SigNoz query is scoped to it:
-
+```text
+service.name = "blnk-loan-workload"
+service.version = "<commit SHA>"
+deployment.environment.name = "hackathon-demo"
+http.route = "/balances"
 ```
-service.name = 'blnk-loan-workload'
-  AND service.version = '<commit sha>'
-  AND deployment.environment.name = 'hackathon-demo'
-  AND http.route = '/balances'
-```
 
-"Before and after" as wall-clock time is ambiguous — deploys overlap, rollbacks happen, traffic shifts. "Before and after" as *version* isn't. That scoping is the whole trick, and it's why the same query shape works for the verdict logic, the dashboard, and the MCP investigation.
+That makes overlapping deployments, rollbacks, and delayed evaluation
+unambiguous. The baseline can have been frozen hours earlier; it still refers to
+one immutable version.
 
-### The workload isn't mine, on purpose
+![GreenLight architecture](assets/architecture/greenlight-architecture.png)
 
-GreenLight monitors [Blnk](https://github.com/blnkfinance/blnk) `v0.15.1`, an Apache-2.0 financial ledger, pinned to commit `c8fce93`. It's fetched and verified at build time, never vendored — a verification step checks the checkout's origin, tag, SHA, and that the one approved OpenTelemetry patch is its only modification.
+The product consists of a React interface, a Fastify API, a PostgreSQL-backed
+worker, and a third-party monitored workload:
+[Blnk v0.15.1](https://github.com/blnkfinance/blnk/tree/v0.15.1), an
+Apache-2.0 financial ledger. Blnk is fetched, pinned, and verified rather than
+vendored. It knows nothing about GreenLight, which matters: this is not a demo
+service written to contain a bug the demo knows how to find.
 
-This matters more than it sounds. If I'd written the monitored service myself, "GreenLight detected a regression" would be a story about code written to be detected. Blnk knows nothing about GreenLight. It emits OpenTelemetry because it already did, before I ever touched it.
+OpenTelemetry carries GreenLight and Blnk traces, metrics, and logs into a
+self-hosted SigNoz stack. The submitted stack pins SigNoz `v0.134.0`, its
+collector dependencies, and SigNoz MCP `v0.9.0` by manifest digest.
 
-Two upstream quirks had to be worked around at the container boundary instead of patched: `v0.15.1` declares a `--config` flag but its pre-run hook reads `./blnk.json` regardless, and its PostHog/Typesense integrations are disabled for this stack.
+## SigNoz is the evidence system
 
-## Five ways GreenLight leans on SigNoz
+SigNoz is not a dashboard added after the product was finished. It decides and
+supports every production claim on the receipt.
 
-This is the part the judging criteria care most about, so I'll go feature by feature.
+### Traces decide the verdict
 
-**1. Traces decide the verdict.** Evaluation is two Query Builder v5 queries in one round trip: query A returns count, p90, and p95 for the version scope; query B returns the error count for the same scope with `has_error = true`. A verdict needs both.
+GreenLight sends two Query Builder v5 trace queries for each window. One returns
+request count, p90, and p95. The other counts spans with `has_error = true` over
+the same service, version, environment, and route.
+
+The applied policy requires:
 
 | Guard | Rule |
 |---|---|
 | Latency | observed p95 > baseline × 1.5 **and** > baseline + 2 ms |
-| Error rate | observed ≥ baseline + 2pp **and** ≥ 5% absolute |
-| Data | ≥ 200 completed spans in **both** windows |
+| Error rate | observed ≥ baseline + 2 percentage points **and** ≥ 5% |
+| Data | at least 200 completed spans in both windows |
 
-That 2 ms floor used to be 250 ms, which is the more "obviously right" number — it's roughly where a human notices latency. But a *perceptible*-duration floor is scale-dependent: on a route whose baseline p95 is 1.44 ms, a 250 ms floor demands 251 ms before latency can be reported at all. That's a 174x regression required to even qualify. Under that old policy, this run's real 7.3x regression would have been measured, shown on the receipt, and then excluded from the verdict — technically honest, practically useless. Policy v2 swaps the perception floor for a resolution floor (2 ms, comfortably above span timing jitter) and keeps the 1.5x multiplier to still suppress noise on slow endpoints. Both policies stay in the code, and every stored verdict names which one decided it, so an old receipt still explains itself.
+The 2 ms absolute floor is deliberately a timing-resolution guard, not a
+human-perception threshold. An earlier 250 ms floor silently exempted fast
+routes: this 7.3× regression would have needed to become a 174× regression
+before qualifying. Every stored verdict records its policy version so an old
+receipt still explains the rules that decided it.
 
-**2. Metrics answer what traces can't.** A verdict is a decision; queue depth and dependency health are ongoing states, not one-off events, so they need real instruments:
+![Measured impact and recovery](assets/screenshots/greenlight-regression-impact.jpg)
 
-| Metric | Type | What it answers |
-|---|---|---|
-| `greenlight.regression.verdicts` | counter | what's been decided, by status and route |
-| `greenlight.change.ai_verification` | counter | how many changes carry a resolvable AI link |
-| `greenlight.jobs.queue_depth` | gauge | is work stuck |
-| `greenlight.dependency.available` | gauge | is GitHub, SigNoz, or the DB down |
+### Dashboards make versions comparable
 
-Job counts deliberately report **zero** for states holding no rows — a gauge that stops emitting looks identical to a collector that died, and telling those two apart is the entire point of watching queue depth. SigNoz query failures are also counted, as `integration_error`, and never disguised as a verdict; skipping that count would make totals imply SigNoz always answered, which it doesn't always.
+Three imported dashboards cover deployment impact, GreenLight’s own health, and
+pipeline health. The most important panel groups p95 by `service.version`, so
+baseline, candidate, and recovery appear as distinct series. An empty error
+panel is meaningful in this run: the measured candidate window had zero errors;
+latency alone caused the verdict.
 
-**3. Alerts that actually fire.** Two rules — p95, and a *true* error rate (errored spans / all spans as one Query Builder v5 formula, not a raw error count that rises with traffic alone). Both had the same two failure modes, both invisible from the SigNoz UI:
+![SigNoz Deployment Impact dashboard](assets/screenshots/signoz-deployment-impact-dashboard.jpg)
 
-- Dashboard variables don't exist for alert rules. A filter written as `service.name = $service` gets stored verbatim, accepted, listed — and matches nothing, forever. Fix: the asset declares its scope in a `variables` block that GreenLight expands before posting, and the validator rejects anything still containing a `$`.
-- A version-pinned alert is a contradiction. Scoping a rule to one immutable `service.version` means it can only ever describe a version that already existed when the rule was written — it can never warn about the *next* deploy, which is the only thing an alert is for. So the rules follow environment + route, not version; deciding what a specific version did is the receipt's job, not the alert's.
+### Links resolve to real traces
 
-The p95 threshold sits at 5 ms (above this route's healthy 1.4 ms, below the ~10 ms the regression produces) so it separates the two states instead of restating either. Under load on the candidate, the rule goes `inactive → firing`, and back to `inactive` on the revert.
+Evidence links are not decorative. The receipt-link verifier opens every
+published commit, CI, trace, deployment, and source link. One cited slow request
+resolves in SigNoz as an 83 ms `/balances` trace with two spans, zero errors, and
+a 78.77 ms `GetAllBalances` child span.
 
-One thing didn't work, and I'm reporting it rather than glossing it: SigNoz refuses to store a rule with no notification channel, so the importer provisions a channel pointing at an authenticated GreenLight webhook receiver. The receiver itself works — SigNoz rejects it without credentials, accepts it with them, and every call gets logged with trace context plus a metric. But with the rule firing continuously for several minutes, no webhook call ever arrived. The channel is what makes the rule storable; delivery is unverified, and I'd rather say that than have it discovered.
+![A slow Blnk trace in SigNoz](assets/screenshots/signoz-slow-trace.jpg)
 
-**4. Logs join the story back together.** API and worker logs ship to SigNoz over OTLP carrying trace context, so a log line resolves to its span. Worker jobs that name a commit carry `commit_sha`, because someone investigating an incident usually arrives holding a commit, not a job ID:
+### Alerts follow the deployed service
 
-```
-commit_sha = c65cd730b405…  →  "job succeeded"  →  trace 5f892180…
-  ├─ deployment.started      (blnk-loan-workload)
-  └─ job deployment_record   (greenlight-worker)
-```
+The project imports two Query Builder v5 rules: p95 latency and a true error
+rate, computed as errored spans divided by all spans. They deliberately do not
+pin `service.version`. A version-pinned alert could only describe a version that
+already existed when the rule was written; the alert must follow whatever is
+currently deployed, while the receipt answers what one specific version did.
 
-No commit gets invented for job kinds that genuinely don't reference one — an absent `commit_sha` means the job wasn't about a single commit, not that the join failed.
+The p95 history contains four observed fired-and-resolved cycles. The
+authenticated GreenLight webhook receiver is independently verified, but
+SigNoz-to-receiver delivery was not observed during the rehearsal. The
+submission does not claim that it was.
 
-**5. MCP asks the questions an investigating agent would.** Rather than only hitting the query API, GreenLight also asks SigNoz's MCP server the same questions a human (or agent) investigator would, over streamable HTTP, and records the transcript:
+![Observed p95 alert history](assets/screenshots/signoz-p95-alert-history.jpg)
+
+### Logs preserve the commit join
+
+API and worker logs ship over OTLP with trace context. Jobs that refer to a
+change also carry `commit_sha`, because an investigator normally arrives with a
+commit, not a queue job ID. Filtering on the recovery SHA exposes retries, a
+permanent failure, and the later successful job without guessing from
+timestamps.
+
+![Commit-correlated worker logs](assets/screenshots/signoz-correlated-logs.jpg)
+
+### MCP gives an agent-native investigation path
+
+GreenLight asks the SigNoz MCP server the same question an investigating agent
+would: compare baseline and candidate p95 and error rate for one route, then
+return the slowest traces. The recorded capture has no direct-query fallback, so
+it either came from MCP or the capture failed.
+
+Across the capture’s wider 15-hour window, MCP reported:
 
 | | baseline `6f458c9` | candidate `2fa6e28` |
-|---|---|---|
-| p95 | 1.59 ms | 8.31 ms |
-| error rate | 0% | 32.89% |
+|---|---:|---:|
+| p95 | 1.58 ms | 9.39 ms |
+| error rate | 0% | 9.13% |
 
-Three trace IDs get cited in that transcript and each one resolves. There's deliberately no direct-API fallback here — if MCP can't answer, the capture fails and writes nothing, because a transcript that didn't actually come from MCP would misrepresent what it claims to be. These numbers come from a wider window than the receipt's own evaluation, so they corroborate the verdict rather than just restating it.
+The wider window includes an earlier, deliberately separate dependency-failure
+rehearsal for the same candidate version, which is why its error rate differs
+from the receipt’s zero-error measured window. Same version, different windows,
+different correct answers. The transcript cites three trace IDs, and all three
+resolve to two spans.
 
-*[Screenshot placeholder: SigNoz dashboard, "Deployment Impact" panel showing the p95 step change across `service.version`. Source: `signoz/dashboards/deployment-impact.json`.]*
+## What running the whole system taught me
 
-## Three bugs that only running it revealed
+The most useful part of the hackathon was discovering how many plausible claims
+collapsed under end-to-end verification.
 
-The blog-guide advice to "write from real experience" is easy to agree with and hard to act on for a project like this, so here's the concrete version — three defects that no amount of reading the diff would have surfaced:
+**The load generator measured itself.** It accepted a duration flag but did not
+pace requests. Hundreds of calls finished almost instantly, Blnk’s own rate
+limiter rejected many of them, and a “healthy” baseline showed an error rate
+created by the test tool.
 
-**The load generator was measuring itself.** It accepted a `--duration-seconds` flag and never used it to pace anything. 250 requests finished in under 0.2 seconds, the workload's own rate limiter rejected 90 of them, and a "healthy" baseline reported a 36% error rate that belonged entirely to the load tool, not the service. A baseline captured from that traffic would have poisoned every downstream verdict.
+**A container health check could never pass.** The deployment worker reached
+the host through `host.docker.internal`, while the origin allowlist only
+permitted container-local `127.0.0.1`. The fail-closed behavior was correct; the
+configuration had never been exercised through the real container path.
 
-**The deployment API could never have worked in containers.** It runs its own health check before recording a deployment, from inside a container that reaches the host via `host.docker.internal` — but the health-origin allowlist only permitted `http://127.0.0.1:18081`, which inside that container is *itself*, not the host. It failed closed, correctly, and had apparently never been exercised in the containerized path before.
+**Missing AI evidence was labelled malformed.** A parser result object was
+truthy even when no Git trailer existed, making a dead branch report every
+missing AI link as invalid. That wording falsely implied an attempted link. The
+receipt now distinguishes `missing`, `invalid`, and `verified`.
 
-**Absent evidence was reported as invalid evidence.** The AI-link parser returns a result object for a missing Git trailer rather than `null`, so a `parsed ? "invalid" : "missing"` expression always evaluated to `"invalid"` — the `missing` branch was dead code. Every commit without an AI trailer got recorded as having a *malformed* one, which tells a reader the commit tried to record an AI session and botched it — a claim there was zero evidence for. For a project whose entire premise is "don't overstate the evidence," that was the worst of the three.
+**The first demo mixed two incidents.** A PostgreSQL outage was injected inside
+the candidate’s measured window, so the verdict fired on an error rate unrelated
+to the configuration change. The honest fix was not better narration; it was
+separating the clean change chain from the explicitly named
+dependency-failure scenario.
 
-## What it refuses to say
+The receipt therefore carries a load-bearing caveat:
 
-Every receipt carries this sentence, and it's load-bearing, not decoration:
+> Deployment correlation is evidence of temporal and version association, not
+> proof that every observed failure was caused by the commit.
 
-> Deployment correlation is evidence of temporal and version association, not proof that every observed failure was caused by the commit.
+## Reproduce it locally
 
-I know that sentence is load-bearing because I broke it once. An earlier version of the demo injected a real PostgreSQL outage inside the candidate's measured window, and the verdict fired on the resulting error rate rather than on the latency the commit actually caused. Nothing was fabricated and everything was disclosed — but the headline claim was "this change regressed the service," and the actual mechanism was something else entirely. A tool that overstates once is a tool you double-check forever after, and that standard applies to the demo, not just the product. So the two scenarios are now separate: `demo-chain.mjs` measures what a version did and injects nothing into it; `demo-dependency-failure.mjs` deliberately stops the workload's database inside the window and exists specifically to show GreenLight reporting failures it measured, while refusing to attribute them to a commit that never touched that dependency.
-
-Other places the same restraint shows up: a percentage change computed from a zero baseline returns `null` instead of `"Infinity%"`; an unresolved CI conclusion stays neutral instead of being guessed at; `insufficient_data` and `integration_error` are distinct outcomes, and neither is allowed to masquerade as "healthy."
-
-*[Screenshot placeholder: Change Receipt page, verdict banner reading "regressed" with the p95 comparison and the disclaimer sentence visible. Source: `audit/screenshots/03-receipt.png`.]*
-
-*[Screenshot placeholder: the same receipt's "missing evidence" state, showing an unresolved link reported honestly instead of hidden. Source: `audit/screenshots/05-receipt-missing.png`.]*
-
-## The recorded run
-
-Three real commits, three real GitHub Actions CI runs, three version-verified deployments:
-
-| Phase | Commit | CI | Verdict |
-|---|---|---|---|
-| Baseline | `6f458c9` | ✅ | frozen |
-| Candidate | `2fa6e28` | ✅ **all 8 checks green** | **regressed** |
-| Recovery | `c65cd73` | ✅ | **recovered** |
-
-Measured on `/balances`: p95 went **1.44 ms → 10.45 ms**, a 7.3x rise, across 257 and 260 completed spans in the two windows with no errors in either. The candidate passing every CI check isn't an embarrassment to report — it's the entire premise. The pipeline did its job correctly. The thing that was wrong just wasn't the kind of thing a pipeline can see.
-
-## What I'd do differently / where it's headed
-
-The verdict logic today is scoped to one route on one service, and the query interface is already parameterized on service, version, environment, and route — so widening it is mostly a baseline-selection problem, not an architecture problem. Right now the baseline is "the last frozen good deployment"; a rolling window of healthy versions would generalize better. Alert notification delivery is the other open item — the channel is proven to authenticate and log, but actual webhook dispatch from SigNoz has never been observed firing in this stack, and I'd want that closed out before trusting it in anything real.
-
-## Try it
+Prerequisites are Node 24, Docker Compose v2, Git, curl, OpenSSL, and SigNoz
+Foundry `v0.2.16`.
 
 ```bash
 git clone https://github.com/sid12701/greenlight-ai-change-flight-recorder
 cd greenlight-ai-change-flight-recorder
-cp .env.demo.example .env.demo    # two external credentials
-npm run demo:up                   # health-gated: SigNoz, workload, API, web
+npm ci
+cp .env.demo.example .env.demo
+npm run demo:up
 ```
 
-The whole stack is pinned by manifest digest — SigNoz `v0.134.0`, its collector `v0.144.6`, MCP `v0.9.0` — and a runtime verifier checks every running container against its pin before the demo is allowed to claim anything. `casting.yaml` and `casting.yaml.lock` are committed at the repo root for judges re-running it through Foundry.
+The first run creates private local credentials and pauses with one explicit
+manual step: sign in to local SigNoz, create a service-account API key, add it
+to `.env.demo`, and rerun `npm run demo:up`. The repository never commits that
+key.
 
-MIT licensed. The monitored workload is Apache-2.0 and belongs to someone else, which is rather the point.
+Useful verification commands:
+
+```bash
+npm run verify
+npm run test:e2e
+npm run validate:signoz-assets
+bash scripts/signoz-runtime-verify.sh
+npm run verify:receipt-links
+npm run mcp:verify
+```
+
+The final clean-room run used Node 24 and passed lint, type-checking, all builds,
+224 tests, the browser smoke test, 24 receipt links, three dashboard assets, two
+alert assets, six runtime image-digest checks, and three MCP trace resolutions.
+Thirteen tests were reported as skipped by the normal suite; nine live
+PostgreSQL integration cases remain opt-in because the test database URL is not
+exposed by the demo environment.
+
+## Limitations and honest boundaries
+
+- The recorded commits have no resolvable Claude Code session span. The AI link
+  is shown as missing. The hook is armed, but the required Claude telemetry
+  environment and trace context were not present for those commits.
+- Alert rules fired and resolved, but webhook delivery from SigNoz was not
+  observed.
+- SigNoz’s service-map page has no service graph for this workload because the
+  current instrumentation does not create cross-service parent/child spans.
+- The verified demo is local rather than publicly hosted; reproducing it
+  requires the documented SigNoz API-key step.
+- The verdict currently evaluates one route on one service. Its query scope is
+  parameterised, but baseline selection is still a frozen last-known-good
+  deployment rather than a rolling set of healthy versions.
+
+## Closing
+
+The recorded chain is intentionally small and complete: three real commits,
+three real CI runs, three immutable deployments, one verified regression, and
+one verified recovery.
+
+GreenLight’s central idea is not that observability can prove a commit caused an
+incident. It cannot. The idea is that a change receipt can make the available
+evidence resolvable, version-scoped, and honest enough for a human or agent to
+investigate without starting from guesswork.
+
+**AI assistance disclosure:** Codex/ChatGPT and Claude Code were used for
+planning, implementation, review, and submission preparation, as allowed by the
+[hackathon rules](https://www.wemakedevs.org/hackathons/signoz/rules). All
+repository commits remain reviewed and authored under the human maintainer’s
+Git identity. See [PROVENANCE.md](PROVENANCE.md).
+
+GreenLight is MIT licensed. Blnk is Apache-2.0 and belongs to its authors.

@@ -1,0 +1,45 @@
+1
+00:00:00,000 --> 00:00:13,000
+CI said green. Production said otherwise: p95 rose 7.3×.
+
+2
+00:00:13,000 --> 00:00:31,000
+GreenLight connects AI session → commit → CI → deploy → telemetry.
+Missing evidence stays visibly missing.
+
+3
+00:00:31,000 --> 00:00:49,000
+/balances p95: 1.4 ms → 10.4 ms · 0% errors · 257/260 spans
+Recovery verified at 2.1 ms.
+
+4
+00:00:49,000 --> 00:01:05,000
+React + Fastify + PostgreSQL worker → immutable Blnk deployment
+OTLP → self-hosted SigNoz → Query Builder, alerts, and MCP evidence
+
+5
+00:01:05,000 --> 00:01:23,000
+SigNoz Deployment Impact: baseline, candidate, and recovery
+grouped by immutable service.version.
+
+6
+00:01:23,000 --> 00:01:36,000
+Resolvable trace evidence: 83 ms · 2 spans · 0 errors
+78.77 ms database child span.
+
+7
+00:01:36,000 --> 00:01:51,000
+Version-agnostic p95 alert · 4 real fired-and-resolved cycles.
+
+8
+00:01:51,000 --> 00:02:04,000
+Logs correlate retries and success by exact recovery commit SHA.
+
+9
+00:02:04,000 --> 00:02:16,000
+GreenLight observes itself with custom metrics, traces, and logs.
+
+10
+00:02:16,000 --> 00:02:25,000
+3 commits · 3 CI runs · 3 deployments
+Track 3 — Build Your Own

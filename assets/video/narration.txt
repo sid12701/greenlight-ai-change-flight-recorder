@@ -1,0 +1,19 @@
+Imagine this: a tiny configuration change passes every CI check and goes live. Everything looks green—but production latency jumps by 7.3 times. That gap is exactly why I built GreenLight.
+
+What you’re looking at now is a GreenLight change receipt. It connects the coding session, commit, CI run, deployment, and production telemetry in one place. It also stays honest about missing evidence. This commit wasn’t linked to an AI session trace, so GreenLight clearly says “not linked” instead of pretending the connection exists.
+
+Now we’re looking at the actual impact. On the slash-balances route, p ninety-five latency went from 1.4 to 10.4 milliseconds. The error rate stayed at zero, and both measurement windows contained more than 250 requests. After the change was reverted, latency returned to 2.1 milliseconds—so the recovery was measured, not assumed.
+
+Here’s how the system fits together. GreenLight has a React interface, a Fastify API, and a background worker backed by PostgreSQL. The worker deploys an immutable version of Blnk—pronounced “Blink”—and OpenTelemetry sends traces, metrics, and logs into a self-hosted SigNoz stack.
+
+This is the live Deployment Impact dashboard in SigNoz. Each line represents a specific deployed version, so we can directly compare the healthy baseline, the regressed candidate, and the recovery. The empty error panel is intentional: this incident affected latency, not errors.
+
+GreenLight’s evidence links are real links, not decorative buttons. Here’s one of the slow requests opened directly in SigNoz: 83 milliseconds, two spans, zero errors, with most of the time spent in the database operation.
+
+Next is the SigNoz alert history. The same latency policy fired and resolved four times during the rehearsal, showing that the alert follows the live service rather than one hard-coded version.
+
+Here in the logs, I’m filtering by the exact recovery commit. We can see retries, a permanent failure, and the later successful job without trying to match events manually by timestamp.
+
+GreenLight also observes itself using custom metrics for API health, verdicts, queue depth, dependencies, and alert notifications. SigNoz MCP provides the same evidence through an agent-friendly investigation path.
+
+So this isn’t a mocked story. It’s three real commits, three green CI runs, and three immutable deployments—one verified regression and one verified recovery. GreenLight is my Track 3, Build Your Own submission.

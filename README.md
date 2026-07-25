@@ -61,8 +61,10 @@ about GreenLight, so a detected regression is not one written to be detected.
 | The AI-link chain is diagnosable | `npm run ai-link:verify` | reports each of the four links separately |
 | The stack is pinned, not floating | `bash scripts/signoz-runtime-verify.sh` | 6 images matched by digest |
 
-Full detail: [`docs/BLOG.md`](docs/BLOG.md) explains the design and the three
-defects that only running the system revealed.
+Full detail: [`greenlight-blog-post.md`](greenlight-blog-post.md) is the
+submission-ready project story, with verified screenshots and the limitations
+stated plainly. The narrated 2:25 demo is available as
+[`signoz-hackathon-end-to-end-demo.mp4`](signoz-hackathon-end-to-end-demo.mp4).
 
 ## Five-minute local quickstart
 

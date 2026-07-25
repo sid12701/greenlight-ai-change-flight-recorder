@@ -1,122 +1,79 @@
-# Submission checklist
+# Submission copy and final actions
 
-Deadline: **26 July 2026, 05:29 IST**. Fields below are drafted so the form can
-be filled by pasting. Only the two publish actions need a human.
+Official deadline: **26 July 2026, 05:29 IST**.
 
-| Field | State |
-|---|---|
-| Track | Track 3 — Build Your Own |
-| Public GitHub link | https://github.com/sid12701/greenlight-ai-change-flight-recorder |
-| `casting.yaml` + `casting.yaml.lock` | present at repository root |
-| Project blog | **needs publishing** — paste `docs/BLOG.md` |
-| YouTube demo (≤3 min) | **needs recording** — follow `docs/VIDEO_SCRIPT.md` |
-| Project description | below |
-| How SigNoz is used | below |
-| Hackathon experience | below |
-| Deployed link | optional; not submitted (the demo is local by design) |
+## Paste-ready form fields
 
----
+**Team name:** GreenLight
 
-## Project description
+**Track:** Track 3 — Build Your Own
 
-GreenLight is a flight recorder for AI-authored change. It ties an AI session
-to a commit, its CI run, an immutable deployment, and the telemetry that
-followed, then decides whether the change regressed the service and whether a
-later change recovered it.
+**GitHub:** https://github.com/sid12701/greenlight-ai-change-flight-recorder
 
-Every link in that chain is an ID that must resolve in a live SigNoz. When one
-does not, the receipt says so rather than rendering a confident blank.
+**Deployed link:** leave blank; the verified demo is intentionally local
 
-The monitored workload is Blnk v0.15.1, a third-party Apache-2.0 financial
-ledger, fetched and verified rather than vendored. It knows nothing about
-GreenLight, so a detected regression is not a regression written to be
-detected.
+**YouTube demo:** https://www.youtube.com/watch?v=QiWLpvP3vXc
 
-The recorded run is three real commits with three real CI runs: a baseline, a
-candidate whose one-line configuration change passed all eight CI checks and
-regressed the service, and a revert that recovered it.
+**Project blog:** paste the public URL after publishing
+`greenlight-blog-post.md`
 
-## How SigNoz is used
+### Project description
 
-SigNoz is the evidence system, not a dashboard bolted on afterwards.
+GreenLight is a flight recorder for AI-authored change. It connects an AI
+session, immutable commit, CI run, deployment, and the SigNoz telemetry that
+followed, then produces an evidence receipt that says whether the version
+regressed the service and whether a later version recovered it.
 
-- **Traces** decide the verdict. Two Query Builder v5 queries per window return
-  count, p90 and p95, plus the error count for the same scope with
-  `has_error = true`. Every query is scoped to one immutable
-  `service.version`, so "before and after" is a version comparison rather than
-  an ambiguous wall-clock one. The Deployment Impact dashboard draws the same
-  comparison by grouping on `service.version`: two series, one chart, and the
-  step between them is the deployment.
-- **Custom metrics** carry what traces cannot express: verdicts decided by
-  status and route, AI verification states, alert notifications received, job
-  queue depth, and dependency availability. Queue depth reports zero for drained
-  states, because a gauge that stops emitting is indistinguishable from a
-  collector that stopped.
-- **Logs** ship from the API and worker over OTLP with trace context, so a log
-  line resolves to its span. Worker jobs that name a commit carry `commit_sha`,
-  because an investigator arrives holding a commit, not a job ID.
-- **Dashboards** — three, sixteen panels, imported through the API and checked
-  by replaying the query the renderer actually sends. Latency panels declare a
-  nanosecond axis, so a p95 renders as `10.45 ms` rather than as `10450000`, and a
-  duration panel with no declared unit fails the asset validator.
-- **Alerts** — two rules that do fire, on p95 and on a true error rate computed
-  as errored spans over all spans in one Query Builder v5 formula. Neither pins
-  `service.version`, because a version-scoped rule can only describe a version
-  that already existed when it was written; both follow whatever is deployed.
-  Observed live: the p95 rule goes from `inactive` to `firing` when the regressed
-  version is under load, and back to `inactive` on the revert. SigNoz refuses to
-  store a rule with no notification channel, so the importer provisions one
-  pointing at an authenticated GreenLight receiver.
-- **MCP** — GreenLight asks the SigNoz MCP server the same questions an
-  investigating agent would, over streamable HTTP. The capture has no
-  direct-API fallback, so a recorded transcript can only have come from MCP.
-- The whole stack is pinned by manifest digest and verified at runtime before
-  the demo is permitted to claim anything.
+The recorded chain contains three real commits and three green CI runs. A
+one-line Blnk connection-lifetime change passed all eight checks, but p95 on
+`/balances` rose from 1.44 ms to 10.45 ms, a 7.3× regression. A later immutable
+version measured 2.1 ms, so recovery is verified. Every published evidence link
+must resolve, and missing AI-session evidence remains visibly missing.
 
-## Hackathon experience
+### How GreenLight uses SigNoz
 
-The most useful thing this build did was refuse to let me assume.
+SigNoz is GreenLight’s evidence system. Query Builder v5 trace queries decide
+version-scoped p90, p95, request count, and error rate. Three imported
+dashboards compare deployments and observe GreenLight itself. Two
+version-agnostic alert rules monitor p95 and true error rate; alert history
+contains observed fired-and-resolved cycles. API and worker logs ship over OTLP
+with trace context and `commit_sha`. Custom metrics report verdicts, AI-link
+states, queue depth, dependency availability, and alert notifications.
+GreenLight also queries SigNoz MCP over streamable HTTP; the recorded transcript
+has no direct-query fallback and cites three trace IDs that resolve. The
+self-hosted SigNoz stack is pinned by digest and verified at runtime.
 
-Running it end to end found defects that no amount of reading would have. A load
-generator that ignored its own duration flag and measured itself. A deployment
-health check that could never have passed inside a container. An evidence bug
-where a *missing* AI trailer was reported as a *malformed* one. Reconstructed CI
-traces that silently adopted the worker's active span as their parent, so several
-workflow runs merged into one trace and each pipeline row recorded the sync's
-trace ID instead of the run's. Receipt links built from the API's own
-container-internal origin, which resolved nowhere in a reader's browser — in a
-project whose thesis is that every ID resolves in a live SigNoz. Alert rules
-stored with their `$service` variables unexpanded, accepted by SigNoz, listed in
-the UI, and permanently unable to match a span.
+### Hackathon experience
 
-The two that taught me most were about the demo rather than the code. The first:
-the regression threshold required an absolute rise of 250 ms, which reads as
-conservative and is actually scale-dependent — on a 1.4 ms route it demands a
-174x regression before latency may be reported at all, so the real 7.3x
-regression was measured, displayed, and excluded from the verdict. The second:
-the demo injected a database outage inside the candidate's measured window, and
-the verdict fired on that instead. Everything was disclosed and nothing was
-fabricated, but the headline claim was "this change regressed the service" and
-the mechanism behind the verdict was something else. Both are fixed by making the
-measurement honest rather than by explaining it better: the policy now uses a
-resolution floor, and fault injection lives in its own clearly-named scenario.
+The most valuable lesson was that end-to-end verification changes the product,
+not just the demo. Running the full chain exposed a load generator that measured
+its own burst, a container health check that could never reach its target,
+missing AI evidence mislabeled as malformed, and an early rehearsal that mixed
+a dependency outage into the candidate window. The fixes all followed the same
+principle: measure one thing at a time and state uncertainty instead of
+explaining it away. That is why the final receipt reports version correlation,
+never causation, and why unresolved AI and webhook evidence stays explicit.
 
-## Known limitations, stated plainly
+## Do these three external actions now
 
-- AI verification shows `missing` for the recorded commits. Marking a change
-  `verified` requires a Claude Code session exporting telemetry to SigNoz so the
-  exact span resolves; the recorded commits were not authored in such a session,
-  and the receipt reports that rather than implying a link. `docs/AI_LINK.md` is
-  the procedure, and `npm run ai-link:verify` reports which of the four links —
-  hook, telemetry exports, session context, spans in SigNoz — is not yet armed.
-- SigNoz's alert rules fire, but this stack was never observed **delivering** a
-  notification to the configured webhook, even with a rule firing continuously
-  for several minutes. The receiver itself is verified — it authenticates, and
-  records each notification as a log with trace context and as a
-  `greenlight.alerts.notifications` metric — so what is unproven is SigNoz's
-  dispatch, not GreenLight's handling of it. Stated rather than glossed, because
-  a channel that exists is not the same as a notification that arrived.
-- The verdict is computed for one route on one service. The query scope is
-  already parameterised on service, version, environment and route; the real
-  constraint on breadth is baseline selection, which today is the previously
-  frozen good deployment rather than a rolling window of healthy versions.
+1. Publish `greenlight-blog-post.md` on a proper blog platform. Upload the
+   images from `assets/` and verify that the GitHub and video links open. Copy
+   the public blog URL.
+2. Upload `signoz-hackathon-end-to-end-demo.mp4` to YouTube as **Unlisted**.
+   Confirm the displayed duration is 2:25, upload
+   `assets/video/captions.srt`, and copy the public watch URL.
+3. Open the official form, enter your email and submitter name, select Track 3,
+   paste the fields above plus both public URLs, and submit once. Keep the
+   emailed response copy.
+
+Official form:
+https://docs.google.com/forms/d/e/1FAIpQLSe8AwOr0mi40cj1fw2nXM7wokXwqROkYmkSXOSsSJj-ZIA0Kw/viewform?usp=send_form
+
+## Do not claim
+
+- Do not say the recorded commit has a linked Claude Code trace.
+- Do not say SigNoz delivered an alert webhook; only rule firing/resolution and
+  receiver behavior were observed.
+- Do not show a populated service map; the current workload has no
+  cross-service parent/child graph.
+- Do not call the local demo publicly deployed.

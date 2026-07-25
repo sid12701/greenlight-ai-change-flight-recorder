@@ -1,0 +1,47 @@
+flowchart LR
+  subgraph "Change sources"
+    AI["Claude Code session<br/>(optional; not linked in recorded run)"]
+    GH["GitHub commit<br/>and Actions run"]
+  end
+
+  subgraph "GreenLight"
+    WEB["React web UI"]
+    API["Fastify API"]
+    WORKER["Background worker"]
+    GLDB[("GreenLight PostgreSQL")]
+  end
+
+  subgraph "Monitored workload"
+    BLNK["Blnk v0.15.1<br/>service.version = commit SHA"]
+    BLNKDB[("Blnk PostgreSQL")]
+    REDIS[("Blnk Redis")]
+  end
+
+  subgraph "Observability"
+    OTEL["OpenTelemetry Collector"]
+    SIGNOZ["Self-hosted SigNoz<br/>traces · metrics · logs"]
+    MCP["SigNoz MCP server"]
+    ALERT["Alert history<br/>and webhook channel"]
+  end
+
+  AI -.->|"AI-Traceparent trailer"| GH
+  GH -->|"REST metadata and CI timing"| WORKER
+  WEB -->|"receipt and health requests"| API
+  API <--> GLDB
+  WORKER <--> GLDB
+  WORKER -->|"deploy immutable version"| BLNK
+  BLNK --> BLNKDB
+  BLNK --> REDIS
+
+  API -->|"OTLP traces, metrics, logs"| OTEL
+  WORKER -->|"OTLP traces, metrics, logs"| OTEL
+  BLNK -->|"OTLP request traces"| OTEL
+  WORKER -->|"reconstructed CI spans"| OTEL
+  OTEL ==> SIGNOZ
+
+  API -->|"Query Builder v5"| SIGNOZ
+  API -->|"agent investigation"| MCP
+  MCP --> SIGNOZ
+  SIGNOZ -->|"dashboard, trace, log evidence"| API
+  SIGNOZ --> ALERT
+  ALERT -.->|"authenticated webhook<br/>(delivery not yet observed)"| API
