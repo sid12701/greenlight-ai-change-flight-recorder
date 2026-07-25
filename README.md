@@ -1,29 +1,67 @@
 # GreenLight — AI Change Flight Recorder
 
-GreenLight connects an AI coding session to the Git commit it produced, the CI run that validated it, the deployed application version, the resulting SigNoz telemetry, and the evidence that the application recovered.
+An AI wrote a one-line config change. It passed all eight CI checks, was
+reviewed, merged, and deployed. Median latency on the affected endpoint then
+more than doubled.
 
-The monitored loan-processing workload is the public Apache-2.0 Blnk
-`v0.15.1` release, fetched at an exact commit and kept outside this repository.
+GreenLight records that gap. It ties an AI session to the commit it produced,
+the CI run that validated it, the immutable deployed version, the SigNoz
+telemetry that followed, and the evidence that a later change recovered the
+service.
 
-## Intended submission track
+Every link is an ID that must resolve in a live SigNoz. When one does not, the
+receipt says so rather than rendering a confident blank.
 
-GreenLight is intended for **Track 3 — Build Your Own** because it instruments an otherwise unobserved surface: the AI-authored software-delivery lifecycle, rather than the application or coding agent in isolation. It is inspired by the deployment-guardian problem described in [SigNoz issue #11657](https://github.com/SigNoz/signoz/issues/11657).
+## Architecture
 
-The repository does **not currently claim a completed Track 3 evidence chain**. That claim requires a verified real Claude parent span, reconstructed CI traces exported and verified in SigNoz, immutable workload deployment, exact persisted evaluation windows, and a genuine MCP call. Fixtures and direct telemetry-store diagnostics do not satisfy those gates.
+```mermaid
+flowchart LR
+  AI["Claude Code<br/>session"] -->|AI-Traceparent<br/>Git trailer| GH["GitHub<br/>commit + Actions run"]
+  GH -->|reconstructed<br/>CI spans| GL["GreenLight<br/>API + worker"]
+  GL -->|deploys as<br/>service.version| WL["Blnk workload<br/>Apache-2.0, third-party"]
+  WL -->|OTLP traces| SZ["SigNoz<br/>traces · metrics · logs · MCP"]
+  GL -->|Query Builder v5<br/>+ MCP| SZ
+  SZ -->|measured windows| RC["Change Receipt<br/>verdict + evidence"]
+  GL --> RC
+```
 
-## Status
+The unit of comparison is the **immutable deployed version**. Each deployment
+reports its commit SHA as `service.version`, so "before and after" is a version
+comparison rather than an ambiguous wall-clock one:
 
-GreenLight is under production-readiness remediation. The monorepo includes:
+```
+service.name = 'blnk-loan-workload'
+  AND service.version = '<commit sha>'
+  AND deployment.environment.name = 'hackathon-demo'
+  AND http.route = '/balances'
+```
 
-- SigNoz Foundry stack (`casting.yaml`, smoke scripts)
-- Public Blnk fetch/build/seed/load/failure tooling (`integrations/blnk/`)
-- GreenLight API + Web (`apps/api`, `apps/web`)
-- Demo scripts (`scripts/demo-*.sh`)
+The monitored workload is [Blnk](https://github.com/blnkfinance/blnk) `v0.15.1`
+at commit `c8fce93`, fetched and verified rather than vendored. It knows nothing
+about GreenLight, so a detected regression is not one written to be detected.
+
+## What is proven, and how to check it
+
+| Claim | Verify with | Recorded result |
+|---|---|---|
+| Three real commits with real CI runs | GitHub Actions on this repo | `6f458c9`, `2fa6e28`, `c65cd73` — all green |
+| The regressing change passed CI | PR #64 checks tab | all 8 checks green |
+| Each deployment is version-verified | receipt `deployment.versionState` | `verified` for all three |
+| A regression was detected | `GET /api/v1/changes/2fa6e28…` | `regressed`, error rate 0% → 38.67% |
+| The latency change is visible but under threshold | same receipt `impact` | p95 1.44 ms → 8.17 ms, verdict withheld on latency |
+| Recovery was measured, not assumed | receipt for `c65cd73` | `recovered` |
+| Custom metrics reach SigNoz | `greenlight.*` metrics | verdicts, AI state, queue depth, dependency health |
+| Logs join to traces by commit | log filter `commit_sha` | resolves to a 2-span trace |
+| MCP answered independently | `npm run mcp:verify` | p95 1.59 → 8.31 ms, 3 traces, all resolve |
+| The stack is pinned, not floating | `bash scripts/signoz-runtime-verify.sh` | 6 images matched by digest |
+
+Full detail: [`docs/BLOG.md`](docs/BLOG.md) explains the design and the three
+defects that only running the system revealed.
 
 ## Five-minute local quickstart
 
-Prerequisites are Node 24, Docker with Compose v2, Git, curl, OpenSSL, and
-SigNoz Foundry `v0.2.16`. From a fresh checkout:
+Prerequisites: Node 24, Docker with Compose v2, Git, curl, OpenSSL, and SigNoz
+Foundry `v0.2.16`.
 
 ```bash
 npm ci
@@ -31,78 +69,91 @@ cp .env.demo.example .env.demo
 npm run demo:up
 ```
 
-The first run creates private local secrets, starts the digest-pinned SigNoz
-stack, and provisions its administrator. SigNoz intentionally does not expose
-an API key through automation. If the command stops at that gate, follow its
-single remediation message: sign in at `http://127.0.0.1:8080` with the
-mode-0600 credentials in `.workloads/signoz.env`, create a service-account key,
-put it in `.env.demo`, and rerun `npm run demo:up`.
+The first run generates private local secrets, starts the digest-pinned SigNoz
+stack, and provisions its administrator. It then stops at one gate: SigNoz does
+not expose an API key through automation. Follow the single remediation message
+it prints — sign in at `http://127.0.0.1:8080` with the mode-0600 credentials in
+`.workloads/signoz.env`, create a service-account key, put it in `.env.demo`,
+and rerun `npm run demo:up`.
 
-The rerun fetches and verifies Blnk `v0.15.1`, seeds synthetic loan-ledger data,
-and starts PostgreSQL, the GreenLight API and worker, and the Web UI. The
-checked-in public Blnk repository can be read anonymously; `GITHUB_TOKEN` is
-optional for this local path.
+The rerun fetches and verifies Blnk, seeds synthetic ledger data, and starts
+PostgreSQL, the GreenLight API and worker, and the web UI, each health-gated.
 
 ```bash
 npm run demo:status
 # GreenLight: http://127.0.0.1:4173
 # SigNoz:     http://127.0.0.1:8080
 # Blnk:       http://127.0.0.1:18081
-
-npm run demo:down
 ```
 
-`demo:down` preserves PostgreSQL, ClickHouse, Redis, and application volumes.
-For repository-level verification, use Node 24 and run:
+`npm run demo:down` stops the stack and preserves every volume.
+
+### Record an evidence chain
+
+With `GITHUB_REPOSITORY` pointing at a repository whose commits you can read:
 
 ```bash
-npm run verify
+node scripts/demo-chain.mjs <baseline-sha> <candidate-sha> [recovery-sha]
+```
+
+Each phase deploys a commit as an immutable version, fills the window
+GreenLight will actually measure with paced traffic, records the deployment,
+and asks for a verdict. Timings come from the API's own settings, so a window
+is never evaluated before it closes. A run takes about ten minutes; that is the
+measurement windows, not overhead.
+
+Then capture the agent-native view:
+
+```bash
+npm run mcp:capture   # needs BASELINE_SHA and CANDIDATE_SHA
+npm run mcp:verify
+```
+
+### Repository-level verification
+
+```bash
+npm run verify        # clean, lint, typecheck, test, build
 npm run quality
-npm run validate:config
-npm run validate:telemetry
 npm run validate:signoz-assets
-npm run test:compiled-migrations
-bash instrumentation/git-hooks/test.sh
+bash scripts/signoz-runtime-verify.sh
 ```
 
-For the real evidence chain, make this GreenLight repository public and point
-`GITHUB_REPOSITORY` and `GREENLIGHT_PRIMARY_WORKFLOW_NAME` at its Actions
-workflow. Then run:
+## What it refuses to say
 
-```bash
-bash scripts/preflight.sh
-bash scripts/signoz-smoke.sh
-bash scripts/demo-full-rehearsal.sh
-node scripts/capture-mcp-fixture.mjs
-node scripts/verify-mcp-result.mjs
-```
+Every receipt carries this, and it is load-bearing:
 
-The complete repository and live gate is `RUN_LIVE_ACCEPTANCE=1 npm run
-acceptance`. It intentionally exits non-zero when the required live evidence is
-not configured. See [the operations runbook](docs/OPERATIONS.md),
-[demo state](docs/DEMO_STATE.md), and
-[telemetry contract](docs/TELEMETRY_CONTRACT.md).
+> Deployment correlation is evidence of temporal and version association, not
+> proof that every observed failure was caused by the commit.
 
-## Intended evidence chain
+Two limitations are stated rather than hidden:
 
-```text
-Claude Code trace
-  → AI-Traceparent Git trailer
-  → reconstructed GitHub Actions trace
-  → public Blnk workload with pinned service.version
-  → SigNoz regression evidence
-  → GreenLight Change Receipt
-  → recovery proof
-```
+- The recorded error-rate regression came from a genuine PostgreSQL outage
+  inside the candidate's measured window. GreenLight reports what it measured
+  against the version deployed; it does not assert the commit caused it.
+- AI verification reads `missing` for the recorded commits. Marking a change
+  `verified` requires a Claude Code session exporting telemetry to SigNoz so
+  the exact span resolves. The recorded commits were not authored in such a
+  session, and the receipt reports that rather than implying a link.
 
-Evidence is shown as verified only after the authoritative integration confirms it.
-See [the remediation tracker](docs/REMEDIATION_TRACKER.md) for implementation
-status, validation evidence, remaining external gates, risks, and rollback notes.
+## Submission
+
+Track 3 — Build Your Own. Inspired by the deployment-guardian problem in
+[SigNoz issue #11657](https://github.com/SigNoz/signoz/issues/11657).
+See [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
+
+Further reading: [operations runbook](docs/OPERATIONS.md),
+[demo state](docs/DEMO_STATE.md),
+[telemetry contract](docs/TELEMETRY_CONTRACT.md),
+[MCP investigation](docs/MCP_DEMO.md).
 
 ## AI assistance disclosure
 
-Planning and implementation may use Codex/ChatGPT, Claude Code, Cursor, or other AI assistants. AI systems are tools, not repository authors or commit co-authors. All commits are reviewed and authored under the human maintainer's verified Git identity. See [PROVENANCE.md](PROVENANCE.md).
+Planning and implementation may use Codex/ChatGPT, Claude Code, Cursor, or other
+AI assistants. AI systems are tools, not repository authors or commit
+co-authors. All commits are reviewed and authored under the human maintainer's
+verified Git identity. See [PROVENANCE.md](PROVENANCE.md).
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The monitored workload is Apache-2.0 and belongs to
+its authors.
