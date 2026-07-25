@@ -1,10 +1,11 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ChangeRow, ChangesPage } from "../changes/ChangesPage";
 import { ReceiptPageView } from "./ReceiptPage";
 import { ImpactCards } from "./ImpactCards";
 import { Actions } from "./Actions";
 import { VerdictBanner } from "./VerdictBanner";
+import { EvidenceTimeline } from "./EvidenceTimeline";
 
 describe("changes page", () => {
   afterEach(() => cleanup());
@@ -92,6 +93,36 @@ describe("receipt page", () => {
     render(<ReceiptPageView receipt={receipt} />);
     expect(screen.getByText("Primary CI (reconstructed)")).toBeInTheDocument();
     expect(screen.getByLabelText("Evidence timeline")).toBeInTheDocument();
+  });
+
+  it("reports the CI conclusion on the timeline, not the telemetry export state", () => {
+    // A pipeline that passed while its reconstructed trace could not be
+    // confirmed has still passed. Reporting the export state as the CI result
+    // would contradict the run it is describing.
+    const unexported = {
+      ...receipt,
+      pipeline: {
+        ...receipt.pipeline!,
+        conclusion: "success",
+        exportState: "failed" as const,
+        signozTraceUrl: null,
+      },
+    };
+    render(<EvidenceTimeline receipt={unexported} />);
+
+    const timeline = screen.getByLabelText("Evidence timeline");
+    expect(within(timeline).getByText("Passed")).toBeInTheDocument();
+    expect(within(timeline).queryByText("Failed")).not.toBeInTheDocument();
+    // The export state is still reported, as a qualification rather than a verdict.
+    expect(within(timeline).getByText(/trace could not be confirmed/)).toBeInTheDocument();
+  });
+
+  it("carries a written meaning for every timeline stage", () => {
+    render(<EvidenceTimeline receipt={receipt} />);
+    const timeline = screen.getByLabelText("Evidence timeline");
+    // Colour alone must never be the only carrier of a status.
+    expect(within(timeline).getByText(/The CI workflow concluded successfully/)).toBeInTheDocument();
+    expect(within(timeline).getByText(/The referenced span was found in SigNoz/)).toBeInTheDocument();
   });
 
   it("always shows every measured metric, including ones that did not move", () => {
