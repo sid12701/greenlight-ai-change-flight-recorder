@@ -1,14 +1,39 @@
 import type { ChangeSummary } from "@greenlight/shared";
+import {
+  conclusionPresentation,
+  deploymentPresentation,
+  regressionPresentation,
+  verificationPresentation,
+  type StatusPresentation,
+  TONE_CLASS,
+} from "../../status";
 
-function StatusBadge({ label }: { label: string }) {
+/**
+ * Every badge carries its meaning, not just a colour and a raw enum value.
+ *
+ * The previous list rendered all four badges in the same neutral grey, so a
+ * regressed change and a healthy one looked identical.
+ */
+function StatusBadge({
+  prefix,
+  presentation,
+}: {
+  prefix: string;
+  presentation: StatusPresentation;
+}) {
   return (
-    <span className="rounded-full bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200">
-      {label}
+    <span
+      className={`rounded-full px-2 py-1 text-xs font-medium ${TONE_CLASS[presentation.tone]}`}
+      title={presentation.meaning}
+    >
+      <span className="opacity-70">{prefix}</span> {presentation.label}
+      <span className="sr-only">. {presentation.meaning}</span>
     </span>
   );
 }
 
 export function ChangeRow({ change }: { change: ChangeSummary }) {
+  const regression = regressionPresentation(change.regressionStatus);
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -18,13 +43,23 @@ export function ChangeRow({ change }: { change: ChangeSummary }) {
               {change.commitSubject ?? change.shortSha}
             </a>
           </h2>
-          <p className="break-all text-sm text-slate-400">{change.commitSha}</p>
+          <p className="break-all font-mono text-sm text-slate-400">{change.commitSha}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <StatusBadge label={`AI: ${change.aiVerificationState}`} />
-          <StatusBadge label={`CI: ${change.primaryWorkflowConclusion ?? "none"}`} />
-          <StatusBadge label={`Deploy: ${change.deploymentStatus ?? "none"}`} />
-          <StatusBadge label={`Regression: ${change.regressionStatus ?? "none"}`} />
+          {/* The verdict leads: it is the reason to open the receipt. */}
+          <StatusBadge prefix="Verdict:" presentation={regression} />
+          <StatusBadge
+            prefix="AI:"
+            presentation={verificationPresentation(change.aiVerificationState)}
+          />
+          <StatusBadge
+            prefix="CI:"
+            presentation={conclusionPresentation(change.primaryWorkflowConclusion)}
+          />
+          <StatusBadge
+            prefix="Deploy:"
+            presentation={deploymentPresentation(change.deploymentStatus)}
+          />
         </div>
       </div>
     </article>

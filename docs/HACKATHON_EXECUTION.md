@@ -36,7 +36,7 @@ Status values:
 | H-13 | P1 | Persisted genuine MCP transcript | planned | Sanitized result and every cited trace resolve |
 | H-14 | P1 | SigNoz alert-driven incident flow | planned | Authenticated idempotent webhook creates/updates an incident |
 | H-15 | P2 | Meaningful service map | planned | Real topology is visible; omit if it adds no diagnostic value |
-| H-16 | P1 | Verdict-first receipt and semantic list | planned | Decision and deltas are first; badges have accessible meaning |
+| H-16 | P1 | Verdict-first receipt and semantic list | complete | Verdict banner leads with both deltas; every badge carries a tone and a written meaning |
 | H-17 | P1 | Navigation, status and evidence freshness | planned | Judge can navigate and see dependency/evidence state |
 | H-18 | P1 | Actionable typed UI failures | planned | Auth/not-found/degraded/contract errors have distinct recovery paths |
 | H-19 | P1 | Progressive technical detail | planned | Mobile flow keeps verdict first without hiding evidence |
@@ -558,3 +558,58 @@ state is involved.
 `VITE_SIGNOZ_URL` and `VITE_API_BASE` are inlined at build time and default to
 the documented loopback ports. A deployment that publishes different hostnames
 must rebuild the web image with those values set.
+
+## H-16 — Verdict-first receipt and semantic change list
+
+### Judging impact and root cause
+
+The receipt opened with the AI-link state and an evidence timeline, and reached
+the regression verdict only after CI and deployment detail. A reader had to
+assemble the answer from implementation detail instead of being told it. On the
+change list, all four badges rendered in the same neutral grey with raw enum
+values, so a regressed change and a healthy one looked identical and neither
+badge said what it meant.
+
+### Implementation plan and architecture
+
+- Add one module, `apps/web/src/status.ts`, that maps every regression status,
+  verification state, CI conclusion, and deployment status to a label, a tone,
+  and a plain-language meaning. Every badge in the product resolves through it,
+  so a colour cannot mean one thing on the list and another on a receipt.
+- Lead the receipt with a verdict banner: the decision as the largest element,
+  its meaning in a sentence, and the two deltas the decision rests on with
+  their percentage change.
+- Reorder the receipt to verdict → recovery → impact → evidence timeline → CI →
+  deployment → evidence links → actions → caveat.
+- Colour the list badges by tone, lead with the verdict, and attach each
+  badge's meaning as both a `title` and screen-reader text.
+
+Unknown CI conclusions stay neutral rather than being guessed into a pass or a
+failure, because GitHub's conclusion field is open-ended.
+
+Affected components: web status module, receipt page, new verdict banner, and
+the change list. No API, contract, database, or infrastructure change.
+
+### Testing, security, operations, and rollback
+
+Tests assert that the verdict heading is the first `h2` on the receipt, that
+both deltas render with their percentage change, that a missing measurement
+reads "not measured" rather than implying no movement, and that
+`integration_error` is never presented as a passing verdict. List tests assert
+that regressed and healthy badges differ in tone, that every badge carries a
+written meaning rather than colour alone, and that an unrecognised CI
+conclusion stays neutral.
+
+`percentChange` returns null when the baseline is zero, because a percentage
+change from zero is undefined; rendering "Infinity%" beside a verdict would be
+worse than saying nothing.
+
+Rollback reverts the commit. No persisted state or contract is involved.
+
+### Validation evidence
+
+- `npm run verify` (33 web tests, 166 total), `npm run lint`, and
+  `npm run quality` passed.
+- A populated receipt screenshot is captured under H-01, which produces the
+  first real evidence chain; seeding one here would have meant screenshotting
+  fabricated data.

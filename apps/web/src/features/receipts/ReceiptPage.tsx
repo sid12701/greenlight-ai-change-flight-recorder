@@ -4,7 +4,9 @@ import { CiSection } from "./CiSection";
 import { ImpactCards } from "./ImpactCards";
 import { RecoveryPanel } from "./RecoveryPanel";
 import { Actions } from "./Actions";
+import { VerdictBanner } from "./VerdictBanner";
 import { formatDateTime } from "../../formatters";
+import { verificationPresentation } from "../../status";
 
 /**
  * Colour must follow the evidence state.
@@ -33,13 +35,22 @@ export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header className="space-y-2">
+        <a className="text-sm text-slate-400 underline underline-offset-4" href="/changes">
+          ← All changes
+        </a>
         <p className="text-sm uppercase tracking-wide text-slate-400">Change Receipt</p>
         <h1 className="text-3xl font-bold">{receipt.change.commitSubject ?? receipt.change.shortSha}</h1>
         <p className="break-all font-mono text-sm text-slate-300">{receipt.change.commitSha}</p>
         <p className={`text-sm ${verificationTone(receipt.change.aiVerificationState)}`}>
-          AI link: {receipt.change.aiLinkStatus} ({receipt.change.aiVerificationState})
+          AI link: {receipt.change.aiLinkStatus} (
+          {verificationPresentation(receipt.change.aiVerificationState).meaning})
         </p>
       </header>
+      {/* The decision comes before the evidence for it: a reader who stops
+          here still knows whether the change was safe and what moved. */}
+      <VerdictBanner receipt={receipt} />
+      <RecoveryPanel receipt={receipt} />
+      <ImpactCards receipt={receipt} />
       <EvidenceTimeline receipt={receipt} />
       <CiSection receipt={receipt} />
       {receipt.deployment ? (
@@ -70,8 +81,6 @@ export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
           </dl>
         </section>
       ) : null}
-      <ImpactCards receipt={receipt} />
-      <RecoveryPanel receipt={receipt} />
       <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
         <h2 className="text-xl font-semibold">Evidence</h2>
         {receipt.evidence.length ? (
