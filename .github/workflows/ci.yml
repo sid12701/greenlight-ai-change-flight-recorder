@@ -88,8 +88,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm sbom --sbom-format=cyclonedx > greenlight.cdx.json
+      - name: Reject high or critical findings in the full development tree
+        run: npm audit --audit-level=high
+      - name: Require a clean production dependency tree
+        run: npm audit --omit=dev --audit-level=low
+      - name: Generate the production dependency SBOM
+        run: npm sbom --omit=dev --sbom-format=cyclonedx > greenlight-production.cdx.json
       - name: Fail if the built web bundle contains a credential
         run: |
           npm run build --workspace @greenlight/shared
@@ -101,7 +105,7 @@ jobs:
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: greenlight-sbom
-          path: greenlight.cdx.json
+          path: greenlight-production.cdx.json
 
   images:
     runs-on: ubuntu-latest
@@ -113,16 +117,29 @@ jobs:
       - run: docker build -f deploy/web.Dockerfile -t greenlight-web:${{ github.sha }} .
       - name: Require non-root runtime users
         run: |
-          test "$(docker image inspect greenlight-api:${{ github.sha }} --format '{{.Config.User}}')" = "node"
-          test "$(docker image inspect greenlight-worker:${{ github.sha }} --format '{{.Config.User}}')" = "node"
+          test "$(docker image inspect greenlight-api:${{ github.sha }} --format '{{.Config.User}}')" = "65532"
+          test "$(docker image inspect greenlight-worker:${{ github.sha }} --format '{{.Config.User}}')" = "65532"
           test "$(docker image inspect greenlight-web:${{ github.sha }} --format '{{.Config.User}}')" = "101"
-      - name: Scan images for known vulnerabilities
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+      - name: Require workspace-scoped runtime dependencies
+        run: bash scripts/runtime-image-contract.sh greenlight-api:${{ github.sha }} greenlight-worker:${{ github.sha }} greenlight-web:${{ github.sha }}
+      - name: Scan API image for known vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: greenlight-api:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: "1"
-          ignore-unfixed: true
+      - name: Scan worker image for known vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: greenlight-worker:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+      - name: Scan Web image for known vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: greenlight-web:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
 
   workload:
     runs-on: ubuntu-latest

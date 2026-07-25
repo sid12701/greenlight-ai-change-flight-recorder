@@ -260,8 +260,8 @@ live acceptance evidence.
 
 | Final status | Items | Evidence / remaining gate |
 |---|---|---|
-| `validated` | R-03, R-07–R-13, R-15–R-17, R-20–R-22, R-25–R-33, R-37–R-38, R-43–R-47, R-59–R-60, R-62–R-75, L-01–L-06 | Focused unit/integration tests, clean build, schema/config/asset checks, public workload build/recovery, authenticated local SigNoz, isolated Git-hook test, or live Compose failure/recovery passed. |
-| `implemented` | R-34, R-48, R-50, R-52, R-55, R-58, R-61 | The production design/code is present, but one specified local gate is incomplete: dependency-failure injection, transaction fault injection, log snapshots, socket-level timeout/concurrency checks, coverage/image scanning, full orchestration integration, or equal-timestamp evidence ordering. |
+| `validated` | R-03, R-07–R-13, R-15–R-17, R-20–R-22, R-25–R-33, R-37–R-38, R-43–R-47, R-55, R-59–R-60, R-62–R-75, L-01–L-06 | Focused unit/integration tests, clean build, schema/config/asset checks, public workload build/recovery, authenticated local SigNoz, isolated Git-hook test, strict package/SBOM/image scans, or live Compose failure/recovery passed. |
+| `implemented` | R-34, R-48, R-50, R-52, R-58, R-61 | The production design/code is present, but one specified local gate is incomplete: dependency-failure injection, transaction fault injection, log snapshots, socket-level timeout/concurrency checks, full orchestration integration, or equal-timestamp evidence ordering. |
 | `external-blocked` | R-01–R-02, R-04–R-06, R-14, R-18–R-19, R-23–R-24, R-35–R-36, R-39–R-42, R-49, R-51, R-53–R-54, R-56–R-57 | Repository seams/assets are implemented where possible. Completion requires one or more of: live Claude/GitHub provenance, browser/compiled-process listeners, a managed secret store, or restore/canary/rollback drills. |
 
 ## Validation log
@@ -284,6 +284,19 @@ Repository validations performed on 2026-07-24:
   configuration, including valid, invalid, existing, merge, and amend cases.
 - `docker compose -f deploy/compose.local.yaml config --quiet` passed.
 - `npm audit --offline --omit=dev` reported zero vulnerabilities.
+
+Supply-chain validations performed on 2026-07-25:
+
+- `npm audit --audit-level=high` passed and the production tree was clean at
+  `--audit-level=low`; the only remaining findings are moderate,
+  development-only MCP/Hono findings.
+- A production-only CycloneDX 1.5 SBOM contained 118 components and excluded
+  React Router and MCP tooling.
+- API and worker moved to digest-pinned non-root Distroless Node 24; Web moved
+  to digest-pinned Nginx 1.30.4 stable slim unprivileged.
+- Runtime image contract, strict Trivy scans for all three images (including
+  unfixed findings), live Compose rollout/recovery, and four authenticated
+  SigNoz integration tests passed.
 
 Environment-blocked validation:
 
@@ -315,8 +328,10 @@ Environment-blocked validation:
   Claude parent, reconstructed CI trees, deployment marker/version, exact
   candidate/recovery windows, and genuine MCP investigation still need one
   complete two-run rehearsal.
-- **Supply chain:** the SigNoz runtime is digest-pinned. Application image
-  signing and complete scan evidence are still addressed by H-06.
+- **Supply chain:** SigNoz and application runtime bases are digest-pinned;
+  production npm/SBOM gates and strict API/worker/Web image scans are complete.
+  Application image signing, provenance attestations, and protected-registry
+  promotion remain production deployment requirements.
 - **Workload:** Blnk is fetched from its public origin at an exact tag and
   commit, built locally as a non-root image, and exercised through real
   database failure/recovery traffic. A second adapter remains optional.

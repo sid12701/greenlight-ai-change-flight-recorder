@@ -2,6 +2,33 @@
 
 Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borrower data.
 
+## 2026-07-25 — production supply-chain remediation
+
+**Classification:** live build, strict vulnerability scan, runtime, and SigNoz
+evidence.
+
+- **Package gates:** full dependency tree has no high/critical finding;
+  production tree has zero findings at low-or-higher severity.
+- **SBOM:** CycloneDX 1.5, 118 production components; React Router and the MCP
+  SDK are absent.
+- **Tooling remediation:** a new high advisory in Vitest 3's transitive
+  coverage chain was closed by an exact coordinated upgrade to Vitest and
+  `@vitest/coverage-v8` `4.1.10`; all tests and coverage passed afterward.
+- **Runtime boundary:** API/worker use digest-pinned non-root Distroless Node 24
+  as UID `65532`, contain no shell/package manager or unrelated Web/MCP/test
+  packages, and resolve Fastify, PostgreSQL, and the shared workspace. Web uses
+  digest-pinned Nginx `1.30.4-alpine-slim` as UID `101`.
+- **Strict scan:** pinned Trivy `v0.70.0` scanned exported archives without
+  Docker-socket access. API, worker, and Web each had `0` high/critical
+  findings, including unfixed findings.
+- **Failure/recovery:** the first rollout failed closed because Compose
+  prepended `node` to Distroless's Node entrypoint. Logs exposed `/app/node`;
+  the command/health contract was corrected and the idempotent bootstrap
+  recovered every service without volume loss.
+- **Runtime:** SigNoz, MCP, Blnk, PostgreSQL, API, worker, and Web all finished
+  healthy. Four authenticated live SigNoz tests passed, and OTLP accepted trace
+  `f18b54a4ba85c67aed77334c193c369d` from the final lockfile deployment.
+
 ## 2026-07-25 — reproducible demo bootstrap and dependency failure
 
 **Classification:** live local bootstrap, runtime, and failure/recovery evidence.
@@ -17,8 +44,8 @@ Record sanitized rehearsal outputs here. Do not paste secrets, prompts, or borro
   deterministic static-config mode so restarts do not create an unbound random
   OpAMP agent. All host listeners are loopback-only.
 - **Security:** generated secrets and the user-created service-account key are
-  in ignored mode-0600 files. API/worker run as `node`, Web as UID `101`, and
-  all three application filesystems are read-only.
+  in ignored mode-0600 files. API/worker run as non-root UID `65532`, Web as
+  UID `101`, and all three application filesystems are read-only.
 - **Health:** GreenLight dependency status reported PostgreSQL, public GitHub,
   and SigNoz healthy. SigNoz image-digest, API-version, MCP-liveness, and OTLP
   ingestion checks passed.

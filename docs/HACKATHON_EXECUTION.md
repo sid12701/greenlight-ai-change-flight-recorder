@@ -26,7 +26,7 @@ Status values:
 | H-03 | P0 | Public reproducible LMS/loan workload | complete | Blnk `v0.15.1` pinned; clean build, seed, outage/recovery, and 698 SigNoz spans verified |
 | H-04 | P0 | Digest-pinned compatible Foundry stack | validated | Fresh gauge/forge/cast/smoke/MCP passed; re-import needs a post-rotation API key |
 | H-05 | P0 | Actionable clean demo bootstrap | complete | One documented command succeeds or fails before startup with precise remediation |
-| H-06 | P0 | Production dependency vulnerabilities | planned | npm audit, SBOM and image scan have no blocking high/critical findings |
+| H-06 | P0 | Production dependency vulnerabilities | complete | Production audit/SBOM and strict API, worker, and Web image scans report zero high/critical findings |
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
 | H-09 | P0 | Visible compatible SigNoz dashboards | planned | All panels render in the browser and IDs are recorded |
@@ -219,8 +219,8 @@ commit can then be started against the same additive schema.
   Foundry `v0.2.16`, the Blnk tag/SHA/patch, all six SigNoz image digests, and
   every health endpoint.
 - Blnk source/seed state was reused idempotently; PostgreSQL, API, worker, and
-  Web started in health order. API/worker run as `node`, Web as UID `101`, and
-  application filesystems are read-only.
+  Web started in health order. API/worker run as non-root UID `65532`, Web as
+  UID `101`, and application filesystems are read-only.
 - `/api/v1/status/dependencies` reported database, GitHub, and SigNoz healthy.
   A real PostgreSQL outage changed `/readyz` from HTTP 200 to HTTP 503 with
   `database=failed`; recovery restored HTTP 200 without restarting the API.
@@ -228,6 +228,85 @@ commit can then be started against the same additive schema.
   mode-0600 local configuration. A full stop/start preserved all volumes, and
   the static collector recovered without a new organization assignment; OTLP
   and MCP runtime verification passed.
+
+## H-06 — Clean production dependency and image supply chain
+
+### Judging impact and root cause
+
+The audit observed two high-severity findings after a production prune, so the
+project could not substantiate its security posture. Investigation found three
+separate causes: the Web shipped a full routing framework for three static
+routes even though no published React Router release was free of the current
+advisory; API/worker images pruned the entire monorepo and therefore retained
+unrelated workspace packages; and year-old Node/Nginx bases carried fixable OS
+and bundled-tool vulnerabilities. The private workspace root also lacked a
+version, causing npm's CycloneDX generator to reject the package URL.
+
+### Implementation plan and architecture
+
+- Replace the three-route client router with an exact, unit-tested pathname
+  matcher and retain normal links, browser history, deep links, and the Nginx
+  SPA fallback without a framework-sized dependency.
+- Install production dependencies for only `@greenlight/api` and
+  `@greenlight/shared`; keep the MCP SDK exact-pinned as a development-only
+  acceptance client.
+- Build on the current Node 24 LTS security release, then copy the runtime into
+  Google's digest-pinned non-root Distroless Node 24 image. Serve the Web from
+  the current digest-pinned Nginx stable slim unprivileged image.
+- Generate a production-only CycloneDX SBOM and make full-tree high findings,
+  any production finding, runtime dependency leakage, non-root identity, and
+  every image high/critical finding blocking CI gates.
+
+Affected files are the Web route boundary and its callers, workspace manifests
+and lockfile, API/worker/Web Dockerfiles, local Compose command/health
+contracts, the runtime image validator, and the CI security/image jobs. There
+is no database migration or new infrastructure service.
+
+### Testing, security, operations, and rollback
+
+Route tests cover the list aliases, case-normalized exact 40-character receipt
+SHA, and not-found paths. The image contract executes inside API and worker
+images to prove required packages resolve while React, routing, MCP,
+TypeScript, Vitest, shells, and package managers do not. CI emits a
+production-only CycloneDX artifact and scans all three release images with the
+post-incident Trivy action pinned to an exact commit.
+
+All runtime bases are immutable manifest digests. API/worker contain 13
+Distroless Debian packages, run as UID `65532`, have no shell or package
+manager, and remain compatible with read-only filesystems. Web uses Nginx
+`1.30.4` stable after its July 2026 security fixes and runs as UID `101`.
+Rollback redeploys the previous image digests and restores the prior route
+implementation; the added root package version and production SBOM metadata
+are backward-compatible and need no rollback.
+
+### Validation evidence
+
+- `npm audit --audit-level=high` passed; only two moderate development-only
+  MCP/Hono findings remain. `npm audit --omit=dev --audit-level=low` reported
+  zero production vulnerabilities.
+- `npm sbom --omit=dev --sbom-format=cyclonedx` emitted CycloneDX 1.5 with 118
+  components and no React Router or MCP SDK.
+- A newly published `brace-expansion` advisory made Vitest 3's coverage chain
+  fail the full-tree gate during final validation. Vitest and its coverage
+  provider were upgraded together to exact `4.1.10`; the full suite and
+  coverage gate passed after the major upgrade.
+- API, worker, and Web production builds completed; scoped runtime installs
+  each reported zero npm vulnerabilities.
+- `scripts/runtime-image-contract.sh` verified non-root UIDs, required runtime
+  modules, excluded development packages, and the shell/package-manager-free
+  Distroless boundary.
+- Trivy `v0.70.0` at
+  `sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e`
+  scanned exported archives without Docker-socket access. API, worker, and Web
+  each reported zero high/critical findings, including unfixed findings.
+- The first Compose rollout exposed an incompatible `command: ["node", ...]`
+  override; container logs identified `/app/node`, the command and health
+  contract were corrected, and an idempotent rerun restored every service.
+  The final API, worker, Web, Blnk, MCP, and SigNoz health checks passed.
+- Four authenticated live SigNoz integration tests passed, including OTLP
+  export and API verification of a four-span reconstructed CI tree. The smoke
+  path also accepted final-lockfile trace
+  `f18b54a4ba85c67aed77334c193c369d`.
 
 ## H-07 — Receipt correctness and persisted CI details
 

@@ -28,7 +28,7 @@ services:
       context: ..
       dockerfile: deploy/api.Dockerfile
     image: greenlight-api:0.1.0
-    command: ["node", "apps/api/dist/server.js"]
+    command: ["apps/api/dist/server.js"]
     env_file:
       - ../.env.demo
       - ../.workloads/greenlight.env
@@ -50,7 +50,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>{if(!r.ok)process.exit(1)})"]
+      test: ["CMD", "/nodejs/bin/node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -67,7 +67,7 @@ services:
       context: ..
       dockerfile: deploy/worker.Dockerfile
     image: greenlight-worker:0.1.0
-    command: ["node", "apps/api/dist/worker.js"]
+    command: ["apps/api/dist/worker.js"]
     env_file:
       - ../.env.demo
       - ../.workloads/greenlight.env

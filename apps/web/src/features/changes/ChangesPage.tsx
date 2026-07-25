@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { ChangeSummary } from "@greenlight/shared";
 
 function StatusBadge({ label }: { label: string }) {
@@ -15,9 +14,9 @@ export function ChangeRow({ change }: { change: ChangeSummary }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">
-            <Link className="underline decoration-slate-600 underline-offset-4" to={`/changes/${change.commitSha}`}>
+            <a className="underline decoration-slate-600 underline-offset-4" href={`/changes/${change.commitSha}`}>
               {change.commitSubject ?? change.shortSha}
-            </Link>
+            </a>
           </h2>
           <p className="break-all text-sm text-slate-400">{change.commitSha}</p>
         </div>

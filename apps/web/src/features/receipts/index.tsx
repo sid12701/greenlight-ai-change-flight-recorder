@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
 import { fetchReceipt } from "../../api/client";
 import { ReceiptPageView } from "./ReceiptPage";
 
-export function ReceiptPage() {
-  const { commitSha = "" } = useParams();
+export function ReceiptPage({ commitSha }: { commitSha: string }) {
   const query = useQuery({
     queryKey: ["receipt", commitSha],
     queryFn: () => fetchReceipt(commitSha),

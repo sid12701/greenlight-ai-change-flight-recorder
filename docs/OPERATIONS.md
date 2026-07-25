@@ -52,6 +52,33 @@ The workload rollback is also digest-based: deploy the recorded last-known-good 
 digest, then verify its embedded SHA, configured health URL, deployment marker,
 and exact `service.version` in SigNoz.
 
+## Supply-chain release gate
+
+Use Node 24 for every npm command. The repository gate separates development
+tool risk from deployable risk and inspects the final image contents:
+
+```bash
+npm ci
+npm audit --audit-level=high
+npm audit --omit=dev --audit-level=low
+npm sbom --omit=dev --sbom-format=cyclonedx > greenlight-production.cdx.json
+
+docker build -f deploy/api.Dockerfile -t greenlight-api:release .
+docker build -f deploy/worker.Dockerfile -t greenlight-worker:release .
+docker build -f deploy/web.Dockerfile -t greenlight-web:release .
+bash scripts/runtime-image-contract.sh \
+  greenlight-api:release greenlight-worker:release greenlight-web:release
+```
+
+CI performs the blocking Trivy high/critical scan for all three images without
+an unfixed-vulnerability exception. The scanner action is exact-SHA pinned.
+For local evidence, export images with `docker save` and scan the read-only
+archives with the pinned scanner image; do not grant a scanner container the
+Docker socket. Distroless API/worker containers intentionally have no shell,
+package manager, or interactive debugging tools. Diagnose with structured
+logs, health endpoints, SigNoz, and an ephemeral debug image on the same
+network rather than modifying a release image.
+
 ## Backup and restore
 
 - Run `ops/backup-postgres.sh` from a dedicated backup identity. Store the custom

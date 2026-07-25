@@ -1,5 +1,6 @@
 {
   "name": "greenlight",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -30,6 +31,7 @@
     "test:e2e:smoke": "playwright test --grep @smoke",
     "validate:signoz-assets": "node scripts/signoz-assets.mjs validate",
     "validate:signoz-stack": "node scripts/signoz-stack.mjs",
+    "validate:runtime-images": "bash scripts/runtime-image-contract.sh",
     "signoz:import": "node scripts/signoz-assets.mjs import",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -44,9 +46,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@playwright/test": "^1.54.1",
-    "@vitest/coverage-v8": "^3.2.7",
+    "@vitest/coverage-v8": "4.1.10",
     "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
