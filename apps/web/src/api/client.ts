@@ -1,8 +1,10 @@
 import {
   ChangeListResponseSchema,
   ChangeReceiptSchema,
+  DependencyStatusSchema,
   type ChangeListResponse,
   type ChangeReceipt,
+  type DependencyStatus,
 } from "@greenlight/shared";
 import type { z } from "zod";
 
@@ -57,7 +59,11 @@ export class ResponseContractError extends Error {
  * authentication it must be fronted by something that issues a per-user
  * session, never by a shared static token compiled into the bundle.
  */
-async function request<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+async function request<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  { acceptStatus = [] as number[] } = {},
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
@@ -68,7 +74,7 @@ async function request<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     throw new ApiError(0, "unavailable", "GreenLight could not be reached");
   }
 
-  if (!response.ok) {
+  if (!response.ok && !acceptStatus.includes(response.status)) {
     throw ApiError.fromStatus(response.status);
   }
 
@@ -87,5 +93,21 @@ export function fetchReceipt(commitSha: string) {
   return request<ChangeReceipt>(
     `/api/v1/changes/${encodeURIComponent(commitSha)}`,
     ChangeReceiptSchema,
+  );
+}
+
+/**
+ * A degraded dependency is the answer, not a request failure.
+ *
+ * The API answers 503 with a complete body when a dependency is down. Treating
+ * that as an error would hide exactly the information the landing page exists
+ * to show, so 503 is read as data and only transport or contract failures
+ * propagate.
+ */
+export function fetchDependencyStatus() {
+  return request<DependencyStatus>(
+    "/api/v1/status/dependencies",
+    DependencyStatusSchema,
+    { acceptStatus: [503] },
   );
 }

@@ -28,6 +28,7 @@
     "demo:up": "bash scripts/demo-bootstrap.sh",
     "demo:status": "bash scripts/demo-bootstrap.sh --status",
     "demo:down": "bash scripts/demo-down.sh",
+    "demo:rehearse": "bash scripts/demo-full-rehearsal.sh",
     "test:e2e:smoke": "playwright test --grep @smoke",
     "validate:signoz-assets": "node scripts/signoz-assets.mjs validate",
     "validate:signoz-stack": "node scripts/signoz-stack.mjs",

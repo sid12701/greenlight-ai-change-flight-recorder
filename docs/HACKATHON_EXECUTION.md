@@ -30,7 +30,7 @@ Status values:
 | H-07 | P0 | Receipt 404 and persisted CI details | validated | Unknown SHA is 404; duration/slowest step survive database round trip |
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
 | H-09 | P0 | Visible compatible SigNoz dashboards | complete | All 14 panels render at v0.134.0 with zero query errors; IDs recorded; API spans carry `http.route` |
-| H-10 | P0 | Judge landing state | planned | Empty, degraded and verified-demo paths are actionable |
+| H-10 | P0 | Judge landing state | complete | Empty, degraded, unreachable, and verified paths each state what happened and what to run |
 | H-11 | P1 | First-class custom metrics | planned | Metrics for verdicts, verification, queue and dependencies query in SigNoz |
 | H-12 | P1 | API log/trace correlation | planned | API and worker logs query by request/job/commit and resolve trace IDs |
 | H-13 | P1 | Persisted genuine MCP transcript | planned | Sanitized result and every cited trace resolve |
@@ -494,3 +494,67 @@ the extra internal spans remain visible in trace detail views.
 
 Pipeline-health panels render but return no data until H-01 produces a real CI
 evidence chain for the `greenlight-ci` service.
+
+## H-10 — Judge landing state
+
+### Judging impact and root cause
+
+The root route rendered the change list, and a fresh install has no changes, so
+the first screen a judge saw was the single sentence "No changes recorded yet."
+It stated no promise, showed no readiness, offered no next action, and gave no
+way to reach the one thing worth looking at. The empty, degraded, and populated
+paths were all equally uninformative because the list view had nothing to say
+about any of them.
+
+### Implementation plan and architecture
+
+- Serve a landing page at `/` and move the change list to `/changes`.
+- State the product promise in one sentence above the fold.
+- Read `GET /api/v1/status/dependencies` and show each dependency's state with
+  the exact command that fixes it when degraded.
+- Offer the demo receipt only when a chain is genuinely complete, and otherwise
+  say so and print the command that produces one.
+- Give the change list's empty and error states the same runnable next action
+  and a route back to the overview.
+
+`selectFeaturedChange` is deliberately conservative: a chain counts as complete
+only when the AI session is `verified`, a CI conclusion exists, a deployment
+exists, and the regression verdict is one of `healthy`/`regressed`/`recovered`.
+`insufficient_data` and `integration_error` are evaluations that did not reach
+a verdict, so they do not qualify. A recovered regression outranks a change
+that merely stayed healthy because it demonstrates the whole product in one
+receipt.
+
+Affected components: shared contracts and schemas (`DependencyStatus`), web API
+client, a new landing feature, route table, and the change list. No database,
+API, or infrastructure change is required.
+
+### Testing, security, operations, and rollback
+
+The API answers 503 with a complete body when a dependency is down. The client
+reads that status as data rather than an error, because treating it as a
+failure would hide precisely what the page exists to show; transport and
+contract failures still propagate. Component tests cover the verified,
+empty-install, degraded, and API-unreachable paths, and assert that a degraded
+dependency is named in text rather than by colour alone.
+
+No credential reaches the browser: reads use the browser's own session, and the
+SigNoz link is a build-time public URL.
+
+Rollback reverts the commit; `/` returns to the change list and no persisted
+state is involved.
+
+### Validation evidence
+
+- `npm run verify` (147 tests, 23 of them web), `npm run lint`, and
+  `npm run quality` passed.
+- Browser evidence: `audit/screenshots/08-landing.png` — promise, three
+  healthy dependencies, the honest "no changes recorded yet" path with
+  `npm run demo:rehearse`, and navigation to the list and SigNoz.
+- `npm run demo:rehearse` was added so the command the UI prints is real.
+
+### Remaining limitations
+
+`VITE_SIGNOZ_URL` and `VITE_API_BASE` are inlined at build time and default to
+the documented loopback ports. A deployment that publishes different hostnames
+must rebuild the web image with those values set.

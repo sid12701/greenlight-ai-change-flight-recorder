@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { matchAppRoute } from "./routes";
 
 describe("application route matching", () => {
-  it("matches the changes index with or without a trailing slash", () => {
-    expect(matchAppRoute("/")).toEqual({ page: "changes" });
+  it("serves the landing page at the root and the list under /changes", () => {
+    expect(matchAppRoute("/")).toEqual({ page: "landing" });
+    expect(matchAppRoute("/changes")).toEqual({ page: "changes" });
     expect(matchAppRoute("/changes/")).toEqual({ page: "changes" });
   });
 

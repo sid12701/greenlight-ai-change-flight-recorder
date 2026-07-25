@@ -38,24 +38,39 @@ export function ChangesPage({
   changes: ChangeSummary[];
   state: "loading" | "empty" | "ready" | "error";
 }) {
-  if (state === "loading") {
-    return <p role="status">Loading changes…</p>;
-  }
-  if (state === "error") {
-    return <p role="alert">Unable to load changes.</p>;
-  }
-  if (state === "empty") {
-    return <p>No changes recorded yet.</p>;
-  }
   return (
     <main className="mx-auto max-w-5xl space-y-4 p-6">
-      <header>
+      <header className="space-y-1">
+        <a className="text-sm text-slate-400 underline underline-offset-4" href="/">
+          ← Overview
+        </a>
         <h1 className="text-3xl font-bold">Changes</h1>
         <p className="text-slate-400">AI-linked commits with CI, deployment, and regression status.</p>
       </header>
-      {changes.map((change) => (
-        <ChangeRow key={change.commitSha} change={change} />
-      ))}
+      {state === "loading" ? <p role="status">Loading changes…</p> : null}
+      {state === "error" ? (
+        <p role="alert" className="text-red-300">
+          Unable to load changes. Check readiness on the{" "}
+          <a className="underline underline-offset-4" href="/">
+            overview
+          </a>
+          .
+        </p>
+      ) : null}
+      {state === "empty" ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <p>No changes recorded yet.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Record one by running a full baseline, regression, and recovery cycle:
+          </p>
+          <code className="mt-2 block break-all rounded bg-slate-950 px-2 py-2 font-mono text-xs text-amber-200">
+            npm run demo:rehearse
+          </code>
+        </div>
+      ) : null}
+      {state === "ready"
+        ? changes.map((change) => <ChangeRow key={change.commitSha} change={change} />)
+        : null}
     </main>
   );
 }
