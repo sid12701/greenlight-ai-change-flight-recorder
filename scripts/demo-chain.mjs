@@ -240,10 +240,42 @@ async function evaluate(body) {
   return job.result;
 }
 
+async function runRecovery(recoverySha, incidentId) {
+  const recoveryId = await deployPhase({
+    commitSha: recoverySha,
+    role: "recovery",
+    windowSeconds: config.observedSeconds,
+  });
+
+  log("evaluating the recovery against the same incident");
+  const verdict = await evaluate({
+    deploymentId: recoveryId,
+    incidentId,
+    route: ROUTE,
+    comparisonKind: "recovery",
+  });
+  log(`recovery verdict: ${verdict?.status}`);
+  return { commitSha: recoverySha, deploymentId: recoveryId, verdict: verdict?.status };
+}
+
 async function main() {
+  const args = process.argv.slice(2);
+
+  // A baseline can only be frozen once, so re-running the whole chain after a
+  // transient failure in a later phase is not possible. Resuming the recovery
+  // against the already-open incident is.
+  if (args[0] === "--resume-recovery") {
+    const [, recoverySha, incidentId] = args;
+    if (!recoverySha || !incidentId) {
+      throw new Error("usage: demo-chain.mjs --resume-recovery <recovery-sha> <incident-id>");
+    }
+    console.log(JSON.stringify(await runRecovery(recoverySha, incidentId), null, 2));
+    return;
+  }
+
   // The recovery commit is optional so the chain can be rehearsed as far as
   // the regression verdict before a fix exists.
-  const [baselineSha, candidateSha, recoverySha] = process.argv.slice(2);
+  const [baselineSha, candidateSha, recoverySha] = args;
   if (!baselineSha || !candidateSha) {
     throw new Error("usage: demo-chain.mjs <baseline-sha> <candidate-sha> [recovery-sha]");
   }
@@ -295,25 +327,7 @@ async function main() {
   };
 
   if (recoverySha) {
-    const recoveryId = await deployPhase({
-      commitSha: recoverySha,
-      role: "recovery",
-      windowSeconds: config.observedSeconds,
-    });
-
-    log("evaluating the recovery against the same incident");
-    const recoveryVerdict = await evaluate({
-      deploymentId: recoveryId,
-      incidentId: candidateVerdict?.incidentId,
-      route: ROUTE,
-      comparisonKind: "recovery",
-    });
-    log(`recovery verdict: ${recoveryVerdict?.status}`);
-    summary.recovery = {
-      commitSha: recoverySha,
-      deploymentId: recoveryId,
-      verdict: recoveryVerdict?.status,
-    };
+    summary.recovery = await runRecovery(recoverySha, candidateVerdict?.incidentId);
   } else {
     log("no recovery commit supplied; stopping after the regression verdict");
   }

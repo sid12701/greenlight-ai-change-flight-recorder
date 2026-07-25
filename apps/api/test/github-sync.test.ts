@@ -61,6 +61,48 @@ describe("github sync", () => {
     expect(runs[0].slowest_step).toBe("Run tests");
   });
 
+  it.each([
+    {
+      name: "absent",
+      message: "chore: no AI session recorded",
+      linkStatus: "missing",
+      verificationState: "missing",
+    },
+    {
+      name: "malformed",
+      message: "chore: broken link\n\nAI-Traceparent: 00-not-a-real-traceparent",
+      linkStatus: "invalid",
+      verificationState: "invalid",
+    },
+  ])(
+    "records an $name AI trailer distinctly rather than collapsing both to invalid",
+    async ({ message, linkStatus, verificationState }) => {
+      const repos = createRepos();
+      const github = {
+        getWorkflowRun: async () => fixture.workflowRun,
+        getWorkflowJobs: async () => fixture.jobs,
+        getCommit: async () => ({
+          sha: fixture.workflowRun.head_sha,
+          commit: { message, author: { date: "2026-07-23T10:00:00.000Z" } },
+        }),
+      } as unknown as GitHubClient;
+
+      await syncWorkflowRuns({
+        repos,
+        github,
+        repository: "demo/lms",
+        runIds: [fixture.workflowRun.id],
+        primaryWorkflowName: "Backend CI",
+        verifyExport: async () => true,
+        verifyAiSpan: async () => true,
+      });
+
+      const change = await repos.getChangeBySha(fixture.workflowRun.head_sha);
+      expect(change?.ai_link_status).toBe(linkStatus);
+      expect(change?.ai_verification_state).toBe(verificationState);
+    },
+  );
+
   it("fails closed without inserting a fabricated change when GitHub commit lookup fails", async () => {
     const repos = createRepos();
     const github = {
