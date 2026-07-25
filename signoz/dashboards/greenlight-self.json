@@ -3,7 +3,7 @@
   "name": "greenlight-self-observability",
   "spec": {
     "display": {
-      "name": "GreenLight \u2014 Self Observability",
+      "name": "GreenLight — Self Observability",
       "description": "GreenLight's own API and worker telemetry: request volume, latency, errors and background job outcomes."
     },
     "variables": [],
@@ -15,6 +15,7 @@
             "name": "API requests by route",
             "description": "Server spans handled by the GreenLight API."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -58,6 +59,7 @@
             "name": "API latency p95",
             "description": "p95 duration of GreenLight API server spans."
           },
+          "unit": "ns",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -94,6 +96,7 @@
             "name": "API server errors",
             "description": "GreenLight API spans that failed. Client input rejections are not counted as errors."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -130,6 +133,7 @@
             "name": "Worker jobs by kind",
             "description": "Background job spans emitted by the GreenLight worker."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -173,6 +177,7 @@
             "name": "Worker job failures",
             "description": "Job spans that ended in an error status, grouped by job kind."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}

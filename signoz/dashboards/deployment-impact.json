@@ -3,7 +3,7 @@
   "name": "greenlight-deployment-impact",
   "spec": {
     "display": {
-      "name": "GreenLight \u2014 Deployment Impact",
+      "name": "GreenLight — Deployment Impact",
       "description": "Request count, p90, p95 and error rate for one immutable service.version on one route. Backs the impact section of a change receipt."
     },
     "variables": [
@@ -18,7 +18,7 @@
         "kind": "TextVariable",
         "spec": {
           "name": "version",
-          "value": "c8fce93af4df6b1edb46ca97e570c55beff4cef9"
+          "value": "2fa6e2861eabf162a26af0d0ef012124865811df"
         }
       },
       {
@@ -37,6 +37,94 @@
       }
     ],
     "panels": {
+      "p95-by-version": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "p95 by deployed version",
+            "description": "One series per immutable service.version on the same route. This is the comparison a change receipt makes, drawn rather than asserted: the step between two series is the deployment."
+          },
+          "unit": "ns",
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "disabled": false,
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name = $service AND deployment.environment.name = $environment AND http.route = $route"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "service.version",
+                        "fieldDataType": "string",
+                        "fieldContext": "resource"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "errors-by-version": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Errored spans by deployed version",
+            "description": "Errored spans per immutable service.version on the same route, so a failure can be attributed to the version that was running rather than to a wall-clock window that may span two deployments."
+          },
+          "unit": "short",
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "disabled": false,
+                    "aggregations": [
+                      {
+                        "expression": "count()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name = $service AND deployment.environment.name = $environment AND http.route = $route AND has_error = true"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "service.version",
+                        "fieldDataType": "string",
+                        "fieldContext": "resource"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
       "request-count": {
         "kind": "Panel",
         "spec": {
@@ -44,6 +132,7 @@
             "name": "Request count",
             "description": "Completed spans for the deployed version on the evaluated route."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -80,6 +169,7 @@
             "name": "Latency p90",
             "description": "p90 request duration for the deployed version on the evaluated route."
           },
+          "unit": "ns",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -116,6 +206,7 @@
             "name": "Latency p95",
             "description": "p95 request duration for the deployed version on the evaluated route."
           },
+          "unit": "ns",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -152,6 +243,7 @@
             "name": "Error count",
             "description": "Spans marked as errors for the deployed version."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -188,6 +280,7 @@
             "name": "Deployment markers",
             "description": "deployment.started / succeeded / failed spans emitted by the GreenLight worker under the workload's own resource identity."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -225,7 +318,7 @@
         }
       }
     },
-    "duration": "1h",
+    "duration": "30m",
     "refreshInterval": "1m",
     "layouts": [
       {
@@ -238,7 +331,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/request-count"
+                "$ref": "#/spec/panels/p95-by-version"
               }
             },
             {
@@ -247,7 +340,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/latency-p90"
+                "$ref": "#/spec/panels/errors-by-version"
               }
             },
             {
@@ -256,7 +349,7 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/latency-p95"
+                "$ref": "#/spec/panels/request-count"
               }
             },
             {
@@ -265,12 +358,30 @@
               "width": 6,
               "height": 6,
               "content": {
-                "$ref": "#/spec/panels/error-count"
+                "$ref": "#/spec/panels/latency-p90"
               }
             },
             {
               "x": 0,
               "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/latency-p95"
+              }
+            },
+            {
+              "x": 6,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/error-count"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
               "width": 6,
               "height": 6,
               "content": {

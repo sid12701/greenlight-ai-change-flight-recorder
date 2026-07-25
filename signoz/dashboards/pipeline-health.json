@@ -3,7 +3,7 @@
   "name": "greenlight-pipeline-health",
   "spec": {
     "display": {
-      "name": "GreenLight \u2014 Pipeline Health",
+      "name": "GreenLight — Pipeline Health",
       "description": "Reconstructed GitHub Actions telemetry exported by the GreenLight worker: run volume, duration and failures per workflow."
     },
     "variables": [],
@@ -15,6 +15,7 @@
             "name": "Reconstructed runs by workflow",
             "description": "Root spans of reconstructed workflow runs."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -58,6 +59,7 @@
             "name": "Workflow run duration p95",
             "description": "p95 wall-clock duration of reconstructed workflow runs."
           },
+          "unit": "ns",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -94,6 +96,7 @@
             "name": "Failed steps",
             "description": "Reconstructed step spans whose GitHub conclusion was a failure."
           },
+          "unit": "short",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
@@ -137,6 +140,7 @@
             "name": "Job duration p95",
             "description": "p95 duration of reconstructed job spans, to locate the slowest stage."
           },
+          "unit": "ns",
           "plugin": {
             "kind": "signoz/TimeSeriesPanel",
             "spec": {}
