@@ -1,0 +1,130 @@
+name: greenlight-blnk
+
+x-blnk-common: &blnk-common
+  image: greenlight/blnk:v0.15.1
+  build:
+    context: ../..
+    dockerfile: integrations/blnk/Dockerfile
+    args:
+      BLNK_REVISION: c8fce93af4df6b1edb46ca97e570c55beff4cef9
+  environment: &blnk-environment
+    BLNK_SERVER_SECRET_KEY: ${BLNK_DEMO_KEY:?BLNK_DEMO_KEY is required}
+    BLNK_ENABLE_TELEMETRY: "false"
+    BLNK_ENABLE_OBSERVABILITY: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${BLNK_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+    OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    OTEL_METRIC_EXPORT_INTERVAL: "5000"
+    OTEL_RESOURCE_ATTRIBUTES: service.name=blnk-loan-workload,service.version=${BLNK_RELEASE_VERSION:-c8fce93af4df6b1edb46ca97e570c55beff4cef9},deployment.environment.name=hackathon-demo
+  working_dir: /tmp
+  volumes:
+    # v0.15.1 declares --config but its pre-run hook reads ./blnk.json.
+    # Keep this compatibility at the container boundary instead of patching
+    # upstream application behavior.
+    #
+    # This path is fixed so that the deployed configuration is whatever
+    # `release.json` contains at the deployed commit. Selecting a config by
+    # name at deploy time would let the running behavior differ from the
+    # commit that `service.version` reports.
+    - ./release.json:/tmp/blnk.json:ro
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16.4-bookworm
+    environment:
+      POSTGRES_DB: blnk
+      POSTGRES_USER: blnk
+      POSTGRES_PASSWORD: blnk-local-only
+    volumes:
+      - blnk-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blnk -d blnk"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2.5-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - blnk-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  migrate:
+    <<: *blnk-common
+    command: ["migrate", "up"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  server:
+    <<: *blnk-common
+    command: ["start"]
+    ports:
+      - "127.0.0.1:${BLNK_PORT:-18081}:5001"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:5001/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  worker:
+    <<: *blnk-common
+    command: ["workers"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:5004/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  blnk-postgres:
+  blnk-redis:

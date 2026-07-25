@@ -1,0 +1,2 @@
+# Patch artifacts intentionally preserve upstream tabs and diff context.
+integrations/blnk/patches/*.patch -whitespace

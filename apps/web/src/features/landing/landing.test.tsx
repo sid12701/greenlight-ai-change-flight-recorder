@@ -1,0 +1,138 @@
+import type { ChangeSummary, DependencyStatus } from "@greenlight/shared";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { chainCompleteness, selectFeaturedChange } from "./featured";
+import { LandingPage } from "./LandingPage";
+
+function change(overrides: Partial<ChangeSummary> = {}): ChangeSummary {
+  return {
+    commitSha: "a".repeat(40),
+    shortSha: "aaaaaaa",
+    commitSubject: "feat: add loan cap",
+    committedAt: "2026-07-25T10:00:00.000Z",
+    aiLinkStatus: "linked",
+    aiVerificationState: "verified",
+    primaryWorkflowName: "Build and Test",
+    primaryWorkflowConclusion: "success",
+    deploymentStatus: "succeeded",
+    regressionStatus: "healthy",
+    relatedPipelineCount: 1,
+    ...overrides,
+  };
+}
+
+const HEALTHY: DependencyStatus = {
+  status: "ok",
+  checks: { database: "ok", github: "ok", signoz: "ok" },
+};
+
+describe("evidence chain completeness", () => {
+  it("requires every link to resolve", () => {
+    expect(chainCompleteness(change())).toBe("complete");
+    expect(chainCompleteness(change({ aiVerificationState: "unverified" }))).toBe("partial");
+    expect(chainCompleteness(change({ deploymentStatus: null }))).toBe("partial");
+  });
+
+  it("does not treat an undecided verdict as a link", () => {
+    expect(chainCompleteness(change({ regressionStatus: "insufficient_data" }))).toBe("partial");
+    expect(chainCompleteness(change({ regressionStatus: "integration_error" }))).toBe("partial");
+    expect(chainCompleteness(change({ regressionStatus: null }))).toBe("partial");
+  });
+
+  it("reports a bare commit as having no chain", () => {
+    expect(chainCompleteness(change({
+      aiVerificationState: "missing",
+      primaryWorkflowConclusion: null,
+      deploymentStatus: null,
+      regressionStatus: null,
+    }))).toBe("none");
+  });
+});
+
+describe("featured change selection", () => {
+  it("prefers a recovered regression over a change that stayed healthy", () => {
+    const healthy = change({ commitSha: "b".repeat(40), regressionStatus: "healthy" });
+    const recovered = change({ commitSha: "c".repeat(40), regressionStatus: "recovered" });
+
+    expect(selectFeaturedChange([healthy, recovered])?.commitSha).toBe("c".repeat(40));
+  });
+
+  // Offering a partial chain as "the verified demo" is the overclaiming the
+  // receipt itself is built to avoid.
+  it("offers nothing when no chain is complete", () => {
+    expect(selectFeaturedChange([change({ deploymentStatus: null })])).toBeNull();
+    expect(selectFeaturedChange([])).toBeNull();
+  });
+});
+
+describe("landing page", () => {
+  afterEach(() => cleanup());
+
+  it("states the promise and links the verified receipt", () => {
+    render(
+      <LandingPage
+        changes={[change({ regressionStatus: "recovered" })]}
+        signozUrl="http://signoz.test"
+        state="ready"
+        status={HEALTHY}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "flight recorder for AI-written code",
+    );
+    expect(screen.getByRole("link", { name: /Open the verified receipt/ })).toHaveAttribute(
+      "href",
+      `/changes/${"a".repeat(40)}`,
+    );
+    expect(screen.getByRole("link", { name: /Open SigNoz/ })).toHaveAttribute(
+      "href",
+      "http://signoz.test",
+    );
+  });
+
+  it("gives an empty install a runnable next action instead of a blank screen", () => {
+    render(
+      <LandingPage changes={[]} signozUrl="http://signoz.test" state="ready" status={HEALTHY} />,
+    );
+
+    expect(screen.queryByRole("link", { name: /Open the verified receipt/ })).toBeNull();
+    expect(screen.getByText(/No changes have been recorded yet/)).toBeInTheDocument();
+    expect(screen.getByText("npm run demo:rehearse")).toBeInTheDocument();
+  });
+
+  it("names each degraded dependency and how to fix it", () => {
+    render(
+      <LandingPage
+        changes={[]}
+        signozUrl="http://signoz.test"
+        state="ready"
+        status={{
+          status: "degraded",
+          checks: { database: "ok", github: "degraded", signoz: "degraded" },
+        }}
+      />,
+    );
+
+    // Colour alone would not tell a reader which dependency is down.
+    expect(screen.getAllByText("degraded")).toHaveLength(2);
+    expect(screen.getByText("healthy")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Check GITHUB_REPOSITORY and GITHUB_TOKEN/),
+    ).toBeInTheDocument();
+  });
+
+  it("says the API is unreachable rather than reporting it healthy", () => {
+    render(
+      <LandingPage
+        changes={[]}
+        signozUrl="http://signoz.test"
+        state="unreachable"
+        status={null}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("could not be reached");
+    expect(screen.queryByText("healthy")).toBeNull();
+  });
+});

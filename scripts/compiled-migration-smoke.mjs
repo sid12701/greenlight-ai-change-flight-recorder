@@ -25,7 +25,8 @@ try {
   if (
     !migrations.includes("001_initial.sql") ||
     !migrations.includes("002_verified_evidence.sql") ||
-    !migrations.includes("003_job_results.sql")
+    !migrations.includes("003_job_results.sql") ||
+    !migrations.includes("004_pipeline_receipt_details.sql")
   ) {
     throw new Error(`compiled migrations incomplete: ${migrations.join(", ")}`);
   }

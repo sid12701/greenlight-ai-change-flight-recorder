@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { ChangeListResponse, ChangeReceipt } from "./contracts.js";
+import type {
+  ChangeListResponse,
+  ChangeReceipt,
+  DependencyStatus,
+} from "./contracts.js";
 
 const NullableNumber = z.number().finite().nullable();
 const RegressionStatusSchema = z.enum([
@@ -31,6 +35,17 @@ export const ChangeListResponseSchema: z.ZodType<ChangeListResponse> = z.object(
     regressionStatus: RegressionStatusSchema.nullable(),
     relatedPipelineCount: z.number().int().nonnegative(),
   })),
+});
+
+const DependencyStateSchema = z.enum(["ok", "degraded"]);
+
+export const DependencyStatusSchema: z.ZodType<DependencyStatus> = z.object({
+  status: DependencyStateSchema,
+  checks: z.object({
+    database: DependencyStateSchema,
+    github: DependencyStateSchema,
+    signoz: DependencyStateSchema,
+  }),
 });
 
 export const ChangeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({

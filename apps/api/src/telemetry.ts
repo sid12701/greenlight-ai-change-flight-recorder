@@ -12,7 +12,6 @@ import { logs } from "@opentelemetry/api-logs";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { FastifyInstrumentation } from "@opentelemetry/instrumentation-fastify";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { BatchLogRecordProcessor, LoggerProvider } from "@opentelemetry/sdk-logs";
@@ -160,7 +159,10 @@ export function initTelemetry(options: TelemetryOptions): NodeSDK {
           client: { requestHeaders: [], responseHeaders: [] },
         },
       }),
-      new FastifyInstrumentation(),
+      // Fastify itself is instrumented by the `@fastify/otel` plugin that
+      // `buildServer` registers. The monkey-patching instrumentation cannot
+      // reach an ESM `import` of Fastify without a loader hook, so it silently
+      // produced spans named `GET` with no `http.route` to group or filter on.
     ],
   });
   sdk.start();

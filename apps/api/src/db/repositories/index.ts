@@ -41,8 +41,12 @@ export class Repositories {
   }
 
   async ping(): Promise<boolean> {
-    const row = await this.driver.get<{ ok: number }>("SELECT 1 AS ok");
-    return Number(row?.ok) === 1;
+    try {
+      const row = await this.driver.get<{ ok: number }>("SELECT 1 AS ok");
+      return Number(row?.ok) === 1;
+    } catch {
+      return false;
+    }
   }
 
   close(): Promise<void> {
@@ -98,17 +102,19 @@ export class Repositories {
   async upsertPipelineRun(input: PipelineRunRow) {
     const enriched = {
       ...input,
+      duration_ms: input.duration_ms ?? null,
+      slowest_step: input.slowest_step ?? null,
       export_state: input.export_state ?? (input.emitted_trace_id ? "exported" : "pending"),
       export_error: input.export_error ?? null,
       verified_at: input.verified_at ?? null,
     };
     await this.driver.run(`INSERT INTO pipeline_runs (
           id, change_id, provider_run_id, workflow_name, status, conclusion,
-          started_at, completed_at, html_url, is_primary, emitted_trace_id,
+          started_at, completed_at, duration_ms, slowest_step, html_url, is_primary, emitted_trace_id,
           export_state, export_error, verified_at, synced_at
         ) VALUES (
           :id, :change_id, :provider_run_id, :workflow_name, :status, :conclusion,
-          :started_at, :completed_at, :html_url, :is_primary, :emitted_trace_id,
+          :started_at, :completed_at, :duration_ms, :slowest_step, :html_url, :is_primary, :emitted_trace_id,
           :export_state, :export_error, :verified_at, :synced_at
         )
         ON CONFLICT(provider_run_id) DO UPDATE SET
@@ -116,6 +122,8 @@ export class Repositories {
           conclusion = excluded.conclusion,
           started_at = excluded.started_at,
           completed_at = excluded.completed_at,
+          duration_ms = excluded.duration_ms,
+          slowest_step = excluded.slowest_step,
           html_url = excluded.html_url,
           is_primary = excluded.is_primary,
           emitted_trace_id = excluded.emitted_trace_id,

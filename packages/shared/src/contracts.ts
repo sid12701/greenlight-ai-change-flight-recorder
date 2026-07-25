@@ -27,6 +27,18 @@ export interface ChangeListResponse {
   changes: ChangeSummary[];
 }
 
+export type DependencyState = "ok" | "degraded";
+
+/** Shape of `GET /api/v1/status/dependencies`. */
+export interface DependencyStatus {
+  status: DependencyState;
+  checks: {
+    database: DependencyState;
+    github: DependencyState;
+    signoz: DependencyState;
+  };
+}
+
 export interface ReceiptEvidenceLink {
   kind: "signoz_trace" | "signoz_dashboard" | "github_run" | "deployment_trace" | "ai_trace";
   label: string;

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { SqlDriver } from "../src/db/driver.js";
 import { migrate, openDatabase } from "../src/db/migrate.js";
 import { createRepositories, UnsupportedStoreError } from "../src/db/store.js";
 import { Repositories } from "../src/db/repositories/index.js";
@@ -44,6 +45,16 @@ describe("database migrations and repositories", () => {
       ]),
     );
     expect(await repos.listChanges()).toEqual([]);
+  });
+
+  it("reports an unavailable database without throwing from readiness", async () => {
+    const unavailableDriver = {
+      get: async () => {
+        throw new Error("database unavailable");
+      },
+    } as unknown as SqlDriver;
+    const repos = new Repositories(unavailableDriver);
+    await expect(repos.ping()).resolves.toBe(false);
   });
 
   it("is idempotent when migrations run twice", () => {
@@ -95,11 +106,16 @@ describe("database migrations and repositories", () => {
       conclusion: "success",
       started_at: "2026-07-23T00:00:00.000Z",
       completed_at: "2026-07-23T00:05:00.000Z",
+      duration_ms: 300_000,
+      slowest_step: "Run tests",
       html_url: "https://github.com/demo/lms/actions/runs/1001",
       is_primary: 1,
       emitted_trace_id: null,
       synced_at: "2026-07-23T00:06:00.000Z",
     });
+    const persisted = await repos.getPrimaryPipelineRun("chg_1");
+    expect(persisted?.duration_ms).toBe(300_000);
+    expect(persisted?.slowest_step).toBe("Run tests");
 
     await expect(repos.upsertPipelineRun({
         id: "run_2",

@@ -1,0 +1,16 @@
+diff --git a/internal/traces/otel.go b/internal/traces/otel.go
+index f5b6bc4..6f991cf 100644
+--- a/internal/traces/otel.go
++++ b/internal/traces/otel.go
+@@ -125,9 +125,11 @@ func SetupOTelSDK(ctx context.Context, serviceName, monitoringDSN string) (shutd
+ // newResource creates a shared OTel resource with the service name.
+ func newResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
+ 	return resource.New(ctx,
++		resource.WithTelemetrySDK(),
+ 		resource.WithAttributes(
+ 			semconv.ServiceNameKey.String(serviceName),
+ 		),
++		resource.WithFromEnv(),
+ 	)
+ }
+ 

@@ -61,7 +61,7 @@ export const AppConfigSchema = z.object({
   GREENLIGHT_REQUEST_TIMEOUT_MS: PositiveInteger.default(15_000),
   GREENLIGHT_RATE_LIMIT_PER_MINUTE: PositiveInteger.default(120),
   GREENLIGHT_MAX_CONCURRENT_REQUESTS: PositiveInteger.default(50),
-  GITHUB_TOKEN: z.string().min(1),
+  GITHUB_TOKEN: z.string().default(""),
   GITHUB_REPOSITORY: z.string().regex(/^[^/]+\/[^/]+$/),
   GREENLIGHT_PRIMARY_WORKFLOW_NAME: z.string().default("Backend CI"),
   GREENLIGHT_PRIMARY_WORKFLOW_ID: z.coerce.number().int().positive().optional(),
@@ -74,8 +74,7 @@ export const AppConfigSchema = z.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().default("http://localhost:4318"),
   OTEL_SERVICE_NAME: z.string().default("greenlight-api"),
   CLAUDE_OTEL_SERVICE_NAME: z.string().default("claude-code"),
-  LMS_PATH: z.string().min(1).optional(),
-  LMS_DEMO_BRANCH: z.string().default("greenlight-demo"),
+  GREENLIGHT_DEMO_BRANCH: z.string().default("main"),
   GREENLIGHT_BASELINE_WINDOW_SECONDS: PositiveInteger.default(90),
   GREENLIGHT_WARMUP_SECONDS: NonNegativeInteger.default(15),
   GREENLIGHT_OBSERVED_WINDOW_SECONDS: PositiveInteger.default(90),
@@ -133,7 +132,7 @@ export const AppConfigSchema = z.object({
     ["GITHUB_TOKEN", config.GITHUB_TOKEN],
     ["SIGNOZ_API_KEY", config.SIGNOZ_API_KEY],
   ] as const) {
-    if (PLACEHOLDER_SECRET.test(value)) {
+    if (!value || PLACEHOLDER_SECRET.test(value)) {
       addIssue(field, "Placeholder secrets are forbidden in production");
     }
   }

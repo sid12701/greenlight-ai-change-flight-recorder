@@ -2,11 +2,14 @@
 
 ## Pre-existing work
 
-- Bhawana LMS and its existing business functionality.
-- LMS baseline commit: `2269d064f0be50e7f6485c0be38e3cdcef6137d2`, dated July 16, 2026.
+- Blnk and its existing financial-ledger functionality, fetched from the public
+  `blnkfinance/blnk` repository at Apache-2.0 release `v0.15.1`, commit
+  `c8fce93af4df6b1edb46ca97e570c55beff4cef9`.
 - Any generic test harness or reusable tool created before the hackathon must be listed here only after its actual creation date is verified.
 
-The LMS is a monitored workload. It is not presented as hackathon-built GreenLight functionality.
+Blnk is a monitored third-party workload. It is not presented as
+hackathon-built GreenLight functionality. Selection, reproducible integration,
+hardening, synthetic seed/load tooling, and SigNoz wiring are GreenLight work.
 
 ## Hackathon work
 
@@ -24,7 +27,9 @@ The following are GreenLight work:
 
 ## GL-P2-T04 trace-linked commit
 
-The immutable LMS proof commit for Claude→CI linkage is documented in `docs/EVIDENCE_LOG.md`. Until the manual Claude Code capture is performed in the isolated demo clone, status remains `pending_manual_capture`. The verification script `scripts/verify-trace-linked-commit.sh` enforces trailer validity and `backend/**` workflow trigger contract.
+The immutable GreenLight proof commit for Claude→CI linkage will be documented
+in `docs/EVIDENCE_LOG.md`. Until the manual Claude Code capture is performed in
+the public submission repository, status remains `pending_manual_capture`.
 
 ## AI assistance
 
@@ -32,4 +37,6 @@ AI assistants may support research, planning, coding, review, and test generatio
 
 ## Data
 
-Only synthetic LMS data may be used in telemetry, screenshots, recordings, fixtures, and demonstrations. No real borrower, identity, banking, payment, prompt, transcript, or credential data may be committed or displayed.
+Only synthetic Blnk data may be used in telemetry, screenshots, recordings,
+fixtures, and demonstrations. No real borrower, identity, banking, payment,
+prompt, transcript, or credential data may be committed or displayed.

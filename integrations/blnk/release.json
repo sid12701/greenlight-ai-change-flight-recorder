@@ -1,0 +1,37 @@
+{
+  "project_name": "GreenLight Loan Ledger",
+  "data_source": {
+    "dns": "postgres://blnk:blnk-local-only@postgres:5432/blnk?sslmode=disable",
+    "max_open_conns": 20,
+    "max_idle_conns": 5
+  },
+  "redis": {
+    "dns": "redis:6379",
+    "pool_size": 20,
+    "min_idle_conns": 2
+  },
+  "typesense": {
+    "dns": ""
+  },
+  "server": {
+    "port": "5001",
+    "secure": true,
+    "max_upload_size_mb": 8,
+    "max_request_body_size_mb": 2,
+    "upload_whitelist": "",
+    "upload_url_timeout_sec": 5
+  },
+  "rate_limit": {
+    "requests_per_second": 100,
+    "burst": 150,
+    "cleanup_interval_sec": 60
+  },
+  "enable_telemetry": false,
+  "enable_observability": true,
+  "queue": {
+    "number_of_queues": 4,
+    "monitoring_port": "5004",
+    "transaction_worker_concurrency": 2,
+    "webhook_concurrency": 2
+  }
+}
