@@ -28,6 +28,7 @@ import { PrimaryWorkflowConfigurationError } from "./modules/github/primary-work
 import { getReceipt } from "./modules/receipts/assembler.js";
 import { BaselineRequiredError } from "./modules/regressions/baseline-resolver.js";
 import { SignozClient, SignozIntegrationError } from "./modules/signoz/client.js";
+import { registerRuntimeMetrics } from "./observability/metrics.js";
 export interface ServerDependencies {
   repos?: Repositories;
   signoz?: SignozClient;
@@ -48,6 +49,21 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
     });
   const github = dependencies.github ??
     new GitHubClient({ token: config.GITHUB_TOKEN, repository: config.GITHUB_REPOSITORY });
+
+  // The same checks the dependency endpoint reports, observed on the export
+  // interval so a degraded dependency is visible in SigNoz without anyone
+  // having to call the endpoint.
+  registerRuntimeMetrics({
+    countJobsByState: () => repos.countJobsByState(),
+    checkDependencies: async () => {
+      const [githubUp, signozUp, databaseUp] = await Promise.all([
+        github.checkHealth(),
+        signoz.checkHealth(),
+        repos.ping(),
+      ]);
+      return { github: githubUp, signoz: signozUp, database: databaseUp };
+    },
+  });
 
   const app = Fastify({
     logger: {

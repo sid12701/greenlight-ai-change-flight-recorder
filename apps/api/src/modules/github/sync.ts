@@ -7,6 +7,7 @@ import { synthesizeCiTrace } from "../ci-telemetry/synthesizer.js";
 import { shouldAttachAiLink } from "../ci-telemetry/link.js";
 import type { GitHubClient } from "./client.js";
 import { DependencyError } from "../../http/errors.js";
+import { recordAiVerificationState } from "../../observability/metrics.js";
 import { markPrimaryRuns } from "./primary-workflow.js";
 import { findSlowestStep, normalizeWorkflowRun } from "./normalize.js";
 import type { SpanExporter } from "@opentelemetry/sdk-trace-base";
@@ -69,10 +70,11 @@ function deriveAiLinkStatus(parsed: ParsedAiTraceparent): AiLinkStatus {
 }
 
 function deriveAiVerificationState(parsed: ParsedAiTraceparent, aiVerified: boolean) {
-  if (parsed.ok) {
-    return aiVerified ? "verified" : "unverified";
-  }
-  return isMissingTrailer(parsed) ? "missing" : "invalid";
+  const state = parsed.ok
+    ? aiVerified ? "verified" : "unverified"
+    : isMissingTrailer(parsed) ? "missing" : "invalid";
+  recordAiVerificationState(state);
+  return state;
 }
 
 export async function ensureChangeFromCommit(input: {

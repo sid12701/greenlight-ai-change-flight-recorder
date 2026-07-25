@@ -470,6 +470,29 @@ export class Repositories {
     return this.driver.get<JobRow>("SELECT * FROM jobs WHERE id = :p1", { p1: jobId });
   }
 
+  /**
+   * Job counts per state, including states with no rows.
+   *
+   * A state that has drained must report zero rather than disappear: a gauge
+   * that stops reporting looks identical to a collector that stopped, and the
+   * difference matters when the question is whether work is stuck.
+   */
+  async countJobsByState(): Promise<Record<string, number>> {
+    const rows = await this.driver.all<{ state: string; count: number }>(
+      "SELECT state, COUNT(*) AS count FROM jobs GROUP BY state",
+    );
+    const counts: Record<string, number> = {
+      pending: 0,
+      running: 0,
+      succeeded: 0,
+      failed: 0,
+    };
+    for (const row of rows) {
+      counts[row.state] = Number(row.count);
+    }
+    return counts;
+  }
+
   async recoverStaleJobs(staleBefore: string) {
     await this.driver.run(`UPDATE jobs
          SET state = 'pending', locked_at = NULL, available_at = :p1, updated_at = :p2
