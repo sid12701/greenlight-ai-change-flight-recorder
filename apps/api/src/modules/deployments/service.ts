@@ -139,6 +139,12 @@ export class DeploymentService {
 
     return {
       deploymentId,
+      // When the measurement clock started. Recording a deployment involves
+      // waiting for the version to become visible in SigNoz, which can take
+      // tens of seconds, so a caller that timed its traffic from the moment the
+      // request returned would fill a window that had already been open — and
+      // partly closed — while it waited.
+      readinessAt,
       evaluationReadyAt: evaluationNotBefore ?? input.deployedAt,
       replayed: false,
       versionState,
@@ -173,6 +179,7 @@ export class DeploymentService {
     if (existing.status === input.status) {
       return {
         deploymentId: existing.id,
+        readinessAt: existing.readiness_at,
         evaluationReadyAt: existing.evaluation_not_before ?? existing.deployed_at,
         replayed: true,
         versionState: existing.version_state ?? "pending",
