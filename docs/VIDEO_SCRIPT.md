@@ -20,8 +20,20 @@ Have these open in tabs, in this order:
 1. `http://127.0.0.1:4173` — GreenLight landing
 2. `http://127.0.0.1:4173/changes/2fa6e2861eabf162a26af0d0ef012124865811df` — the regressed receipt
 3. The candidate PR on GitHub, checks tab visible (all 8 green)
-4. SigNoz — GreenLight — Deployment Impact dashboard
-5. `docs/MCP_DEMO.md` recorded result table
+4. SigNoz — GreenLight — Deployment Impact dashboard, already loaded
+5. SigNoz — Alerts, already loaded
+6. `docs/MCP_DEMO.md` recorded result table
+
+Run these first; each one must pass before recording:
+
+```bash
+npm run demo:status              # five health checks
+npm run verify:receipt-links     # every link you might click must open
+set -a && . ./.env.demo && set +a && npm run mcp:verify
+```
+
+Nothing from an unrelated project should be running against this SigNoz — the
+services list is on camera in the dashboard tour.
 
 Zoom the browser to about 125% so text is legible after compression.
 
@@ -32,7 +44,7 @@ Zoom the browser to about 125% so text is legible after compression.
 **Screen:** the candidate PR on GitHub, all eight checks green.
 
 > An AI wrote this change. It passed all eight CI checks, it was reviewed, and
-> it shipped. Then median latency on the affected endpoint more than doubled.
+> it shipped. Then p95 latency on the affected endpoint rose 7.3 times.
 >
 > Nothing CI tests was wrong. This is the gap between "the pipeline is green"
 > and "production is fine."
@@ -56,9 +68,8 @@ Zoom the browser to about 125% so text is legible after compression.
 
 > Here's the receipt for that commit. The verdict leads: **regressed**.
 >
-> Error rate went from zero to thirty-eight percent. p95 went from 1.4
-> milliseconds to 8.2. Both windows carry over 250 requests, so this isn't a
-> handful of samples.
+> p95 went from 1.4 milliseconds to 10.4 — a 7.3x rise, with over 250 requests
+> in each window and zero errors. The latency is the whole finding.
 >
 > The comparison is scoped to the deployed version, not to wall-clock time.
 > Each deployment reports its commit SHA as `service.version`, so "before and
@@ -69,16 +80,21 @@ Zoom the browser to about 125% so text is legible after compression.
 
 ## 1:35 – 2:20 · SigNoz underneath
 
-**Screen:** the Deployment Impact dashboard, then the MCP result table.
+**Screen:** click a trace link on the receipt so SigNoz opens on that exact
+span. Then the Deployment Impact dashboard's "p95 by deployed version" panel.
+Then the Alerts page.
 
-> All of that is SigNoz. Traces answer the verdict — two Query Builder v5
-> queries, one for latency, one for `has_error`. Custom metrics carry what
-> traces can't: verdicts decided, queue depth, dependency health. Logs ship
-> with trace context, so a log line filtered by commit resolves to its span.
+> All of that is SigNoz. Every link on the receipt is an ID that has to resolve
+> — here's one, open in SigNoz, the actual slow request.
 >
-> And GreenLight asks the SigNoz MCP server the same questions an investigating
-> agent would. These numbers came back over MCP, independently, and every trace
-> it cites resolves.
+> Two versions on one chart: the step is the deploy. And the same threshold as
+> an alert rule, firing right now on the deployed version.
+>
+> Traces answer the verdict — Query Builder v5, one query for latency, one for
+> `has_error`. Custom metrics carry what traces can't: verdicts decided, alert
+> notifications received, queue depth, dependency health. Logs ship with trace
+> context, so a log line filtered by commit resolves to its span. And GreenLight
+> asks the SigNoz MCP server the same questions an investigating agent would.
 
 ## 2:20 – 2:50 · Recovery and close
 

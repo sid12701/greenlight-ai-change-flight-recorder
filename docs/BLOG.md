@@ -1,8 +1,7 @@
 # A flight recorder for AI-authored change: building GreenLight on SigNoz
 
 An AI wrote a config change. It passed all eight CI checks. It was reviewed,
-merged, and deployed. Median latency on the affected endpoint then more than
-doubled.
+merged, and deployed. p95 latency on the affected endpoint then rose 7.3x.
 
 Nothing was broken in a way CI could see, because nothing CI tests was wrong.
 That gap — between "the pipeline is green" and "production is fine" — is what
@@ -36,7 +35,8 @@ sixteen-and-a-bit minutes it looks like. It is **one millisecond**.
 
 The service dutifully threw away every PostgreSQL connection almost the instant
 it opened one, and spent its time reconnecting instead of serving. Measured
-against the previous release, p50 on `/balances` went from 3.6 ms to 8.5 ms.
+against the previous release, p95 on `/balances` went from 1.44 ms to 10.45 ms
+and p90 from 1.19 ms to 8.71 ms.
 
 No test catches this. There is no type error, no lint failure, no schema
 violation. The value is a valid integer in a valid field. You find it in
@@ -90,7 +90,7 @@ by patching: `v0.15.1` declares a `--config` flag but its pre-run hook reads
 
 ---
 
-## Four ways GreenLight uses SigNoz
+## Five ways GreenLight uses SigNoz
 
 ### 1. Traces answer the verdict
 
@@ -98,19 +98,33 @@ The evaluation is two Query Builder v5 queries in one round trip: query `A`
 returns count, p90 and p95 for the version scope; query `B` returns the error
 count for the same scope with `has_error = true`. A verdict needs both.
 
-The thresholds are deliberately conservative and stated on every receipt:
+The thresholds are stated on every receipt, and the receipt records which
+policy version decided it:
 
 | Guard | Rule |
 |---|---|
-| Latency | observed p95 > baseline × 1.5 **and** > baseline + 250 ms |
+| Latency | observed p95 > baseline × 1.5 **and** > baseline + 2 ms |
 | Error rate | observed ≥ baseline + 2pp **and** ≥ 5% absolute |
 | Data | ≥ 200 completed spans in **both** windows |
 
-The additive 250 ms guard is why this run's verdict fired on error rate and not
-latency. A p95 of 1.44 ms rising to 8.17 ms is a 5.7× regression — real, and
-visible on the receipt — but on an endpoint this fast it is only 6.7 ms in
-absolute terms. Firing a latency alarm on that would produce a system nobody
-trusts. The receipt shows the number and the verdict withholds the claim.
+That 2 ms floor is the interesting number, and it used to be 250 ms.
+
+The floor exists to stop timer resolution and scheduling jitter from being
+reported as a regression. 250 ms looks like the right value because it is roughly
+where a human starts to notice — but choosing a *perceptible* duration makes the
+guard scale-dependent, and it silently exempts every endpoint faster than it. On
+a route whose baseline p95 is 1.44 ms, a 250 ms floor demands 251 ms before
+latency may be reported at all: a 174× regression. Under that policy this run's
+7.3× regression was measured, shown on the receipt, and excluded from the
+verdict.
+
+Policy v2 replaces the perception floor with a resolution floor. 2 ms is
+comfortably above span timing granularity, so a rise clearing both it and the
+1.5× multiplier is a real measured change at any service scale — and the
+multiplier still suppresses small absolute rises on slow endpoints, which is what
+the original floor was reaching for. Both policies stay in the codebase and every
+stored verdict names the one that decided it, so an old receipt still explains
+itself under the rules it was measured against.
 
 ### 2. Metrics answer what traces can't
 
@@ -132,7 +146,40 @@ Integration failures are counted as outcomes too. If SigNoz can't answer, that
 is recorded as `integration_error` — never as a verdict. Omitting it would make
 the totals imply SigNoz always answered.
 
-### 3. Logs join the story back together
+### 3. Alerts that can actually fire
+
+Two rules, on p95 and on a true error rate — errored spans over all spans in one
+Query Builder v5 formula, rather than a raw error count that would rise with
+traffic alone. Both were broken in the same two ways, and both failures are
+invisible from the UI:
+
+**Dashboard variables do not exist for alert rules.** A filter written as
+`service.name = $service` is stored verbatim, accepted, listed, and matches
+nothing. The rule looks configured and can never fire. The assets now declare
+their scope in a `variables` block that GreenLight expands before posting, and
+the validator rejects any rule that still contains a `$` after compilation.
+
+**A version-pinned alert is a contradiction.** Scoping a rule to one immutable
+`service.version` means it can only ever describe a version that already existed
+when the rule was written — so it cannot warn about the next deployment, which is
+the only thing an alert is for. The rules follow the environment and route;
+deciding what a specific version did is the receipt's job.
+
+The p95 threshold sits at 5 ms: above this route's healthy 1.4 ms and below the
+~10 ms the regression produces, so it separates them rather than restating
+either. Under load on the candidate the rule goes `inactive` → `firing`, and back
+to `inactive` on the revert.
+
+One thing did not work, and it is worth reporting because the alternative is
+implying it did. SigNoz refuses to store a rule with no notification channel, so
+the importer provisions one pointing at an authenticated GreenLight receiver. The
+receiver works — the SigNoz container reaches it, is rejected without credentials
+and accepted with them, and records each notification as a log with trace context
+and as a metric. But with a rule firing continuously for several minutes, no
+webhook call ever arrived. The channel is what makes the rules storable; delivery
+is unproven, and saying so costs less than being found out.
+
+### 4. Logs join the story back together
 
 API and worker logs ship to SigNoz over OTLP carrying trace context, so a log
 line resolves to its span. Worker jobs that name a commit carry `commit_sha`,
@@ -148,7 +195,7 @@ commit_sha = c65cd730b405…  →  "job succeeded"  →  trace 5f892180…
 No commit is invented for job kinds that don't reference one. An absent
 `commit_sha` means the job genuinely wasn't about a single commit.
 
-### 4. MCP asks the questions an agent would
+### 5. MCP asks the questions an agent would
 
 Rather than only calling the query API, GreenLight asks the SigNoz MCP server
 the same questions an investigating agent would, over streamable HTTP, and
@@ -202,11 +249,22 @@ Every receipt carries this, and it is load-bearing:
 > Deployment correlation is evidence of temporal and version association, not
 > proof that every observed failure was caused by the commit.
 
-In the recorded run, the error-rate regression came from a genuine PostgreSQL
-outage inside the candidate's measured window. GreenLight reports what it
-measured against the version that was deployed. It does not assert the commit
-caused it — because it can't know that, and a tool that overstates once is a
-tool you check manually forever after.
+That sentence earned its place. An earlier version of the demo injected a real
+PostgreSQL outage inside the candidate's measured window, and the verdict fired
+on the resulting error rate rather than on the latency the commit actually
+caused. Everything was disclosed and nothing was fabricated — but the headline
+claim was "this change regressed the service", and the mechanism behind the
+verdict was something else entirely. A tool that overstates once is a tool you
+check manually forever after, and that applies to the demo as much as to the
+product.
+
+So the two are now separate runs. `demo-chain.mjs` measures what a version did
+and injects nothing; it asserts nothing about the candidate's traffic either,
+because deciding what observed failures mean is the evaluator's job.
+`demo-dependency-failure.mjs` deliberately stops the workload's database inside
+the window and exists to show the opposite case: GreenLight reports the failures
+it measured against the version that was running, and refuses to attribute them
+to a commit that never touched that dependency.
 
 The same restraint shows up in smaller places. A percentage change from a zero
 baseline returns null rather than "Infinity%". An unknown CI conclusion stays
@@ -225,8 +283,9 @@ Three real commits, three real CI runs, three version-verified deployments:
 | Candidate | `2fa6e28` | ✅ **all 8 checks** | **regressed** |
 | Recovery | `c65cd73` | ✅ | **recovered** |
 
-Measured: p95 **1.44 ms → 8.17 ms**, error rate **0% → 38.67%**, 257 and 256
-requests in the two windows.
+Measured on `/balances`: p95 **1.44 ms → 10.45 ms**, a 7.3× rise, with 257 and
+260 completed spans in the two windows and no errors in either. The verdict fires on that latency change, caused
+by the deployed version, and on nothing else.
 
 The candidate passing every CI check is not an embarrassment to report. It is
 the premise. The pipeline was working exactly as designed; the thing that was

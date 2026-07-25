@@ -100,29 +100,39 @@ count does not match the asset. Import requires a service-account API key with
 an assigned role (Settings → Service Accounts → create account, assign
 `signoz-admin`, then create a key).
 
-Alert rules require at least one notification channel. Channel names are
-environment-specific, so the assets ship with `preferredChannels: []` and the
-importer fills them from `SIGNOZ_ALERT_CHANNELS` (comma-separated). Without it
-the dashboards still import and the alert import is skipped with a warning.
+### Alert rules
 
-Create a channel once per installation, then import:
+SigNoz refuses to store a rule with no notification channel
+(`at least one channel is required`). Skipping the alert import when none is
+configured would ship a product whose Alerts page is empty, so the importer
+provisions one named `greenlight-receiver` pointing at GreenLight's own webhook
+endpoint, authenticated with the `notify`-scoped API key in
+`.workloads/greenlight.env`. Set `SIGNOZ_ALERT_CHANNELS` to override it with
+your own Slack or PagerDuty channel.
 
-```bash
-curl -X POST "$SIGNOZ_URL/api/v1/channels" \
-  -H "SIGNOZ-API-KEY: $SIGNOZ_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"name":"greenlight-webhook","webhook_configs":[{"send_resolved":true,"url":"<your-receiver>"}]}'
+The rules evaluate and fire correctly against this channel, and the receiver
+answers (the SigNoz container reaches it and is rejected with 401 without
+credentials, accepted with them). **Delivery itself has not been observed** on
+this stack: a rule firing continuously for several minutes produced no webhook
+call. Treat the channel as what makes the rules storable, and verify dispatch
+separately before relying on it for notification.
 
-SIGNOZ_ALERT_CHANNELS=greenlight-webhook npm run signoz:import
-```
+Alert rules also have **no equivalent of dashboard variables**. A filter
+containing `$service` is stored verbatim, accepted, listed in the UI, and
+matches nothing — a rule that looks configured and can never fire. The assets
+therefore declare their scope in a `variables` block that GreenLight expands
+before posting, and the validator rejects any rule that still contains an
+unexpanded variable, or that pins `service.version` (a version-scoped rule can
+only describe a version that already existed when it was written).
 
-### Known upstream gap (SigNoz v0.134.0)
+### Panel units
 
-The bundled web UI does not yet render v6 dashboards. Assets import correctly
-and `GET /api/v1/dashboards/{id}` returns the full panel, layout and variable
-tree, but the dashboard page shows its empty state. Dashboards created through
-the UI in this version also fail to persist their panels, so this is an upstream
-UI/API transition rather than a problem with these assets. Verify imports with
-the API until the UI catches up:
+A duration aggregation returns nanoseconds. Rendered with no declared unit
+SigNoz prints the raw integer, so a p95 of 10.45 ms reads as `10450000` and the
+axis is unreadable at a glance. Every panel declares `spec.unit`, and the
+validator rejects a `duration_nano` aggregation that does not declare `"ns"`.
+
+### Verifying an import through the API
 
 ```bash
 curl -s "$SIGNOZ_URL/api/v1/dashboards/<id>" -H "SIGNOZ-API-KEY: $SIGNOZ_API_KEY" \

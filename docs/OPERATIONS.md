@@ -107,3 +107,35 @@ by the bootstrap, add it to `.env.demo`, and rerun. Blnk is public and needs no
 GitHub token. `npm run demo:down` stops all demo services without deleting
 volumes; use the explicit per-service destructive reset commands only after
 backup and operator approval.
+
+### Verifying the evidence, not just the processes
+
+Health checks prove the stack is running. These prove what it claims is true,
+and each fails loudly rather than degrading to a weaker check:
+
+```bash
+npm run verify:receipt-links                  # every URL a receipt publishes must open
+set -a && . ./.env.demo && set +a
+npm run mcp:verify                            # every MCP-reported trace must resolve
+npm run ai-link:verify                        # which of the four AI-link links are armed
+bash scripts/signoz-runtime-verify.sh         # every running image matches its digest pin
+```
+
+`verify:receipt-links` is the one worth running before any demo. It reads the
+receipts the way a reader does and requires every published URL to answer, which
+catches the class of failure no unit test can: an API that reaches SigNoz at an
+address the reader's browser cannot resolve. Set `SIGNOZ_PUBLIC_URL` when those
+two differ, which is the case whenever the API runs in a container.
+
+### Resetting between rehearsals
+
+```bash
+bash scripts/demo-reset.sh
+```
+
+Clears candidate and recovery deployments with their evaluations, incidents,
+windows and evidence links, in one transaction against the demo's PostgreSQL. The
+frozen baseline and every span in SigNoz are left alone: a baseline is the
+yardstick later verdicts are measured against, and re-freezing it would silently
+move it. Re-recording therefore reuses the existing baseline rather than
+capturing a new one.
