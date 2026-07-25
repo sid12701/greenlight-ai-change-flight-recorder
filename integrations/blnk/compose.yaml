@@ -14,13 +14,18 @@ x-blnk-common: &blnk-common
     OTEL_EXPORTER_OTLP_ENDPOINT: ${BLNK_OTLP_ENDPOINT:-http://host.docker.internal:4318}
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     OTEL_METRIC_EXPORT_INTERVAL: "5000"
-    OTEL_RESOURCE_ATTRIBUTES: service.name=blnk-loan-workload,service.version=c8fce93af4df6b1edb46ca97e570c55beff4cef9,deployment.environment.name=hackathon-demo
+    OTEL_RESOURCE_ATTRIBUTES: service.name=blnk-loan-workload,service.version=${BLNK_RELEASE_VERSION:-c8fce93af4df6b1edb46ca97e570c55beff4cef9},deployment.environment.name=hackathon-demo
   working_dir: /tmp
   volumes:
     # v0.15.1 declares --config but its pre-run hook reads ./blnk.json.
     # Keep this compatibility at the container boundary instead of patching
     # upstream application behavior.
-    - ./blnk.demo.json:/tmp/blnk.json:ro
+    #
+    # This path is fixed so that the deployed configuration is whatever
+    # `release.json` contains at the deployed commit. Selecting a config by
+    # name at deploy time would let the running behavior differ from the
+    # commit that `service.version` reports.
+    - ./release.json:/tmp/blnk.json:ro
   extra_hosts:
     - host.docker.internal:host-gateway
   read_only: true
