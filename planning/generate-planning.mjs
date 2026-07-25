@@ -429,7 +429,7 @@ for (const t of tasks) {
 
 let implementation = `# GreenLight Tracer-Bullet Implementation Tasks
 
-This is the execution index for the authoritative [implementation plan](../GREENLIGHT_IMPLEMENTATION_PLAN.md). Each task is a narrow vertical slice intended to become one GitHub issue and one coherent implementation commit.
+This is the execution index for the authoritative [archived implementation plan](../planning/archive/GREENLIGHT_IMPLEMENTATION_PLAN.md). Each task is a narrow vertical slice intended to become one GitHub issue and one coherent implementation commit.
 
 ## Execution rules
 
@@ -460,7 +460,7 @@ function yamlString(value) {
   return JSON.stringify(value);
 }
 
-let yaml = `version: 1\nproject: greenlight-ai-change-flight-recorder\ngenerated_from: GREENLIGHT_IMPLEMENTATION_PLAN.md\ntasks:\n`;
+let yaml = `version: 1\nproject: greenlight-ai-change-flight-recorder\ngenerated_from: planning/archive/GREENLIGHT_IMPLEMENTATION_PLAN.md\ntasks:\n`;
 for (const t of tasks) {
   yaml += `  - id: ${t.id}\n`;
   yaml += `    phase: ${t.phase}\n`;
@@ -498,7 +498,7 @@ ${tasks.flatMap((t) => t.depends.map((d) => `  ${d.replaceAll("-", "_")} --> ${t
 
 fs.mkdirSync(path.join(root, "docs", "issues"), { recursive: true });
 fs.writeFileSync(path.join(root, "docs", "IMPLEMENTATION_TASKS.md"), implementation.replace(/\n+$/, "\n"));
-fs.writeFileSync(path.join(root, "TASKS.yaml"), yaml);
+fs.writeFileSync(path.join(root, "planning/archive/TASKS.yaml"), yaml);
 fs.writeFileSync(path.join(root, "docs", "DEPENDENCY_GRAPH.md"), graph);
 fs.writeFileSync(path.join(root, "planning", "issues-index.json"), JSON.stringify(tasks.map((t) => ({
   id: t.id,

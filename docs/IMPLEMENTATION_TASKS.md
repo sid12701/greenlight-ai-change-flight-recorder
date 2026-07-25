@@ -1,6 +1,6 @@
 # GreenLight Tracer-Bullet Implementation Tasks
 
-This is the execution index for the authoritative [implementation plan](../GREENLIGHT_IMPLEMENTATION_PLAN.md). Each task is a narrow vertical slice intended to become one GitHub issue and one coherent implementation commit.
+This is the execution index for the authoritative [archived implementation plan](../planning/archive/GREENLIGHT_IMPLEMENTATION_PLAN.md). Each task is a narrow vertical slice intended to become one GitHub issue and one coherent implementation commit.
 
 ## Execution rules
 

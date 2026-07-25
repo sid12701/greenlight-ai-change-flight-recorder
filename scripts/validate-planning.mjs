@@ -10,8 +10,8 @@ const exists = (p) => fs.existsSync(path.join(root, p));
 const required = [
   "README.md",
   "PROVENANCE.md",
-  "GREENLIGHT_IMPLEMENTATION_PLAN.md",
-  "TASKS.yaml",
+  "planning/archive/GREENLIGHT_IMPLEMENTATION_PLAN.md",
+  "planning/archive/TASKS.yaml",
   "docs/IMPLEMENTATION_TASKS.md",
   "docs/DEPENDENCY_GRAPH.md",
   "docs/TEST_STRATEGY.md",
@@ -57,8 +57,8 @@ for (const pattern of forbidden) {
 if (!read("README.md").includes("AI assistance disclosure")) throw new Error("README lacks AI disclosure");
 if (!read("PROVENANCE.md").includes("Pre-existing work")) throw new Error("PROVENANCE lacks pre-existing work");
 if (!read("docs/COMMIT_STRATEGY.md").includes("sid12701")) throw new Error("Commit identity is not sid12701");
-if ((read("TASKS.yaml").match(/priority: p1/g) ?? []).length !== 3) throw new Error("Expected exactly three pre-declared P1 sacrifice tasks");
-if ((read("TASKS.yaml").match(/verification: strict_tdd/g) ?? []).length !== 10) throw new Error("Expected ten strict-TDD logic tasks");
+if ((read("planning/archive/TASKS.yaml").match(/priority: p1/g) ?? []).length !== 3) throw new Error("Expected exactly three pre-declared P1 sacrifice tasks");
+if ((read("planning/archive/TASKS.yaml").match(/verification: strict_tdd/g) ?? []).length !== 10) throw new Error("Expected ten strict-TDD logic tasks");
 if (!read("docs/DEPENDENCY_GRAPH.md").includes("incident tuning begins as soon as the evaluator is ready")) throw new Error("Dependency graph does not expose the Phase 6/UI overlap");
 
 const configValidation = spawnSync(process.execPath, ["scripts/validate-config-contract.mjs"], {

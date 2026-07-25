@@ -21,14 +21,25 @@ function trackedFiles() {
 }
 
 /**
- * Reading SigNoz's internal telemetry store, or reaching the Docker socket,
- * bypasses the supported API and produces evidence the product itself could
- * never query. Operator-only diagnostics are excluded by path.
+ * Reading SigNoz's internal telemetry store bypasses the supported API and
+ * produces evidence the product itself could never query, so a receipt built
+ * that way would assert something a reader cannot reproduce.
+ *
+ * The rule names the telemetry store rather than `docker exec` in general.
+ * Forbidding the command outright also caught operator tasks that administer
+ * GreenLight's *own* database — clearing transient demo rows, rotating a local
+ * password — which are not evidence at all. It also gave false confidence: a
+ * blanket substring ban is satisfied by spawning `docker` with `exec` as an
+ * argument, which is how the existing secret rotation already reaches psql.
+ * Naming the store is both narrower and harder to evade by accident.
  */
 const FORBIDDEN_PRODUCTION_DEPENDENCIES = [
   "SIGNOZ_CLICKHOUSE_CONTAINER",
   "distributed_signoz_index",
-  "docker exec",
+  "signoz_traces.",
+  "signoz_metrics.",
+  "signoz_logs.",
+  "clickhouse-client",
 ];
 const DIAGNOSTIC_ALLOWLIST = new Set(["scripts/quality-gates.mjs"]);
 
@@ -45,7 +56,7 @@ const CREDENTIAL_PATTERNS = [
 const CREDENTIAL_ALLOWLIST = new Set([
   "docs/EVIDENCE_LOG.md",
   "docs/REMEDIATION_TRACKER.md",
-  "remediation-list.md",
+  "planning/archive/remediation-list.md",
   "scripts/quality-gates.mjs",
   "scripts/validate-config-contract.mjs",
 ]);

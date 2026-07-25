@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-24
 
-This tracker is the execution record for `remediation-list.md`. A status of
+This tracker is the execution record for `planning/archive/remediation-list.md`. A status of
 `complete` requires implementation, an automated regression check, and the
 listed acceptance evidence. `external-blocked` means the remaining
 implementation or acceptance criterion requires a dependency download,
