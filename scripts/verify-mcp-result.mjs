@@ -66,11 +66,37 @@ if (text.includes("caused the") || text.includes("caused by the commit")) {
 /**
  * Resolving every trace is what makes them evidence.
  *
- * A well-formed 32-hex string is not proof that a trace exists; the audit
- * called this out as vacuous validation. When SigNoz credentials are present
- * each ID is looked up, and a trace that does not resolve fails the gate.
+ * A well-formed 32-hex string is not proof that a trace exists, so this fails
+ * rather than degrades when it cannot check. Reporting "validation passed"
+ * after only pattern-matching would be the exact overstatement this project
+ * exists to prevent, and it is worse here than anywhere else: the reader ran the
+ * command precisely to avoid taking the numbers on trust.
+ *
+ * `--offline` exists for callers that genuinely only want the shape checked —
+ * a unit test, or a contributor with no stack running — and says so out loud.
  */
-if (process.env.SIGNOZ_API_KEY) {
+const offline = process.argv.includes("--offline");
+if (offline) {
+  console.warn(
+    "verify-mcp-result: --offline — the fixture's shape was checked and no trace was resolved",
+  );
+  console.log("verify-mcp-result: offline fixture checks passed (traces NOT verified)");
+  process.exit(0);
+}
+
+if (!process.env.SIGNOZ_API_KEY) {
+  console.error(
+    "verify-mcp-result: SIGNOZ_API_KEY is not set, so no trace could be resolved.\n" +
+    "  This gate exists to prove the recorded trace IDs exist in a live SigNoz.\n" +
+    "  Run it against the demo stack:\n" +
+    "    set -a && . ./.env.demo && set +a && npm run mcp:verify\n" +
+    "  Or check the fixture's shape only, without verifying anything:\n" +
+    "    node scripts/verify-mcp-result.mjs --offline",
+  );
+  process.exit(1);
+}
+
+{
   const signozUrl = process.env.SIGNOZ_URL ?? "http://localhost:8080";
   const windowStart = Date.parse(payload.window?.start ?? "") || Date.now() - 24 * 60 * 60 * 1000;
   const windowEnd = Date.parse(payload.window?.end ?? "") || Date.now();
@@ -112,10 +138,8 @@ if (process.env.SIGNOZ_API_KEY) {
     }
     console.log(`verify-mcp-result: trace ${traceId} resolves (${spans} spans)`);
   }
-} else {
-  console.warn(
-    "verify-mcp-result: SIGNOZ_API_KEY not set — trace IDs were format-checked but not resolved",
-  );
 }
 
-console.log("verify-mcp-result: fixture validation passed");
+console.log(
+  `verify-mcp-result: all ${payload.traceIds.length} MCP-reported traces resolve in SigNoz`,
+);

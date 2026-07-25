@@ -29,6 +29,8 @@
     "demo:status": "bash scripts/demo-bootstrap.sh --status",
     "demo:down": "bash scripts/demo-down.sh",
     "demo:rehearse": "bash scripts/demo-full-rehearsal.sh",
+    "demo:chain": "node scripts/demo-chain.mjs",
+    "demo:dependency-failure": "node scripts/demo-dependency-failure.mjs",
     "test:e2e:smoke": "playwright test --grep @smoke",
     "validate:signoz-assets": "node scripts/signoz-assets.mjs validate",
     "validate:signoz-stack": "node scripts/signoz-stack.mjs",
@@ -38,6 +40,9 @@
     "lint:fix": "eslint . --fix",
     "test:coverage": "npm run test --workspace @greenlight/api -- --coverage",
     "test:integration": "vitest run --root apps/api test/integration",
+    "verify:receipt-links": "node scripts/verify-receipt-links.mjs",
+    "ai-link:arm": "bash instrumentation/git-hooks/install.sh .",
+    "ai-link:verify": "node scripts/verify-ai-link.mjs",
     "mcp:capture": "node scripts/capture-mcp-fixture.mjs",
     "mcp:verify": "node scripts/verify-mcp-result.mjs",
     "test:postgres": "vitest run --root apps/api test/integration/postgres.integration.test.ts"
