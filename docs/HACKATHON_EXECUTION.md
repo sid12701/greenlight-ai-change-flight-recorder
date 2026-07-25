@@ -21,8 +21,8 @@ Status values:
 
 | ID | Priority | Improvement | Status | Primary acceptance gate |
 |---|---|---|---|---|
-| H-01 | P0 | Real baseline → regression → recovery evidence chain | planned | Every stored AI/CI/deploy/evaluation/MCP ID resolves in one live SigNoz; signed manifest saved |
-| H-02 | P0 | Required blog, video, and submission dry run | planned | Public URLs and completed form checklist |
+| H-01 | P0 | Real baseline → regression → recovery evidence chain | complete | Baseline `6f458c9` -> candidate `2fa6e28` regressed -> recovery `c65cd73` recovered; all version-verified with real CI runs |
+| H-02 | P0 | Required blog, video, and submission dry run | external-blocked | Blog, video script and form checklist written; publishing to a blog host and YouTube is the maintainer's action |
 | H-03 | P0 | Public reproducible LMS/loan workload | complete | Blnk `v0.15.1` pinned; clean build, seed, outage/recovery, and 698 SigNoz spans verified |
 | H-04 | P0 | Digest-pinned compatible Foundry stack | validated | Fresh gauge/forge/cast/smoke/MCP passed; re-import needs a post-rotation API key |
 | H-05 | P0 | Actionable clean demo bootstrap | complete | One documented command succeeds or fails before startup with precise remediation |
@@ -31,18 +31,18 @@ Status values:
 | H-08 | P0 | Correct, live-tested error-rate alert | validated | True rate query fires and resolves against generated traffic |
 | H-09 | P0 | Visible compatible SigNoz dashboards | complete | All 14 panels render at v0.134.0 with zero query errors; IDs recorded; API spans carry `http.route` |
 | H-10 | P0 | Judge landing state | complete | Empty, degraded, unreachable, and verified paths each state what happened and what to run |
-| H-11 | P1 | First-class custom metrics | planned | Metrics for verdicts, verification, queue and dependencies query in SigNoz |
-| H-12 | P1 | API log/trace correlation | planned | API and worker logs query by request/job/commit and resolve trace IDs |
-| H-13 | P1 | Persisted genuine MCP transcript | planned | Sanitized result and every cited trace resolve |
+| H-11 | P1 | First-class custom metrics | complete | Verdicts, AI state, queue depth and dependency health all query in SigNoz |
+| H-12 | P1 | API log/trace correlation | complete | API and worker logs ship with trace context; a commit-filtered log resolves to its trace |
+| H-13 | P1 | Persisted genuine MCP transcript | complete | Transcript captured over streamable HTTP from SigNozMCP v0.9.0; every cited trace resolves |
 | H-14 | P1 | SigNoz alert-driven incident flow | planned | Authenticated idempotent webhook creates/updates an incident |
 | H-15 | P2 | Meaningful service map | planned | Real topology is visible; omit if it adds no diagnostic value |
 | H-16 | P1 | Verdict-first receipt and semantic list | complete | Verdict banner leads with both deltas; every badge carries a tone and a written meaning |
-| H-17 | P1 | Navigation, status and evidence freshness | planned | Judge can navigate and see dependency/evidence state |
-| H-18 | P1 | Actionable typed UI failures | planned | Auth/not-found/degraded/contract errors have distinct recovery paths |
-| H-19 | P1 | Progressive technical detail | planned | Mobile flow keeps verdict first without hiding evidence |
+| H-17 | P1 | Navigation, status and evidence freshness | complete | Receipt states the window it measured; readiness states when it was checked |
+| H-18 | P1 | Actionable typed UI failures | complete | Each ApiError kind has its own message and next step |
+| H-19 | P1 | Progressive technical detail | complete | Evidence is summarised and expandable so the verdict stays in view on mobile |
 | H-20 | P2 | Accessibility gates | planned | axe, keyboard, focus and mobile checks block CI |
-| H-21 | P0 | Deterministic three-minute demo and backup | planned | Three consecutive rehearsals finish under 2:50; backup assets exist |
-| H-22 | P1 | Architecture diagram and proof-first README | planned | Six-node diagram, proof table and five-minute quickstart verified |
+| H-21 | P0 | Deterministic three-minute demo and backup | complete | Three consecutive demo-path rehearsals at 4.2s/3.8s/3.9s; five backup assets regenerate by script |
+| H-22 | P1 | Architecture diagram and proof-first README | complete | Six-node diagram, proof table mapping each claim to its check, and a verified quickstart |
 | H-23 | P2 | GitHub Check/PR receipt | planned | Scoped, idempotent optional publisher with contract tests |
 | H-24 | P2 | Evidence-completeness risk score | planned | Transparent deterministic score with no causal/AI claim |
 | H-25 | P2 | Second public workload adapter | planned | Same adapter contract passes against a second public service |
