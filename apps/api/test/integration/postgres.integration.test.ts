@@ -160,4 +160,23 @@ describePostgres("repository contract on postgresql", () => {
     expect(links[0].url).toBe("http://signoz.test/trace/c");
     expect(links[0].verification_state).toBe("verified");
   });
+
+  it("reads a CI duration back as a number, not a string", async () => {
+    await seedChange("chg_duration", "d".repeat(40));
+    await repos.upsertPipelineRun({
+      id: "run_duration", change_id: "chg_duration", provider_run_id: "9001",
+      workflow_name: "CI", status: "completed", conclusion: "success",
+      started_at: NOW, completed_at: NOW, duration_ms: 123_000,
+      slowest_step: "Build", html_url: "http://ci.test/9001", is_primary: 1,
+      emitted_trace_id: null, synced_at: NOW,
+    } as never);
+
+    const [run] = await repos.getPipelineRunsForChange("chg_duration");
+    // node-postgres returns int8 as a string to protect precision above 2^53.
+    // The receipt contract declares `number | null`, so a bigint column here
+    // made the web client reject the whole receipt — while SQLite, which
+    // returns a number, passed. The column is INTEGER on both engines now.
+    expect(typeof run.duration_ms).toBe("number");
+    expect(run.duration_ms).toBe(123_000);
+  });
 });

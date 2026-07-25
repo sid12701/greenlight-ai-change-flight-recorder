@@ -118,8 +118,22 @@ export async function seedWorkload(
   return { ...state, reused: false };
 }
 
-export async function runLoad(options, fetchImpl = fetch) {
-  const deadline = Date.now() + options.durationSeconds * 1_000;
+const sleepMs = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+export async function runLoad(options, fetchImpl = fetch, sleep = sleepMs) {
+  const startedAt = Date.now();
+  const deadline = startedAt + options.durationSeconds * 1_000;
+  /**
+   * Requests are spread across the requested duration instead of being issued
+   * as fast as the workers can loop. Unpaced, a whole run lands inside a
+   * fraction of a second, the workload's own rate limiter rejects most of it,
+   * and a "healthy" profile reports a large error rate that belongs to the
+   * load generator rather than the service.
+   */
+  const spacingMs = options.requests > 0
+    ? (options.durationSeconds * 1_000) / options.requests
+    : 0;
   const counts = {
     requested: options.requests,
     attempted: 0,
@@ -131,9 +145,19 @@ export async function runLoad(options, fetchImpl = fetch) {
     options.profile === "not-found"
       ? "/balances/bal_intentional_greenlight_404"
       : "/balances?limit=10&offset=0";
+  let claimed = 0;
 
   async function worker() {
-    while (Date.now() < deadline && counts.attempted < options.requests) {
+    while (claimed < options.requests) {
+      const index = claimed;
+      claimed += 1;
+      const waitMs = startedAt + index * spacingMs - Date.now();
+      if (waitMs > 0) {
+        await sleep(waitMs);
+      }
+      if (Date.now() >= deadline) {
+        return;
+      }
       counts.attempted += 1;
       try {
         const response = await fetchImpl(`${options.baseUrl}${path}`, {

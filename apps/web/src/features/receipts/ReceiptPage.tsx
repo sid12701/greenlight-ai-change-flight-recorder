@@ -5,6 +5,7 @@ import { ImpactCards } from "./ImpactCards";
 import { RecoveryPanel } from "./RecoveryPanel";
 import { Actions } from "./Actions";
 import { VerdictBanner } from "./VerdictBanner";
+import { EvidenceFreshness } from "./EvidenceFreshness";
 import { formatDateTime } from "../../formatters";
 import { verificationPresentation } from "../../status";
 
@@ -49,10 +50,22 @@ export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
       {/* The decision comes before the evidence for it: a reader who stops
           here still knows whether the change was safe and what moved. */}
       <VerdictBanner receipt={receipt} />
+      <EvidenceFreshness receipt={receipt} />
       <RecoveryPanel receipt={receipt} />
       <ImpactCards receipt={receipt} />
-      <EvidenceTimeline receipt={receipt} />
-      <CiSection receipt={receipt} />
+      {/* Everything below is the evidence behind the verdict. On a narrow
+          screen it would otherwise push the decision off the top, so it is
+          summarised and expandable rather than removed. */}
+      <details className="group" open>
+        <summary className="cursor-pointer list-none rounded-xl border border-slate-800 bg-slate-900 p-3 text-sm text-slate-300">
+          <span className="font-semibold text-slate-100">Evidence behind this verdict</span>
+          <span className="ml-2 text-slate-400">
+            timeline, CI, deployment and links — collapse to keep the verdict in view
+          </span>
+        </summary>
+        <div className="mt-4 space-y-6">
+          <EvidenceTimeline receipt={receipt} />
+          <CiSection receipt={receipt} />
       {receipt.deployment ? (
         <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
           <h2 className="text-xl font-semibold">Deployment</h2>
@@ -99,6 +112,8 @@ export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
           </ul>
         ) : <p className="mt-2 text-sm text-slate-400">No verified evidence links.</p>}
       </section>
+        </div>
+      </details>
       <Actions receipt={receipt} />
       <p className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-4 text-sm text-amber-100">
         {receipt.caveat}

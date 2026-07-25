@@ -7,6 +7,7 @@ import { synthesizeCiTrace } from "../ci-telemetry/synthesizer.js";
 import { shouldAttachAiLink } from "../ci-telemetry/link.js";
 import type { GitHubClient } from "./client.js";
 import { DependencyError } from "../../http/errors.js";
+import { recordAiVerificationState } from "../../observability/metrics.js";
 import { markPrimaryRuns } from "./primary-workflow.js";
 import { findSlowestStep, normalizeWorkflowRun } from "./normalize.js";
 import type { SpanExporter } from "@opentelemetry/sdk-trace-base";
@@ -46,11 +47,34 @@ function parseRepository(repository: string) {
   return { owner, name };
 }
 
-function deriveAiLinkStatus(parsed: ReturnType<typeof extractAiTraceparentFromMessage>): AiLinkStatus {
-  if (!parsed) {
-    return "missing";
+type ParsedAiTraceparent = ReturnType<typeof extractAiTraceparentFromMessage>;
+
+/**
+ * A commit that carries no trailer is not the same as one whose trailer is
+ * malformed, but the parser reports both as a failed parse, so the two are
+ * separated by error code here.
+ *
+ * The distinction is load-bearing: describing an absent trailer as invalid
+ * tells a reader the commit tried to record an AI session and got it wrong,
+ * which is a claim the receipt has no evidence for.
+ */
+function isMissingTrailer(parsed: ParsedAiTraceparent): boolean {
+  return !parsed.ok && parsed.code === "missing_trailer";
+}
+
+function deriveAiLinkStatus(parsed: ParsedAiTraceparent): AiLinkStatus {
+  if (parsed.ok) {
+    return "linked";
   }
-  return parsed.ok ? "linked" : "invalid";
+  return isMissingTrailer(parsed) ? "missing" : "invalid";
+}
+
+function deriveAiVerificationState(parsed: ParsedAiTraceparent, aiVerified: boolean) {
+  const state = parsed.ok
+    ? aiVerified ? "verified" : "unverified"
+    : isMissingTrailer(parsed) ? "missing" : "invalid";
+  recordAiVerificationState(state);
+  return state;
 }
 
 export async function ensureChangeFromCommit(input: {
@@ -100,7 +124,7 @@ export async function ensureChangeFromCommit(input: {
     ai_span_id: parsed?.ok ? parsed.value.spanId : null,
     ai_trace_flags: parsed?.ok ? parsed.value.flags : null,
     ai_link_status: deriveAiLinkStatus(parsed),
-    ai_verification_state: parsed?.ok ? "unverified" : parsed ? "invalid" : "missing",
+    ai_verification_state: deriveAiVerificationState(parsed, false),
     changed_files_count: null,
     additions: null,
     deletions: null,
@@ -166,9 +190,7 @@ export async function syncWorkflowRuns(
       ai_span_id: parsed?.ok ? parsed.value.spanId : null,
       ai_trace_flags: parsed?.ok ? parsed.value.flags : null,
       ai_link_status: aiLinkStatus,
-      ai_verification_state: parsed?.ok
-        ? aiVerified ? "verified" : "unverified"
-        : parsed ? "invalid" : "missing",
+      ai_verification_state: deriveAiVerificationState(parsed, Boolean(aiVerified)),
       ai_verified_at: aiVerified ? new Date().toISOString() : null,
       ai_verification_error: parsed?.ok && !aiVerified
         ? "Exact Claude trace/span was not verified in SigNoz"

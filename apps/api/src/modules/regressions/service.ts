@@ -10,6 +10,7 @@ import type {
 } from "../../db/repositories/index.js";
 import { ConflictError, DependencyError, RetryAfterError } from "../../http/errors.js";
 import { SignozIntegrationError, type SignozClient, type WindowMetrics } from "../signoz/client.js";
+import { recordRegressionVerdict } from "../../observability/metrics.js";
 import {
   DEFAULT_THRESHOLDS,
   evaluateRegression,
@@ -198,6 +199,14 @@ export class RegressionService {
       await tx.replaceEvidenceLinks(evaluationId, evidence);
     });
 
+    // Recorded after the transaction commits, so the counter can only ever
+    // describe a verdict that was actually persisted.
+    recordRegressionVerdict({
+      status: evaluation.status,
+      comparisonKind,
+      route: request.route,
+    });
+
     return { ...evaluation, evaluationId, incidentId, evidenceLinks: evidence };
   }
 
@@ -316,6 +325,15 @@ export class RegressionService {
         evaluated_at: evaluatedAt,
       });
       await tx.replaceEvidenceLinks(input.evaluationId, []);
+    });
+
+    // An integration failure is a recorded outcome too. Counting it keeps the
+    // verdict totals honest: without it, the series would imply SigNoz always
+    // answered.
+    recordRegressionVerdict({
+      status: "integration_error",
+      comparisonKind: input.comparisonKind,
+      route: input.window.route,
     });
 
     throw new DependencyError(code, message);

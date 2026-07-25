@@ -280,4 +280,29 @@ describe("repository durability", () => {
     expect(scoped.map((row) => row.id)).toEqual(["dep_a"]);
     await repos.close();
   });
+
+  it("reports a zero count for job states that hold no rows", async () => {
+    const repos = await setup();
+
+    // A drained state must still report. A gauge that stops emitting is
+    // indistinguishable from a collector that stopped, which is exactly the
+    // ambiguity queue depth exists to remove.
+    expect(await repos.countJobsByState()).toEqual({
+      pending: 0,
+      running: 0,
+      succeeded: 0,
+      failed: 0,
+    });
+
+    await repos.enqueueJob({ id: "job_a", kind: "github_sync_runs", payload_json: "{}" });
+    await repos.enqueueJob({ id: "job_b", kind: "deployment_record", payload_json: "{}" });
+
+    expect(await repos.countJobsByState()).toEqual({
+      pending: 2,
+      running: 0,
+      succeeded: 0,
+      failed: 0,
+    });
+    await repos.close();
+  });
 });

@@ -98,7 +98,10 @@ describe("landing page", () => {
 
     expect(screen.queryByRole("link", { name: /Open the verified receipt/ })).toBeNull();
     expect(screen.getByText(/No changes have been recorded yet/)).toBeInTheDocument();
-    expect(screen.getByText("npm run demo:rehearse")).toBeInTheDocument();
+    // The command shown must be the one that actually produces a complete
+    // chain, otherwise an empty install is told to run something that leaves
+    // it empty.
+    expect(screen.getByText(/scripts\/demo-chain\.mjs/)).toBeInTheDocument();
   });
 
   it("names each degraded dependency and how to fix it", () => {

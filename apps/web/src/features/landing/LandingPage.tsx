@@ -1,5 +1,6 @@
 import type { ChangeSummary, DependencyState, DependencyStatus } from "@greenlight/shared";
 import { selectFeaturedChange } from "./featured";
+import { formatDateTime, formatRelativeTime } from "../../formatters";
 
 export type LandingState = "loading" | "ready" | "unreachable";
 
@@ -50,7 +51,13 @@ function DependencyRow({
   );
 }
 
-function Readiness({ status }: { status: DependencyStatus | null }) {
+function Readiness({
+  status,
+  checkedAt,
+}: {
+  status: DependencyStatus | null;
+  checkedAt: string | null;
+}) {
   return (
     <section
       aria-labelledby="readiness-heading"
@@ -73,6 +80,15 @@ function Readiness({ status }: { status: DependencyStatus | null }) {
           )}
         </div>
       )}
+      {/* A readiness panel with no time on it reads as current forever, which
+          is exactly how someone ends up trusting a stale one. */}
+      {checkedAt ? (
+        <p className="mt-3 text-xs text-slate-400">
+          Checked{" "}
+          <time dateTime={checkedAt}>{formatRelativeTime(checkedAt)}</time>
+          {" "}({formatDateTime(checkedAt)}).
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -117,7 +133,7 @@ function DemoReceipt({ changes }: { changes: ChangeSummary[] }) {
             regression verdict all resolve. Produce one with:
           </p>
           <code className="mt-2 block break-all rounded bg-slate-950 px-2 py-2 font-mono text-xs text-amber-200">
-            npm run demo:rehearse
+            node scripts/demo-chain.mjs &lt;baseline-sha&gt; &lt;candidate-sha&gt; &lt;recovery-sha&gt;
           </code>
         </>
       )}
@@ -130,11 +146,13 @@ export function LandingPage({
   status,
   changes,
   signozUrl,
+  checkedAt = null,
 }: {
   state: LandingState;
   status: DependencyStatus | null;
   changes: ChangeSummary[];
   signozUrl: string;
+  checkedAt?: string | null;
 }) {
   if (state === "loading") {
     return (
@@ -156,7 +174,7 @@ export function LandingPage({
         </p>
       </header>
 
-      <Readiness status={state === "unreachable" ? null : status} />
+      <Readiness status={state === "unreachable" ? null : status} checkedAt={checkedAt} />
       <DemoReceipt changes={changes} />
 
       <nav aria-label="Explore" className="flex flex-wrap gap-3">
