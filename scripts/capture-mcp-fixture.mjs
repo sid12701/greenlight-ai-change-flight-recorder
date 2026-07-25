@@ -13,12 +13,12 @@
  * Required environment:
  *   SIGNOZ_MCP_URL     streamable-HTTP endpoint of the SigNoz MCP server
  *   SIGNOZ_API_KEY     service-account key the server authenticates with
- *   BAD_SHA            candidate service.version under investigation
- *   LMS_BASELINE_SHA   baseline service.version to compare against
+ *   CANDIDATE_SHA      candidate service.version under investigation
+ *   BASELINE_SHA       baseline service.version to compare against
  * Optional:
- *   MCP_SERVICE_NAME       (default lms-backend)
+ *   MCP_SERVICE_NAME       (default blnk-loan-workload)
  *   MCP_ENVIRONMENT_NAME   (default hackathon-demo)
- *   LMS_DEMO_ROUTE         (default /api/v1/internal/home/overview)
+ *   MCP_ROUTE              (default /balances)
  *   MCP_WINDOW_MINUTES     (default 120)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -50,11 +50,11 @@ function required(name) {
 
 const mcpUrl = required("SIGNOZ_MCP_URL");
 const apiKey = required("SIGNOZ_API_KEY");
-const candidateVersion = required("BAD_SHA");
-const baselineVersion = required("LMS_BASELINE_SHA");
-const serviceName = process.env.MCP_SERVICE_NAME ?? "lms-backend";
+const candidateVersion = required("CANDIDATE_SHA");
+const baselineVersion = required("BASELINE_SHA");
+const serviceName = process.env.MCP_SERVICE_NAME ?? "blnk-loan-workload";
 const environmentName = process.env.MCP_ENVIRONMENT_NAME ?? "hackathon-demo";
-const route = process.env.LMS_DEMO_ROUTE ?? "/api/v1/internal/home/overview";
+const route = process.env.MCP_ROUTE ?? "/balances";
 const windowMinutes = Number(process.env.MCP_WINDOW_MINUTES ?? 120);
 
 const end = Date.now();
