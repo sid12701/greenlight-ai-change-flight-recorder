@@ -46,6 +46,15 @@ export const DeploymentBodySchema = z.object({
   role: z.enum(["baseline", "candidate", "recovery"]),
   status: z.enum(["started", "succeeded", "failed"]),
   deployedAt: IsoDateTimeSchema,
+  /**
+   * Retire the active baseline and make this one the baseline new comparisons
+   * resolve to.
+   *
+   * Opt-in, because re-baselining changes what every future verdict is measured
+   * against. Without it a second baseline is still refused, so an accidental
+   * repeat cannot silently move the reference point.
+   */
+  supersedeBaseline: z.boolean().optional(),
 }).strict();
 
 export const EvaluationBodySchema = z.object({

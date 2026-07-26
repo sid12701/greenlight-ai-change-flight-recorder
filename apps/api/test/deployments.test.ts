@@ -240,4 +240,89 @@ describe("deployment routes", () => {
     expect(spans[0].resource.attributes["service.version"]).toBe("d".repeat(40));
     expect(spans[0].resource.attributes["deployment.environment.name"]).toBe("hackathon-demo");
   });
+
+  describe("re-baselining", () => {
+    function baselineService(repos: Repositories, healthy = true) {
+      return new DeploymentService(
+        repos,
+        async () => healthy,
+        async () => true,
+        undefined,
+        { allowedHealthOrigins: ["http://workload.test:9081"] },
+      );
+    }
+
+    const baseline = (idempotencyKey: string, extra: Record<string, unknown> = {}) => ({
+      repository: "demo/workload",
+      commitSha: "d".repeat(40),
+      serviceName: "blnk-loan-workload",
+      environmentName: "hackathon-demo",
+      route: "/api/v1/internal/home/overview",
+      healthUrl: "http://workload.test:9081/actuator/health",
+      imageDigest: `sha256:${"a".repeat(64)}`,
+      idempotencyKey,
+      provider: "test",
+      role: "baseline" as const,
+      status: "succeeded" as const,
+      deployedAt: "2026-07-23T12:00:00.000Z",
+      ...extra,
+    });
+
+    // The default is unchanged: an accidental repeat must not move the point
+    // every future verdict is measured against.
+    it("still refuses a second baseline that does not ask to replace the first", async () => {
+      const repos = await seed();
+      const service = baselineService(repos);
+      await service.recordDeployment(baseline("baseline-first"));
+      await expect(service.recordDeployment(baseline("baseline-second")))
+        .rejects.toThrow(/already exists/);
+      const active = await repos.listBaselineDeployments("blnk-loan-workload", "hackathon-demo");
+      expect(active).toHaveLength(1);
+    });
+
+    it("retires the previous baseline when asked, and resolves to the new one", async () => {
+      const repos = await seed();
+      const service = baselineService(repos);
+      const first = await service.recordDeployment(baseline("baseline-first"));
+      const second = await service.recordDeployment(
+        baseline("baseline-second", { supersedeBaseline: true }),
+      );
+
+      const active = await repos.listBaselineDeployments("blnk-loan-workload", "hackathon-demo");
+      expect(active.map((row) => row.id)).toEqual([second.deploymentId]);
+
+      // Retired, not deleted: an evaluation citing it is still explainable
+      // with the baseline it was actually measured against.
+      const retired = await repos.getDeploymentById(first.deploymentId);
+      expect(retired?.superseded_at).toEqual(expect.any(String));
+      expect(retired?.role).toBe("baseline");
+    });
+
+    // A replacement that never proved healthy must not leave the service with
+    // no baseline at all.
+    it("keeps the existing baseline active when the replacement fails", async () => {
+      const repos = await seed();
+      const first = await baselineService(repos).recordDeployment(baseline("baseline-first"));
+
+      await expect(
+        baselineService(repos, false).recordDeployment(
+          baseline("baseline-doomed", { supersedeBaseline: true }),
+        ),
+      ).rejects.toThrow(/health check failed/);
+
+      const active = await repos.listBaselineDeployments("blnk-loan-workload", "hackathon-demo");
+      expect(active.map((row) => row.id)).toEqual([first.deploymentId]);
+    });
+
+    it("ignores the flag for roles that are not baselines", async () => {
+      const repos = await seed();
+      const service = baselineService(repos);
+      const first = await service.recordDeployment(baseline("baseline-first"));
+      await service.recordDeployment(
+        baseline("candidate-one", { role: "candidate", supersedeBaseline: true }),
+      );
+      const active = await repos.listBaselineDeployments("blnk-loan-workload", "hackathon-demo");
+      expect(active.map((row) => row.id)).toEqual([first.deploymentId]);
+    });
+  });
 });

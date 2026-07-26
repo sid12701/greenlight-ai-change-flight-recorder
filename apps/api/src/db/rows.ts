@@ -77,6 +77,11 @@ export interface DeploymentRow {
   version_state?: "pending" | "verified" | "failed";
   trace_state?: "pending" | "exported" | "verified" | "failed";
   verification_error?: string | null;
+  /**
+   * When this baseline stopped being the one new comparisons resolve to.
+   * `null` on every candidate and recovery, and on the active baseline.
+   */
+  superseded_at?: string | null;
   created_at: string;
 }
 

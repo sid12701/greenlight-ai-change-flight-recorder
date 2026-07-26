@@ -20,6 +20,8 @@ export interface RecordDeploymentInput {
   role: "baseline" | "candidate" | "recovery";
   status: "started" | "succeeded" | "failed";
   deployedAt: string;
+  /** Retire the active baseline in favour of this one. Baselines only. */
+  supersedeBaseline?: boolean;
 }
 
 export interface DeploymentServiceOptions {
@@ -73,12 +75,21 @@ export class DeploymentService {
 
     const change = await this.resolveChange(input.commitSha);
 
-    if (input.role === "baseline" && input.status === "succeeded") {
+    // Re-baselining moves the reference point every future verdict is measured
+    // against, so it is refused unless the caller asked for it. The retirement
+    // itself happens with the insert below, once this deployment has proved
+    // healthy — a replacement that never became visible must not leave the
+    // service with no active baseline at all.
+    const supersedesBaseline = input.role === "baseline" &&
+      input.status === "succeeded" &&
+      input.supersedeBaseline === true;
+    if (input.role === "baseline" && input.status === "succeeded" && !supersedesBaseline) {
       const existing = await this.repos.getBaselineDeployment(input.serviceName, input.environmentName);
       if (existing) {
         throw new ConflictError(
           "baseline_already_frozen",
-          "A baseline deployment already exists for this service and environment",
+          "A baseline deployment already exists for this service and environment; " +
+          "resend with supersedeBaseline to retire it and measure against this one instead",
         );
       }
     }
@@ -115,26 +126,39 @@ export class DeploymentService {
 
     const trace = await this.emitTrace(input, deploymentId);
 
-    await this.repos.insertDeployment({
-      id: deploymentId,
-      change_id: change.id,
-      service_name: input.serviceName,
-      environment_name: input.environmentName,
-      role: input.role,
-      status: input.status,
-      deployed_at: input.deployedAt,
-      emitted_trace_id: trace.traceId,
-      provider: input.provider,
-      idempotency_key: input.idempotencyKey,
-      health_url: input.healthUrl,
-      route: input.route,
-      image_digest: input.imageDigest,
-      readiness_at: readinessAt,
-      evaluation_not_before: evaluationNotBefore,
-      version_state: versionState,
-      trace_state: trace.state,
-      verification_error: trace.error,
-      created_at: new Date(this.now()).toISOString(),
+    // Retirement and replacement are one unit of work: the partial unique index
+    // permits a single active baseline, so doing them apart could either leave
+    // two active or, if the insert failed, none.
+    await this.repos.transaction(async (tx) => {
+      if (supersedesBaseline) {
+        await tx.supersedeBaselineDeployments(
+          input.serviceName,
+          input.environmentName,
+          new Date(this.now()).toISOString(),
+        );
+      }
+      await tx.insertDeployment({
+        id: deploymentId,
+        change_id: change.id,
+        service_name: input.serviceName,
+        environment_name: input.environmentName,
+        role: input.role,
+        status: input.status,
+        deployed_at: input.deployedAt,
+        emitted_trace_id: trace.traceId,
+        provider: input.provider,
+        idempotency_key: input.idempotencyKey,
+        health_url: input.healthUrl,
+        route: input.route,
+        image_digest: input.imageDigest,
+        readiness_at: readinessAt,
+        evaluation_not_before: evaluationNotBefore,
+        version_state: versionState,
+        trace_state: trace.state,
+        verification_error: trace.error,
+        superseded_at: null,
+        created_at: new Date(this.now()).toISOString(),
+      });
     });
 
     return {

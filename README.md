@@ -356,6 +356,14 @@ To point it at your own service:
    `GREENLIGHT_MIN_SPANS` (default 200) is the floor below which a window is
    reported as `insufficient_data` rather than being decided on thin evidence.
 
+A baseline is frozen so that verdicts citing it cannot drift, but it is not
+permanent. When your service legitimately changes what "normal" means, record a
+new baseline with `"supersedeBaseline": true` — the previous one is retired
+rather than deleted, so older receipts still explain themselves with the
+baseline they were measured against. Without that flag a second baseline is
+refused, so a repeat cannot silently move the reference point. See
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#replacing-the-baseline).
+
 When one workflow produces several runs for a commit — which
 `on: [push, pull_request]` does on any branch with an open pull request — the
 most recently updated run is reported as primary and the rest are kept as

@@ -139,3 +139,36 @@ frozen baseline and every span in SigNoz are left alone: a baseline is the
 yardstick later verdicts are measured against, and re-freezing it would silently
 move it. Re-recording therefore reuses the existing baseline rather than
 capturing a new one.
+
+### Replacing the baseline
+
+A baseline is frozen, not permanent. When the service legitimately changes what
+"normal" means — a larger instance, a major release, a different traffic shape —
+every later comparison against the old yardstick is measuring the wrong thing.
+
+Record the new baseline with `supersedeBaseline`:
+
+```jsonc
+POST /api/v1/deployments
+{
+  "role": "baseline",
+  "status": "succeeded",
+  "supersedeBaseline": true,
+  // ...the usual deployment fields
+}
+```
+
+The previous baseline is retired and the new one becomes what fresh comparisons
+resolve to. Two properties make this safe to run against real history:
+
+- **Retired, not deleted.** The old row and its snapshot stay, so an evaluation
+  that cites them is still explainable with the baseline it was actually
+  measured against — including an open incident, whose recovery is still
+  compared against the baseline its regression was found with.
+- **Atomic.** Retirement and replacement share one transaction, and a partial
+  unique index permits exactly one active baseline per service and environment.
+  A replacement that fails its health check or never becomes visible in SigNoz
+  leaves the existing baseline active.
+
+Without the flag a second baseline is still refused, so an accidental repeat
+cannot move the reference point.

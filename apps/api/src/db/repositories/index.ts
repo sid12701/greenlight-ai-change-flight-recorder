@@ -175,17 +175,21 @@ export class Repositories {
       version_state: input.version_state ?? "pending",
       trace_state: input.trace_state ?? "pending",
       verification_error: input.verification_error ?? null,
+      superseded_at: input.superseded_at ?? null,
     };
+    // `superseded_at` is deliberately absent from the conflict update: replaying
+    // a delivery of a deployment that has since been retired must not quietly
+    // make it active again.
     await this.driver.run(`INSERT INTO deployments (
           id, change_id, service_name, environment_name, role, status, deployed_at,
           emitted_trace_id, provider, idempotency_key, health_url, route, image_digest,
           readiness_at, evaluation_not_before, version_state, trace_state,
-          verification_error, created_at
+          verification_error, superseded_at, created_at
         ) VALUES (
           :id, :change_id, :service_name, :environment_name, :role, :status, :deployed_at,
           :emitted_trace_id, :provider, :idempotency_key, :health_url, :route, :image_digest,
           :readiness_at, :evaluation_not_before, :version_state, :trace_state,
-          :verification_error, :created_at
+          :verification_error, :superseded_at, :created_at
         )
         ON CONFLICT(provider, idempotency_key) WHERE idempotency_key IS NOT NULL DO UPDATE SET
           status = excluded.status,
@@ -317,14 +321,42 @@ export class Repositories {
   }
 
   /**
-   * Resolves the frozen baseline for a service/environment through an indexed
+   * Resolves the *active* baseline for a service/environment through an indexed
    * lookup rather than scanning every deployment in the table.
+   *
+   * Retired baselines are excluded here but never deleted: an evaluation that
+   * cites one is still read by id, so an old verdict stays explainable with the
+   * baseline it was actually measured against.
    */
   async listBaselineDeployments(serviceName: string, environmentName: string): Promise<DeploymentRow[]> {
     return this.driver.all<DeploymentRow>(`SELECT * FROM deployments
          WHERE service_name = :p1 AND environment_name = :p2
            AND role = 'baseline' AND status = 'succeeded'
+           AND superseded_at IS NULL
          ORDER BY deployed_at ASC`, { p1: serviceName, p2: environmentName });
+  }
+
+  /**
+   * Retires whichever baseline is currently active for a service/environment.
+   *
+   * A no-op when none is active, so the caller does not have to look first —
+   * and, run inside the same transaction as the replacement's insert, the
+   * partial unique index makes the swap atomic.
+   */
+  async supersedeBaselineDeployments(
+    serviceName: string,
+    environmentName: string,
+    supersededAt: string,
+  ): Promise<void> {
+    await this.driver.run(`UPDATE deployments
+         SET superseded_at = :p3
+         WHERE service_name = :p1 AND environment_name = :p2
+           AND role = 'baseline' AND status = 'succeeded'
+           AND superseded_at IS NULL`, {
+      p1: serviceName,
+      p2: environmentName,
+      p3: supersededAt,
+    });
   }
 
   async getRepositoryByOwnerName(owner: string, name: string): Promise<RepositoryRow | undefined> {
@@ -365,6 +397,7 @@ export class Repositories {
     return this.driver.get<DeploymentRow>(`SELECT * FROM deployments
          WHERE service_name = :p1 AND environment_name = :p2
            AND role = 'baseline' AND status = 'succeeded'
+           AND superseded_at IS NULL
          ORDER BY deployed_at ASC LIMIT 1`, { p1: serviceName, p2: environmentName });
   }
 
