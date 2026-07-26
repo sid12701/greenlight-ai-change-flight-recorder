@@ -341,15 +341,27 @@ To point it at your own service:
    `GREENLIGHT_PRIMARY_WORKFLOW_NAME` to the workflow whose run counts as that
    commit's CI result, and `GREENLIGHT_DEMO_BRANCH` if it is not `main`. Add a
    read-only `GITHUB_TOKEN` for a private repository.
-3. **Record deployments.** `POST /api/v1/deployments` with a `deploy` scoped key
+3. **Allow your health-check origin.** `GREENLIGHT_HEALTH_ALLOWED_ORIGINS` must
+   contain the origin of the `healthUrl` you post with a deployment, or the API
+   rejects it. The check runs *inside the API container*, so the origin has to
+   be one that container can reach — `http://host.docker.internal:<port>` for a
+   service on the Docker host, not `http://127.0.0.1:<port>`.
+4. **Record deployments.** `POST /api/v1/deployments` with a `deploy` scoped key
    when you ship. `scripts/lib/demo-runtime.mjs` is a worked example of the call.
-4. **Re-point the dashboard.** `signoz/dashboards/deployment-impact.json` ships
+5. **Re-point the dashboard.** `signoz/dashboards/deployment-impact.json` ships
    with the recorded demo's service and version as its variable defaults. Edit
    them, or change them in the SigNoz UI after import, or the dashboard opens on
    a version with no telemetry in your instance.
-5. **Tune the windows** if your traffic is lighter than the demo's:
+6. **Tune the windows** if your traffic is lighter than the demo's:
    `GREENLIGHT_MIN_SPANS` (default 200) is the floor below which a window is
    reported as `insufficient_data` rather than being decided on thin evidence.
+
+When one workflow produces several runs for a commit — which
+`on: [push, pull_request]` does on any branch with an open pull request — the
+most recently updated run is reported as primary and the rest are kept as
+related context. If two *different* workflows share the configured name, that is
+a genuine ambiguity and the sync fails until you set
+`GREENLIGHT_PRIMARY_WORKFLOW_ID` to the one you mean.
 
 The demo scripts (`demo:chain`, `demo:dependency-failure`) are written around
 Blnk specifically and will not drive a different workload unchanged; the API they

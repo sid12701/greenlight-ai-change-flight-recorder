@@ -164,4 +164,47 @@ describe("github sync", () => {
     expect(runs.every((run) => run.export_state === "verified")).toBe(true);
     expect(verified).toHaveLength(2);
   });
+
+  // A workflow declaring `on: [push, pull_request]` produces two runs for one
+  // commit on any branch with an open pull request. Refusing to pick between
+  // them rejected the commit outright, so the change was never recorded and no
+  // receipt existed — on a configuration most repositories use.
+  it("syncs a commit whose primary workflow ran twice, taking the later run", async () => {
+    const repos = createRepos();
+    const pushRun = { ...fixture.workflowRun, workflow_id: 42 };
+    const pullRequestRun = {
+      ...fixture.workflowRun,
+      workflow_id: 42,
+      id: fixture.workflowRun.id + 1,
+      updated_at: "2026-07-23T11:30:00Z",
+    };
+    const github = {
+      getWorkflowRun: async (runId: number) =>
+        runId === pushRun.id ? pushRun : pullRequestRun,
+      getWorkflowJobs: async () => fixture.jobs,
+      getCommit: async () => ({
+        sha: fixture.workflowRun.head_sha,
+        commit: {
+          message: "chore: a commit whose workflow triggered twice",
+          author: { date: "2026-07-23T10:00:00.000Z" },
+        },
+      }),
+    } as unknown as GitHubClient;
+
+    const result = await syncWorkflowRuns({
+      repos,
+      github,
+      repository: "demo/workload",
+      runIds: [pushRun.id, pullRequestRun.id],
+      primaryWorkflowName: "Backend CI",
+      verifyExport: async () => true,
+    });
+
+    const runs = await repos.getPipelineRunsForChange(result[0].changeId);
+    // Both runs are kept; only which one is reported as primary is decided.
+    expect(runs).toHaveLength(2);
+    const primary = runs.filter((run) => run.is_primary === 1);
+    expect(primary).toHaveLength(1);
+    expect(primary[0].provider_run_id).toBe(String(pullRequestRun.id));
+  });
 });

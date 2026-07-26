@@ -220,6 +220,7 @@ export async function syncWorkflowRuns(
         providerRunId: normalized.providerRunId,
         workflowName: normalized.workflowName,
         workflowId: normalized.workflowId,
+        updatedAtMs: normalized.updatedAtMs,
         isPrimary: false,
       })),
       input.primaryWorkflowName,

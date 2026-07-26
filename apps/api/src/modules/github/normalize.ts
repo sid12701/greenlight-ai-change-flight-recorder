@@ -34,6 +34,11 @@ export interface NormalizedWorkflowRun {
   startedAtMs: number | null;
   completedAtMs: number | null;
   durationMs: number | null;
+  /**
+   * When GitHub last touched the run. Carried because it is the only field
+   * that orders two runs of the same workflow for one commit.
+   */
+  updatedAtMs: number | null;
   jobs: NormalizedJob[];
 }
 
@@ -126,6 +131,7 @@ export function normalizeWorkflowRun(
     startedAtMs,
     completedAtMs,
     durationMs: durationMs(startedAtMs, completedAtMs),
+    updatedAtMs: parseGitHubTimestamp(run.updated_at),
     jobs: normalizedJobs,
   };
 }
