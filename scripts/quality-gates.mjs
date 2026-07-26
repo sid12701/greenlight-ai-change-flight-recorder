@@ -51,12 +51,8 @@ const CREDENTIAL_PATTERNS = [
   /AKIA[0-9A-Z]{16}/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ];
-// Files that legitimately contain credential *patterns* rather than
-// credentials: the scanners themselves, and audit documents that quote them.
+// The scanners themselves necessarily contain the patterns they search for.
 const CREDENTIAL_ALLOWLIST = new Set([
-  "docs/EVIDENCE_LOG.md",
-  "docs/REMEDIATION_TRACKER.md",
-  "planning/archive/remediation-list.md",
   "scripts/quality-gates.mjs",
   "scripts/validate-config-contract.mjs",
 ]);

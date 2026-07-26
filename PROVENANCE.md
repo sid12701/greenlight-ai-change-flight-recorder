@@ -5,8 +5,6 @@
 - Blnk and its existing financial-ledger functionality, fetched from the public
   `blnkfinance/blnk` repository at Apache-2.0 release `v0.15.1`, commit
   `c8fce93af4df6b1edb46ca97e570c55beff4cef9`.
-- Any generic test harness or reusable tool created before the hackathon must be listed here only after its actual creation date is verified.
-
 Blnk is a monitored third-party workload. It is not presented as
 hackathon-built GreenLight functionality. Selection, reproducible integration,
 hardening, synthetic seed/load tooling, and SigNoz wiring are GreenLight work.
@@ -25,11 +23,13 @@ The following are GreenLight work:
 - Change Receipt API and web interface.
 - Demo automation, soft reset, and reproducibility documentation.
 
-## GL-P2-T04 trace-linked commit
+## Claude-to-commit linkage
 
-The immutable GreenLight proof commit for Claude→CI linkage will be documented
-in `docs/EVIDENCE_LOG.md`. Until the manual Claude Code capture is performed in
-the public submission repository, status remains `pending_manual_capture`.
+No commit in the recorded chain carries a resolvable Claude Code session span,
+because the recorded commits were not authored in a session exporting telemetry
+to SigNoz. Receipts report that link as `missing` rather than implying one.
+[`docs/AI_LINK.md`](docs/AI_LINK.md) is the procedure for producing a verified
+link, and `npm run ai-link:verify` reports which of the four links is unarmed.
 
 ## AI assistance
 

@@ -20,14 +20,14 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const OUTPUT = join(ROOT, "audit", "screenshots");
+const OUTPUT = join(ROOT, "artifacts", "screenshots");
 const BASE_URL = process.env.DEMO_BASE_URL ?? "http://127.0.0.1:4173";
 const COMMIT_SHA = process.argv[2] ?? "2fa6e2861eabf162a26af0d0ef012124865811df";
 
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 
-/** The shots the narration in docs/VIDEO_SCRIPT.md walks through, in order. */
+/** The shots the demo narration walks through, in order. */
 const SHOTS = [
   { name: "01-landing", path: "/", viewport: DESKTOP, waitFor: "text=System readiness" },
   { name: "02-change-list", path: "/changes", viewport: DESKTOP, waitFor: "h1" },
@@ -77,5 +77,5 @@ if (failures.length > 0) {
   console.error("capture-demo-assets: incomplete\n  " + failures.join("\n  "));
   process.exitCode = 1;
 } else {
-  console.log(`capture-demo-assets: ${SHOTS.length} assets written to audit/screenshots`);
+  console.log(`capture-demo-assets: ${SHOTS.length} assets written to ${OUTPUT}`);
 }
