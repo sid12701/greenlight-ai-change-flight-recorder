@@ -3,7 +3,7 @@
   "name": "greenlight-self-observability",
   "spec": {
     "display": {
-      "name": "GreenLight — Self Observability",
+      "name": "GreenLight \u2014 Self Observability",
       "description": "GreenLight's own API and worker telemetry: request volume, latency, errors and background job outcomes."
     },
     "variables": [],
@@ -213,6 +213,50 @@
             }
           ]
         }
+      },
+      "verdicts-by-status": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Regression verdicts by status",
+            "description": "greenlight.regression.verdicts \u2014 every verdict GreenLight has persisted, by what it decided. A decision is not a request, so traces cannot answer this."
+          },
+          "unit": "short",
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "disabled": false,
+                    "aggregations": [
+                      {
+                        "metricName": "greenlight.regression.verdicts",
+                        "temporality": "Cumulative",
+                        "timeAggregation": "increase",
+                        "spaceAggregation": "sum"
+                      }
+                    ],
+                    "groupBy": [
+                      {
+                        "name": "status",
+                        "fieldDataType": "string",
+                        "fieldContext": "attribute"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "duration": "1h",
@@ -265,6 +309,15 @@
               "height": 6,
               "content": {
                 "$ref": "#/spec/panels/worker-failures"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/verdicts-by-status"
               }
             }
           ]

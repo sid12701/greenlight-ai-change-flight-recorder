@@ -156,11 +156,19 @@ export function validateDashboard({ file, payload }) {
         if (!field.name || !field.fieldDataType) {
           fail(file, `${where} query ${index} groupBy ${groupIndex}: name and fieldDataType are required`);
         }
-        if (!["resource", "span"].includes(field.fieldContext)) {
+        // Trace and log panels group by a resource or span field. Metric panels
+        // group by a metric attribute, which is a third context; allowing
+        // "attribute" everywhere would let a trace panel declare a context the
+        // v5 UI cannot render, so the signal decides which set is legal.
+        const contexts = spec.signal === "metrics"
+          ? ["attribute", "resource"]
+          : ["resource", "span"];
+        if (!contexts.includes(field.fieldContext)) {
           fail(
             file,
             `${where} query ${index} groupBy ${groupIndex}: ` +
-            `fieldContext must be "resource" or "span" for the v5 UI`,
+            `fieldContext must be ${contexts.map((c) => `"${c}"`).join(" or ")} ` +
+            `for a ${spec.signal} panel in the v5 UI`,
           );
         }
       }
@@ -201,6 +209,10 @@ function expandVariables(file, expression, variables) {
 const LEGACY_FIELD_CONTEXTS = new Map([
   ["resource", "resource"],
   ["span", "tag"],
+  // A metric attribute is a tag to the legacy panel renderer, the same as a
+  // span attribute. Without this the compiled group-by key is `undefined` and
+  // the panel renders one unlabelled series instead of one per attribute value.
+  ["attribute", "tag"],
 ]);
 
 function groupByField(spec, field) {

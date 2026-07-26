@@ -224,11 +224,51 @@ test("dashboard compilation rejects obsolete trace group contexts", () => {
   const groupBy =
     asset.payload.spec.panels["deployment-markers"].spec.queries[0]
       .spec.plugin.spec.groupBy[0];
+  // "attribute" is the metric context. On a trace panel it is still wrong, and
+  // has to stay wrong now that metric panels accept it.
   groupBy.fieldContext = "attribute";
 
   assert.throws(
     () => compileDashboard(asset),
-    /fieldContext must be "resource" or "span" for the v5 UI/,
+    /fieldContext must be "resource" or "span" for a traces panel/,
+  );
+});
+
+test("a metric panel may group by a metric attribute", () => {
+  const asset = dashboardAsset();
+  const spec =
+    asset.payload.spec.panels["deployment-markers"].spec.queries[0].spec.plugin.spec;
+  spec.signal = "metrics";
+  spec.aggregations = [{
+    metricName: "greenlight.regression.verdicts",
+    temporality: "Cumulative",
+    timeAggregation: "increase",
+    spaceAggregation: "sum",
+  }];
+  spec.groupBy[0].fieldContext = "attribute";
+
+  const compiled = compileDashboard(asset);
+  const grouped = compiled.widgets
+    .flatMap((widget) => widget.query.builder.queryData)
+    .flatMap((query) => query.groupBy ?? []);
+  const attribute = grouped.find((field) => field.signal === "metrics");
+
+  // The legacy renderer reads `type` and `key`; an unmapped context leaves both
+  // undefined and the panel collapses to a single unlabelled series.
+  assert.equal(attribute.type, "tag");
+  assert.equal(attribute.key, attribute.name);
+});
+
+test("a span context is still refused on a metric panel", () => {
+  const asset = dashboardAsset();
+  const spec =
+    asset.payload.spec.panels["deployment-markers"].spec.queries[0].spec.plugin.spec;
+  spec.signal = "metrics";
+  spec.groupBy[0].fieldContext = "span";
+
+  assert.throws(
+    () => compileDashboard(asset),
+    /fieldContext must be "attribute" or "resource" for a metrics panel/,
   );
 });
 
