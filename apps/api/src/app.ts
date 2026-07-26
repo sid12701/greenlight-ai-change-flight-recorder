@@ -274,15 +274,21 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
     const deploymentsByChange = new Map(
       changes.map((change, index) => [change.id, deployments[index]]),
     );
-    const evaluationsByDeployment = new Map();
-    for (const deployments of deploymentsByChange.values()) {
-      for (const deployment of deployments) {
-        const evaluation = await repos.getLatestEvaluationForDeployment(deployment.id);
-        if (evaluation) {
-          evaluationsByDeployment.set(deployment.id, evaluation);
-        }
-      }
-    }
+    // A summary reports the most recent deployment only, so only those
+    // deployments' verdicts are read — and they are read concurrently, because
+    // one query per deployment in series is what makes this list slow.
+    const summarised = deployments
+      .map((forChange) => forChange[0])
+      .filter((deployment) => deployment !== undefined);
+    const evaluations = await Promise.all(
+      summarised.map((deployment) => repos.getLatestEvaluationForDeployment(deployment.id)),
+    );
+    const evaluationsByDeployment = new Map(
+      summarised.flatMap((deployment, index) => {
+        const evaluation = evaluations[index];
+        return evaluation ? [[deployment.id, evaluation] as const] : [];
+      }),
+    );
     return {
       changes: listChangeSummaries(
         changes,

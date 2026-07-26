@@ -1,4 +1,5 @@
 import type { SqlDriver } from "../driver.js";
+import type { SqlParameters } from "../sql.js";
 import { SqliteDriver } from "../sqlite-driver.js";
 
 export * from "../rows.js";
@@ -14,6 +15,18 @@ import type {
   RegressionIncidentRow,
   RepositoryRow,
 } from "../rows.js";
+
+/**
+ * Narrows a row to the flat bag of bindable scalars a driver takes.
+ *
+ * Row types declare optional and union-typed fields that TypeScript cannot
+ * see through to `SqlParameters`, and every caller normalises those fields to
+ * `null` before binding. The assertion therefore belongs in one named place
+ * rather than being restated at each statement, where it would bury the SQL.
+ */
+function bindings(row: object): SqlParameters {
+  return row as SqlParameters;
+}
 
 /**
  * Every rule about how GreenLight's rows relate, expressed once.
@@ -58,7 +71,7 @@ export class Repositories {
     await this.driver.run(`INSERT INTO repositories (id, provider, owner, name, default_branch, created_at)
          VALUES (:id, :provider, :owner, :name, :default_branch, :created_at)
          ON CONFLICT(provider, owner, name) DO UPDATE SET
-           default_branch = excluded.default_branch`, { ...input, created_at: createdAt } as Record<string, string | number | null>);
+           default_branch = excluded.default_branch`, bindings({ ...input, created_at: createdAt }));
   }
 
   async upsertChange(input: ChangeRow) {
@@ -96,7 +109,7 @@ export class Repositories {
           changed_files_count = excluded.changed_files_count,
           additions = excluded.additions,
           deletions = excluded.deletions,
-          changed_paths_json = excluded.changed_paths_json`, enriched as unknown as Record<string, string | number | null>);
+          changed_paths_json = excluded.changed_paths_json`, bindings(enriched));
   }
 
   async upsertPipelineRun(input: PipelineRunRow) {
@@ -130,7 +143,7 @@ export class Repositories {
           export_state = excluded.export_state,
           export_error = excluded.export_error,
           verified_at = excluded.verified_at,
-          synced_at = excluded.synced_at`, enriched as unknown as Record<string, string | number | null>);
+          synced_at = excluded.synced_at`, bindings(enriched));
   }
 
   async updatePipelineExport(input: {
@@ -182,7 +195,7 @@ export class Repositories {
           evaluation_not_before = COALESCE(excluded.evaluation_not_before, deployments.evaluation_not_before),
           version_state = excluded.version_state,
           trace_state = excluded.trace_state,
-          verification_error = excluded.verification_error`, enriched as unknown as Record<string, string | number | null>);
+          verification_error = excluded.verification_error`, bindings(enriched));
   }
 
   async insertRegressionEvaluation(input: RegressionEvaluationRow) {
@@ -244,7 +257,7 @@ export class Repositories {
           policy_version = excluded.policy_version,
           integration_error_code = excluded.integration_error_code,
           signoz_dashboard_url = excluded.signoz_dashboard_url,
-          evaluated_at = excluded.evaluated_at`, enriched as unknown as Record<string, string | number | null>);
+          evaluated_at = excluded.evaluated_at`, bindings(enriched));
   }
 
   /**
@@ -280,12 +293,12 @@ export class Repositories {
          verification_state = excluded.verification_state,
          verified_at = excluded.verified_at`;
     for (const [index, link] of links.entries()) {
-      await this.driver.run(sql, {
+      await this.driver.run(sql, bindings({
         ...link,
         ordinal: link.ordinal ?? index,
         verification_state: link.verification_state ?? "pending",
         verified_at: link.verified_at ?? null,
-      } as unknown as Record<string, string | number | null>);
+      }));
     }
   }
 
@@ -382,7 +395,7 @@ export class Repositories {
         ON CONFLICT(candidate_deployment_id, route) DO UPDATE SET
           recovery_deployment_id = COALESCE(excluded.recovery_deployment_id, regression_incidents.recovery_deployment_id),
           status = excluded.status,
-          recovered_at = excluded.recovered_at`, input as unknown as Record<string, string | number | null>);
+          recovered_at = excluded.recovered_at`, bindings(input));
   }
 
   async getIncidentForCandidate(deploymentId: string, route?: string): Promise<RegressionIncidentRow | undefined> {
@@ -417,7 +430,7 @@ export class Repositories {
           :id, :deployment_id, :service_name, :service_version, :environment_name, :route,
           :window_start, :window_end, :request_count, :p90_ms, :p95_ms, :error_rate,
           :thresholds_json, :captured_at
-        )`, input as unknown as Record<string, string | number | null>);
+        )`, bindings(input));
   }
 
   async insertEvaluationWindow(input: EvaluationWindowRow) {
@@ -430,7 +443,7 @@ export class Repositories {
           :service_version, :environment_name, :route, :window_start, :window_end,
           :not_before, :created_at
         )
-        ON CONFLICT(deployment_id, kind, route) DO NOTHING`, input as unknown as Record<string, string | number | null>);
+        ON CONFLICT(deployment_id, kind, route) DO NOTHING`, bindings(input));
   }
 
   async getEvaluationWindow(

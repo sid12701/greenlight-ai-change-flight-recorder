@@ -26,11 +26,23 @@ export function formatDateTime(value: string): string {
     : "invalid date";
 }
 
-const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-  ["second", 1_000],
-  ["minute", 60_000],
-  ["hour", 3_600_000],
-  ["day", 86_400_000],
+/**
+ * Each unit with the span it covers before the next one takes over.
+ *
+ * The limit is per-unit rather than a fixed multiple of the scale: seconds and
+ * minutes give way after sixty, but hours give way after twenty-four. Using one
+ * multiple for all of them left evidence a day and a half old reading
+ * "36 hours ago", which is the one phrasing that answers nothing.
+ */
+const RELATIVE_UNITS: Array<{
+  unit: Intl.RelativeTimeFormatUnit;
+  scale: number;
+  limit: number;
+}> = [
+  { unit: "second", scale: 1_000, limit: 60_000 },
+  { unit: "minute", scale: 60_000, limit: 3_600_000 },
+  { unit: "hour", scale: 3_600_000, limit: 86_400_000 },
+  { unit: "day", scale: 86_400_000, limit: Number.POSITIVE_INFINITY },
 ];
 
 /**
@@ -47,15 +59,9 @@ export function formatRelativeTime(value: string, now: number = Date.now()): str
     return "invalid date";
   }
   const elapsed = timestamp - now;
-  const format = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  let unit: Intl.RelativeTimeFormatUnit = "day";
-  let scale = 86_400_000;
-  for (const [candidate, candidateScale] of RELATIVE_UNITS) {
-    if (Math.abs(elapsed) < candidateScale * 60 || candidate === "day") {
-      unit = candidate;
-      scale = candidateScale;
-      break;
-    }
-  }
-  return format.format(Math.round(elapsed / scale), unit);
+  const { unit, scale } = RELATIVE_UNITS.find(
+    (candidate) => Math.abs(elapsed) < candidate.limit,
+  ) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];
+  return new Intl.RelativeTimeFormat("en", { numeric: "auto" })
+    .format(Math.round(elapsed / scale), unit);
 }

@@ -6,7 +6,7 @@
  * worker is as debuggable as an HTTP handler. Trace context is attached
  * automatically, which is what makes a log line joinable to its span.
  */
-import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { logs, SeverityNumber, type LogAttributes } from "@opentelemetry/api-logs";
 import { trace } from "@opentelemetry/api";
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
@@ -89,7 +89,9 @@ export function createLogger(options: LoggerOptions): Logger {
       severityNumber: SEVERITY[record.level],
       severityText: record.level.toUpperCase(),
       body: record.message,
-      attributes: record.fields as Record<string, never>,
+      // Already redacted and depth-bounded by `redactFields`, which is what
+      // makes these values safe to hand to an exporter.
+      attributes: record.fields as LogAttributes,
     });
   });
 

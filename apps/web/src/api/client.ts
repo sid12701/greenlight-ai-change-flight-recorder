@@ -43,9 +43,9 @@ export class ApiError extends Error {
   }
 }
 
-/** The API returned 200 with a body that does not match the shared contract. */
+/** The API answered with a body that does not match the shared contract. */
 export class ResponseContractError extends Error {
-  constructor(readonly issues: z.ZodIssue[]) {
+  constructor(readonly issues: z.ZodIssue[] = []) {
     super("The API returned a response GreenLight does not recognise");
     this.name = "ResponseContractError";
   }
@@ -78,7 +78,18 @@ async function request<T>(
     throw ApiError.fromStatus(response.status);
   }
 
-  const parsed = schema.safeParse(await response.json());
+  // A proxy or a misrouted request answers 200 with HTML. That is the same
+  // class of fault as a body that parses but does not match the contract —
+  // the interface is talking to something other than this API — so it is
+  // reported as one, not as an unhandled SyntaxError.
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new ResponseContractError();
+  }
+
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     throw new ResponseContractError(parsed.error.issues);
   }

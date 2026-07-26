@@ -69,12 +69,15 @@ function deriveAiLinkStatus(parsed: ParsedAiTraceparent): AiLinkStatus {
   return isMissingTrailer(parsed) ? "missing" : "invalid";
 }
 
+/**
+ * Pure: the metric is recorded by the caller once the row is persisted, so the
+ * counter can never describe a change that a failed transaction rolled back.
+ */
 function deriveAiVerificationState(parsed: ParsedAiTraceparent, aiVerified: boolean) {
-  const state = parsed.ok
-    ? aiVerified ? "verified" : "unverified"
-    : isMissingTrailer(parsed) ? "missing" : "invalid";
-  recordAiVerificationState(state);
-  return state;
+  if (parsed.ok) {
+    return aiVerified ? "verified" : "unverified";
+  }
+  return isMissingTrailer(parsed) ? "missing" : "invalid";
 }
 
 export async function ensureChangeFromCommit(input: {
@@ -111,6 +114,7 @@ export async function ensureChangeFromCommit(input: {
   }
   const parsed = extractAiTraceparentFromMessage(commit.commit.message);
   const changeId = `chg_${input.commitSha.slice(0, 12)}`;
+  const aiVerificationState = deriveAiVerificationState(parsed, false);
   await input.repos.upsertChange({
     id: changeId,
     repository_id: repositoryId,
@@ -124,13 +128,14 @@ export async function ensureChangeFromCommit(input: {
     ai_span_id: parsed?.ok ? parsed.value.spanId : null,
     ai_trace_flags: parsed?.ok ? parsed.value.flags : null,
     ai_link_status: deriveAiLinkStatus(parsed),
-    ai_verification_state: deriveAiVerificationState(parsed, false),
+    ai_verification_state: aiVerificationState,
     changed_files_count: null,
     additions: null,
     deletions: null,
     changed_paths_json: null,
     created_at: new Date().toISOString(),
   });
+  recordAiVerificationState(aiVerificationState);
   return changeId;
 }
 
@@ -297,6 +302,7 @@ export async function syncWorkflowRuns(
         await tx.upsertPipelineRun(row);
       }
     });
+    recordAiVerificationState(changeRow.ai_verification_state);
 
     results.push({ changeId, commitSha, pipelineRunIds, warnings });
   }

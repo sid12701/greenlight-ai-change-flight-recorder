@@ -274,11 +274,12 @@ export async function getReceipt(
       : []),
     ...persistedEvaluationEvidence,
   ];
-  const deploymentVersion = candidateDeployment
-    ? (await repos.getChangeForDeployment(candidateDeployment.id))?.commit_sha
-    : deployments[0]
-      ? (await repos.getChangeForDeployment(deployments[0].id))?.commit_sha
-      : null;
+  // Every deployment here was selected by this change's id, so the version it
+  // deployed is this commit. The recovery deployment belongs to a different
+  // change, so that one is still resolved.
+  const deploymentVersion = (candidateDeployment ?? deployments[0])
+    ? change.commit_sha
+    : null;
   const recoveryVersion = recoveryDeployment
     ? (await repos.getChangeForDeployment(recoveryDeployment.id))?.commit_sha
     : null;

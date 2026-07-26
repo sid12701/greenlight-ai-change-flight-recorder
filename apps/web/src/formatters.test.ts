@@ -41,6 +41,16 @@ describe("relative time", () => {
     expect(formatRelativeTime("2026-07-22T12:00:00.000Z", now)).toBe("3 days ago");
   });
 
+  // Each unit gives way to the next at its own boundary. Promoting hours after
+  // sixty rather than twenty-four rendered day-old evidence as "36 hours ago",
+  // which does not answer whether the verdict is still current.
+  it("promotes each unit at its own boundary", () => {
+    expect(formatRelativeTime("2026-07-25T11:59:10.000Z", now)).toBe("50 seconds ago");
+    expect(formatRelativeTime("2026-07-25T11:00:00.000Z", now)).toBe("1 hour ago");
+    expect(formatRelativeTime("2026-07-24T00:00:00.000Z", now)).toBe("yesterday");
+    expect(formatRelativeTime("2026-07-24T00:01:00.000Z", now)).toBe("yesterday");
+  });
+
   it("reports an unparseable timestamp instead of rendering a plausible one", () => {
     expect(formatRelativeTime("not-a-date", now)).toBe("invalid date");
   });
