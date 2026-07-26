@@ -21,15 +21,39 @@ import { ROOT, readEnvFile } from "./lib/demo-runtime.mjs";
 
 const log = (message) => console.log(`verify-ai-link: ${message}`);
 
-/** Env vars Claude Code needs before it will export anything. */
-const REQUIRED_TELEMETRY_ENV = [
+/**
+ * Env vars Claude Code needs before it will export anything, split by whether
+ * the value survives into a tool subprocess.
+ *
+ * Claude Code strips OTEL_* from the environment it hands the commands it runs,
+ * so demanding them here cannot pass from inside a session — which is exactly
+ * where AI_LINK.md says to run this. The CLAUDE_CODE_* vars do survive, so they
+ * carry the check in that case, and `spans in SigNoz` is what actually proves
+ * the exporter is configured and delivering.
+ */
+const REQUIRED_SESSION_ENV = [
   ["CLAUDE_CODE_ENABLE_TELEMETRY", "1"],
   ["CLAUDE_CODE_PROPAGATE_TRACEPARENT", "1"],
+];
+
+const REQUIRED_EXPORTER_ENV = [
   ["OTEL_TRACES_EXPORTER", "otlp"],
   ["OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf"],
 ];
 
+/**
+ * Set only by the env template, and unlike OTEL_* it reaches subprocesses — so
+ * its presence is evidence the template was sourced even when the exporter
+ * settings cannot be read back.
+ */
+const TEMPLATE_MARKER = "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA";
+
 const ENV_TEMPLATE = "instrumentation/claude-code/env.example";
+
+/** True when this process was started by Claude Code as a tool subprocess. */
+function insideClaudeCodeSession() {
+  return Boolean(process.env.CLAUDE_CODE_SESSION_ID || process.env.CLAUDE_CODE_ENTRYPOINT);
+}
 
 function checkHookInstalled() {
   const hookPath = join(ROOT, ".git/hooks/prepare-commit-msg");
@@ -52,17 +76,45 @@ function checkHookInstalled() {
 }
 
 function checkTelemetryEnv() {
-  const missing = REQUIRED_TELEMETRY_ENV
+  const remedy = `source ${ENV_TEMPLATE} in the shell that runs Claude Code, then restart it`;
+  const missing = (pairs) => pairs
     .filter(([key, value]) => process.env[key] !== value)
     .map(([key, value]) => `${key}=${value}`);
-  if (missing.length > 0) {
+
+  const missingSession = missing(REQUIRED_SESSION_ENV);
+  if (missingSession.length > 0) {
+    return { ok: false, detail: `this shell is missing ${missingSession.join(", ")}`, remedy };
+  }
+
+  const missingExporter = missing(REQUIRED_EXPORTER_ENV);
+  if (missingExporter.length === 0) {
+    return { ok: true, detail: "Claude Code telemetry exports are set in this shell" };
+  }
+
+  // Absent OTEL_* means two different things depending on where this runs. In a
+  // plain shell the settings really are missing. In a tool subprocess they were
+  // stripped on the way in, and reporting that as a failure sends the operator
+  // to re-source a template that was already sourced.
+  if (insideClaudeCodeSession()) {
+    if (process.env[TEMPLATE_MARKER] === "1") {
+      return {
+        ok: true,
+        detail:
+          "the exporter settings are hidden from commands Claude Code runs, but " +
+          `${TEMPLATE_MARKER}=1 shows the template was sourced; ` +
+          "`spans in SigNoz` below is the proof the exporter is delivering",
+      };
+    }
     return {
       ok: false,
-      detail: `this shell is missing ${missing.join(", ")}`,
-      remedy: `source ${ENV_TEMPLATE} in the shell that runs Claude Code, then restart it`,
+      detail:
+        `the exporter settings are hidden from commands Claude Code runs and ${TEMPLATE_MARKER} ` +
+        "is unset, so the template was probably not sourced before Claude Code started",
+      remedy,
     };
   }
-  return { ok: true, detail: "Claude Code telemetry exports are set in this shell" };
+
+  return { ok: false, detail: `this shell is missing ${missingExporter.join(", ")}`, remedy };
 }
 
 function checkTraceparent() {

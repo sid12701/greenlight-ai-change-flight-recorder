@@ -73,10 +73,19 @@ AI-Traceparent: 00-<trace-id>-<span-id>-01
 **6. Sync the commit** so GreenLight reads the trailer and verifies the span.
 
 ```bash
+set -a && . ./.workloads/greenlight.env && set +a
 curl -sS -X POST http://127.0.0.1:4000/api/v1/github/sync-latest \
   -H "Authorization: Bearer $GREENLIGHT_ADMIN_TOKEN" \
-  -H 'Content-Type: application/json' -d '{"limit":5}'
+  -H 'Content-Type: application/json' -d '{"branch":"main"}'
 ```
+
+`GREENLIGHT_ADMIN_TOKEN` is generated into `.workloads/greenlight.env`, not
+`.env.demo` — sourcing the wrong one sends an empty bearer token and the call
+answers `unauthorized`. The body is validated strictly, so `branch`,
+`repository` and `primaryWorkflowName` are the only keys accepted.
+
+The sync records *completed* CI runs, so a commit pushed seconds earlier is not
+skipped but not yet visible: wait for its run to finish and call this again.
 
 The worker resolves the exact trace and span against
 `service.name = claude-code` within ±24h of the commit date. On success the
