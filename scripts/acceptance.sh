@@ -40,7 +40,7 @@ if [[ "${RUN_LIVE_ACCEPTANCE:-0}" != "1" ]]; then
 fi
 
 : "${BAD_SHA:?BAD_SHA is required for live acceptance}"
-: "${LMS_BASELINE_SHA:?LMS_BASELINE_SHA is required for live acceptance}"
+: "${BASELINE_SHA:?BASELINE_SHA is required for live acceptance}"
 : "${SIGNOZ_MCP_URL:?SIGNOZ_MCP_URL is required for live acceptance}"
 
 bash scripts/preflight.sh

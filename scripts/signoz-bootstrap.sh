@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap SigNoz first-time setup for local demo — GL-P1-T01
+# Bootstrap SigNoz first-time setup for the local demo.
 set -euo pipefail
 
 SIGNOZ_URL="${SIGNOZ_URL:-http://localhost:8080}"

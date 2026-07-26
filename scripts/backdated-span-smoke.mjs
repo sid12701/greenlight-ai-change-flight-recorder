@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OTLP HTTP/protobuf span smoke — GL-P1-T01
+ * OTLP HTTP/protobuf span smoke.
  */
 import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";

@@ -20,7 +20,7 @@ export default defineConfig({
         GREENLIGHT_ENV: "test",
         GREENLIGHT_ADMIN_TOKEN: "playwright-admin-token-0123456789",
         GITHUB_TOKEN: "playwright-github-token",
-        GITHUB_REPOSITORY: "demo/lms",
+        GITHUB_REPOSITORY: "demo/workload",
         SIGNOZ_API_KEY: "playwright-signoz",
         // Without an explicit path the API writes ./data/greenlight.db into
         // the workspace, where .gitignore does not cover it.

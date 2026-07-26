@@ -108,5 +108,5 @@ if [[ "$MODE" == "runtime" ]]; then
   pass "all demo runtime endpoints are healthy"
 fi
 
-pass "No private LMS checkout or repository credential is required"
+pass "No private workload checkout or repository credential is required"
 echo "preflight: all checks passed"

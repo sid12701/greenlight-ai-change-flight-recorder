@@ -5,6 +5,7 @@ node_modules
 coverage
 playwright-report
 test-results
+artifacts
 data
 pours
 instrumentation

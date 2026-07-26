@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SigNoz health smoke — GL-P1-T01
+# SigNoz health smoke.
 set -euo pipefail
 
 SIGNOZ_UI_URL="${SIGNOZ_URL:-http://localhost:8080}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end demo preflight — GL-P6-T03
+# End-to-end demo preflight.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

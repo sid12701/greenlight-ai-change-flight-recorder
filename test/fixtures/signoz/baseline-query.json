@@ -1,5 +1,5 @@
 {
-  "description": "Sanitized SigNoz Query Builder v5 baseline fixture — GL-P1-T03",
+  "description": "Sanitized SigNoz Query Builder v5 baseline fixture",
   "serviceName": "lms-backend",
   "serviceVersion": "2269d064f0be50e7f6485c0be38e3cdcef6137d2",
   "environmentName": "hackathon-demo",
