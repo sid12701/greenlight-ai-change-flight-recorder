@@ -2,7 +2,7 @@
   "project_name": "GreenLight Loan Ledger",
   "data_source": {
     "dns": "postgres://blnk:blnk-local-only@postgres:5432/blnk?sslmode=disable",
-    "max_open_conns": 20,
+    "max_open_conns": 1,
     "max_idle_conns": 5,
     "conn_max_lifetime": 1000000
   },
