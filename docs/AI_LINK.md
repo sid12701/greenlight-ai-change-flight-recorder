@@ -87,6 +87,13 @@ answers `unauthorized`. The body is validated strictly, so `branch`,
 The sync records *completed* CI runs, so a commit pushed seconds earlier is not
 skipped but not yet visible: wait for its run to finish and call this again.
 
+It re-walks the ten most recent commits (`"limit"` accepts 1–50), which matters
+in two cases. A push carrying several commits produces one workflow run — for
+the head — so earlier commits in that push are only picked up because the walk
+goes back. And verification is recomputed on every pass, so a commit whose
+spans reached SigNoz after its first sync moves from `unverified` to
+`verified` instead of keeping the answer it was given first.
+
 The worker resolves the exact trace and span against
 `service.name = claude-code` within ±24h of the commit date. On success the
 receipt reads **`AI link: verified`** and the landing page offers the change as a

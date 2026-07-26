@@ -321,6 +321,7 @@ export function buildJobProcessor(input: {
           branch: body.branch ?? config.GREENLIGHT_DEMO_BRANCH,
           primaryWorkflowName:
             body.primaryWorkflowName ?? config.GREENLIGHT_PRIMARY_WORKFLOW_NAME,
+          limit: body.limit,
         });
       }
       case "deployment_record":

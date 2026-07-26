@@ -322,6 +322,7 @@ export async function syncLatestWorkflowRuns(input: {
   exporterFactory?: () => SpanExporter;
   verifyExport?: SyncWorkflowRunsInput["verifyExport"];
   verifyAiSpan?: SyncWorkflowRunsInput["verifyAiSpan"];
+  limit?: number;
 }): Promise<SyncedChangeResult[]> {
   const response = await input.github.listWorkflowRuns({
     branch: input.branch,
@@ -336,11 +337,23 @@ export async function syncLatestWorkflowRuns(input: {
     throw new Error("No completed runs found for the configured primary workflow");
   }
 
-  const latestPrimary = [...primaryRuns].sort(
-    (a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at),
-  )[0];
+  /**
+   * Walks the most recent commits rather than only the newest one.
+   *
+   * Syncing a single commit left two gaps that presented identically on a
+   * receipt. A push carrying several commits produces one workflow run, for
+   * the head, so anything behind it was never recorded at all; and a commit
+   * whose spans reached SigNoz after its first sync kept the `unverified` it
+   * was given, because nothing ever looked at it again. Re-walking a window of
+   * recent commits closes both — verification is recomputed on every pass.
+   */
+  const recentShas = [...primaryRuns]
+    .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+    .slice(0, input.limit ?? 10)
+    .map((run) => run.head_sha);
+  const wanted = new Set(recentShas);
   const relatedRunIds = response.workflow_runs
-    .filter((run) => run.head_sha === latestPrimary.head_sha)
+    .filter((run) => wanted.has(run.head_sha))
     .map((run) => run.id);
 
   return syncWorkflowRuns({

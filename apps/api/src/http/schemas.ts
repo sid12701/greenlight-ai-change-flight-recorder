@@ -31,6 +31,8 @@ export const SyncLatestBodySchema = z.object({
   repository: RepositorySchema.optional(),
   branch: z.string().min(1).max(255).optional(),
   primaryWorkflowName: WorkflowNameSchema.optional(),
+  /** How many recent commits to re-walk; bounded so one call cannot sync the repo. */
+  limit: z.number().int().min(1).max(50).optional(),
 }).strict();
 
 export const DeploymentBodySchema = z.object({
