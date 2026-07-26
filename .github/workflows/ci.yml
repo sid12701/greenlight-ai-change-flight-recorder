@@ -31,6 +31,7 @@ jobs:
       - run: npm run quality
       - run: npm run validate:config
       - run: npm run validate:telemetry
+      - run: npm run validate:claude-telemetry
       - run: npm run validate:signoz-stack
       - run: npm run validate:signoz-assets
       - name: Validate the generated local demo topology

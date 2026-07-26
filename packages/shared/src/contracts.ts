@@ -62,6 +62,18 @@ export interface ChangeReceipt {
     additions: number | null;
     deletions: number | null;
   };
+  /**
+   * The coding session that produced the change, read back from its trace.
+   *
+   * Null when the change has no verified AI link, or when the trace store
+   * could not be reached — an unanswered question, never an empty session.
+   */
+  aiSession: {
+    sessionId: string | null;
+    prompts: Array<{ at: string; text: string }>;
+    /** False when the session ran with prompt export disabled. */
+    promptsRecorded: boolean;
+  } | null;
   pipeline: {
     workflowName: string;
     status: string;

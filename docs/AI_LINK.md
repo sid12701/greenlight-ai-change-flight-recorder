@@ -112,6 +112,25 @@ them as they are is also a truthful result, and the receipt says which.
 
 ## Privacy
 
-Prompts, tool arguments and tool output are never exported. The span carries
-timing and session identity only, which is all the link needs: the point is to
-prove *which* session produced a commit, not to record what was said in it.
+**User prompts are exported.** Anything typed into an instrumented session is
+recorded in SigNoz and readable by anyone who can read the trace store, and a
+verified receipt shows those prompts back under `aiSession`. This is a
+deliberate trade: a receipt that can say *what the session was asked to do*
+explains a change far better than one that can only name it. Treat an
+instrumented session as a session on the record, and do not paste a credential
+into one.
+
+Tool arguments and tool output stay off, and
+`npm run validate:claude-telemetry` fails the build if either is enabled. Those
+carry file contents, command output and anything a run happened to read, which
+is a much wider surface than prompt text and buys the receipt nothing.
+
+The spans also carry the account identity Claude Code attaches — including
+`user.email` — so a trace names the operator as well as the session.
+
+## What the link does and does not prove
+
+The trailer proves a commit was made from a shell inside a particular session.
+It does not prove the session's model wrote the change: a person typing by hand
+in an instrumented session produces exactly the same trailer. The receipt claims
+session provenance, which is what it can evidence, and not authorship.

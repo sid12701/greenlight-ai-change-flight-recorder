@@ -57,6 +57,7 @@ export function assembleReceipt(input: {
   deploymentVersion?: string | null;
   recoveryVersion?: string | null;
   signozUrl: string;
+  aiSession?: ChangeReceipt["aiSession"];
   normalizedRun?: ReturnType<typeof normalizeWorkflowRun>;
   evidenceLinks?: Array<{
     kind: "signoz_trace" | "signoz_dashboard" | "github_run" | "deployment_trace" | "ai_trace";
@@ -101,6 +102,7 @@ export function assembleReceipt(input: {
       additions: input.change.additions,
       deletions: input.change.deletions,
     },
+    aiSession: input.aiSession ?? null,
     pipeline: primary
       ? {
           workflowName: primary.workflow_name,
@@ -206,6 +208,14 @@ export async function getReceipt(
   repository: string,
   signozUrl: string,
   commitSha: string,
+  /**
+   * Reads the session behind a verified AI link. Optional so a receipt stays
+   * assemblable without a trace store; absent, the receipt simply does not
+   * answer the question.
+   */
+  fetchAiSession?: (
+    context: { traceId: string; committedAt: string | null },
+  ) => Promise<ChangeReceipt["aiSession"]>,
 ): Promise<ChangeReceipt | null> {
   const change = await repos.getChangeBySha(commitSha);
   if (!change) {
@@ -284,11 +294,23 @@ export async function getReceipt(
     ? (await repos.getChangeForDeployment(recoveryDeployment.id))?.commit_sha
     : null;
 
+  // Only a verified link may be read back. An unverified trace ID is a claim
+  // the receipt has not checked, and showing prompts from it would present
+  // unconfirmed provenance as the session's own words.
+  const aiSession = fetchAiSession && change.ai_verification_state === "verified" &&
+      change.ai_trace_id
+    ? await fetchAiSession({
+      traceId: change.ai_trace_id,
+      committedAt: change.committed_at,
+    })
+    : null;
+
   return assembleReceipt({
     change,
     repository,
     pipelines,
     deployments,
+    aiSession,
     evaluation,
     recoveryDeployment,
     recoveryEvaluation,

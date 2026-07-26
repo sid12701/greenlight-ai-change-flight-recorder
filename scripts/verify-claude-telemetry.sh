@@ -21,7 +21,7 @@ required_vars=(
   OTEL_TRACES_SAMPLER=always_on
   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-  OTEL_LOG_USER_PROMPTS=0
+  OTEL_LOG_USER_PROMPTS=1
   OTEL_LOG_TOOL_DETAILS=0
   OTEL_LOG_TOOL_CONTENT=0
 )
@@ -34,23 +34,12 @@ for entry in "${required_vars[@]}"; do
   fi
 done
 
-forbidden_patterns=(
-  'OTEL_LOG_USER_PROMPTS=1'
-  'OTEL_LOG_TOOL_DETAILS=1'
-  'OTEL_LOG_TOOL_CONTENT=1'
-  'prompt'
-  'tool_content'
-)
-
-for pattern in "${forbidden_patterns[@]}"; do
-  if grep -Eiq "${pattern}" "${ENV_FILE}" && [[ "${pattern}" != 'prompt' && "${pattern}" != 'tool_content' ]]; then
-    fail "forbidden pattern enabled: ${pattern}"
-  fi
-done
-
-# Reject prompt/tool-content export flags if set to enabled
-if grep -Eq '^export OTEL_LOG_(USER_PROMPTS|TOOL_DETAILS|TOOL_CONTENT)=1' "${ENV_FILE}"; then
-  fail "content export flags must remain disabled"
+# Tool arguments and tool output carry file contents, command output and any
+# credential read during a run. Prompt export is a deliberate choice recorded
+# above; these two are not, and flipping either one silently would widen what
+# the trace store holds far beyond what the receipt needs.
+if grep -Eq '^export OTEL_LOG_(TOOL_DETAILS|TOOL_CONTENT)=1' "${ENV_FILE}"; then
+  fail "tool-detail and tool-content export must remain disabled"
 fi
 
 echo "verify-claude-telemetry: env.example contract OK"

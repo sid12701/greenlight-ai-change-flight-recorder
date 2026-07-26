@@ -203,6 +203,48 @@ export function buildTraceVerificationRequest(input: {
   return request("scalar", input.startMs, input.endMs, specs);
 }
 
+/**
+ * Reads the prompts recorded by the coding session that produced a change.
+ *
+ * Scoped to one trace so a receipt can only ever show the session it names.
+ * The prompt lives on its own spans rather than on the span the commit trailer
+ * points at, so this asks for every span in the trace carrying a `user_prompt`
+ * attribute and lets the caller order them.
+ */
+export function buildAiSessionPromptsRequest(input: {
+  traceId: string;
+  serviceName: string;
+  startMs: number;
+  endMs: number;
+  limit: number;
+}): QueryRangeRequest {
+  const traceId = TraceIdSchema.parse(input.traceId).toLowerCase();
+  if (input.endMs <= input.startMs) {
+    throw new SignozQueryError("Prompt query window end must be after start");
+  }
+  return request("raw", input.startMs, input.endMs, [
+    {
+      name: "A",
+      signal: "traces",
+      disabled: false,
+      filter: {
+        expression: [
+          equalsFilter("trace_id", traceId),
+          equalsFilter("service.name", input.serviceName),
+          "user_prompt EXISTS",
+        ].join(" AND "),
+      },
+      selectFields: [
+        { name: "timestamp" },
+        { name: "user_prompt" },
+        { name: "session.id" },
+      ],
+      order: [{ key: { name: "timestamp" }, direction: "asc" }],
+      limit: input.limit,
+    },
+  ]);
+}
+
 /** Minimal authenticated request used to prove the API key is accepted. */
 export function buildCredentialProbeRequest(nowMs: number): QueryRangeRequest {
   return request("scalar", nowMs - 60_000, nowMs, [
@@ -329,6 +371,23 @@ export function readRawColumn(payload: unknown, queryName: string, column: strin
     }
   }
   return values;
+}
+
+/**
+ * Reads whole rows rather than one column, for queries whose fields only mean
+ * something together — a prompt divorced from its timestamp cannot be ordered
+ * or matched to a moment in the session.
+ */
+export function readRawRows(
+  payload: unknown,
+  queryName: string,
+): Array<Record<string, unknown>> {
+  const parsed = RawResponseSchema.safeParse(payload);
+  if (!parsed.success) {
+    throw new SignozQueryError("SigNoz returned an unrecognised raw response");
+  }
+  const result = parsed.data.data.data.results.find((entry) => entry.queryName === queryName);
+  return result ? result.rows.map((row) => row.data) : [];
 }
 
 export function nanosecondsToMilliseconds(value: number | null): number | null {

@@ -17,6 +17,7 @@ import { AppHeader } from "../../components/AppHeader";
 import { formatDateTime } from "../../formatters";
 import { verificationPresentation } from "../../status";
 import { Actions } from "./Actions";
+import { AiSessionPanel } from "./AiSessionPanel";
 import { CiSection } from "./CiSection";
 import { EvidenceFreshness } from "./EvidenceFreshness";
 import { EvidenceTimeline } from "./EvidenceTimeline";
@@ -211,6 +212,8 @@ export function ReceiptPageView({ receipt }: { receipt: ChangeReceipt }) {
             <EvidenceLinks evidence={receipt.evidence} />
           </div>
         </details>
+
+        <AiSessionPanel receipt={receipt} />
 
         <Actions receipt={receipt} />
 

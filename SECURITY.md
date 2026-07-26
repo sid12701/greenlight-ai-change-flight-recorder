@@ -20,10 +20,16 @@ Do not open a public issue containing credentials, tokens, borrower data, or exp
 
 - Source configuration from `instrumentation/claude-code/env.example` only.
 - Require `CLAUDE_CODE_PROPAGATE_TRACEPARENT=1` and `OTEL_TRACES_SAMPLER=always_on`.
-- Keep `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, and `OTEL_LOG_TOOL_CONTENT` set to `0`.
+- Keep `OTEL_LOG_TOOL_DETAILS` and `OTEL_LOG_TOOL_CONTENT` set to `0`.
+- `OTEL_LOG_USER_PROMPTS=1` is intentional: prompts are exported so a receipt can
+  show what the session was asked to do. Anything typed into an instrumented
+  session is on the record in SigNoz — never paste a credential into one.
+- Spans carry the operator's account identity, including `user.email`. Treat the
+  trace store as holding personal data and scope access accordingly.
 - Export traces via OTLP HTTP to the local SigNoz collector (`http://localhost:4318`).
 - Pin and document the verified `claude --version` in README; do not assume beta behavior across versions.
-- Validate the contract with `bash scripts/verify-claude-telemetry.sh` before rehearsal.
+- Validate the contract with `npm run validate:claude-telemetry`, which runs in CI
+  on every push and fails if tool-detail or tool-content export is turned on.
 
 ## Before every push
 

@@ -11,6 +11,7 @@
  *   rejected the credential, or returned a response we do not recognise.
  */
 import {
+  buildAiSessionPromptsRequest,
   buildCredentialProbeRequest,
   buildSlowTraceRequest,
   buildTraceVerificationRequest,
@@ -18,6 +19,7 @@ import {
   nanosecondsToMilliseconds,
   readGroupValues,
   readRawColumn,
+  readRawRows,
   readScalarAggregation,
   sumScalarAggregation,
   type QueryRangeRequest,
@@ -238,6 +240,48 @@ export class SignozClient {
         ? null
         : sumScalarAggregation(payload, "B") > 0,
     };
+  }
+
+  /**
+   * Returns the prompts recorded by one coding session, oldest first.
+   *
+   * Prompt export is opt-in (`OTEL_LOG_USER_PROMPTS`), so an empty result is
+   * the ordinary answer for a session recorded while it was off, and is
+   * reported as such rather than as an error. Only the trace named by the
+   * commit is read, so this cannot surface a different session's prompts.
+   */
+  async fetchAiSessionPrompts(input: {
+    traceId: string;
+    serviceName: string;
+    startMs: number;
+    endMs: number;
+    limit?: number;
+  }): Promise<{ sessionId: string | null; prompts: Array<{ at: string; text: string }> }> {
+    const payload = await this.queryRange(buildAiSessionPromptsRequest({
+      traceId: input.traceId,
+      serviceName: input.serviceName,
+      startMs: input.startMs,
+      endMs: input.endMs,
+      limit: input.limit ?? 50,
+    }));
+    const rows = readRawRows(payload, "A");
+    const prompts: Array<{ at: string; text: string }> = [];
+    let sessionId: string | null = null;
+    for (const row of rows) {
+      const text = row.user_prompt;
+      const at = row.timestamp;
+      if (sessionId === null && typeof row["session.id"] === "string") {
+        sessionId = row["session.id"];
+      }
+      // `<REDACTED>` is what Claude Code writes when prompt export is off. It
+      // is a placeholder, not a prompt, and presenting it as one would imply
+      // the session recorded something it deliberately did not.
+      if (typeof text !== "string" || text.length === 0 || text === "<REDACTED>") {
+        continue;
+      }
+      prompts.push({ at: typeof at === "string" ? at : "", text });
+    }
+    return { sessionId, prompts };
   }
 
   /**

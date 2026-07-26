@@ -27,6 +27,7 @@
     "quality": "node scripts/quality-gates.mjs",
     "validate:config": "node scripts/validate-config-contract.mjs",
     "validate:telemetry": "node scripts/validate-telemetry-contract.mjs",
+    "validate:claude-telemetry": "bash scripts/verify-claude-telemetry.sh",
     "validate:signoz-assets": "node scripts/signoz-assets.mjs validate",
     "validate:signoz-stack": "node scripts/signoz-stack.mjs",
     "validate:runtime-images": "bash scripts/runtime-image-contract.sh",

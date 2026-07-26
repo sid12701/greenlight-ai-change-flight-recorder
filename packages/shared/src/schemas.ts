@@ -69,6 +69,11 @@ export const ChangeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({
     additions: NullableNumber,
     deletions: NullableNumber,
   }),
+  aiSession: z.object({
+    sessionId: z.string().nullable(),
+    prompts: z.array(z.object({ at: z.string(), text: z.string() })),
+    promptsRecorded: z.boolean(),
+  }).nullable(),
   pipeline: z.object({
     workflowName: z.string(),
     status: z.string(),

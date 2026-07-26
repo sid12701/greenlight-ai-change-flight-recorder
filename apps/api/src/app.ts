@@ -309,6 +309,28 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
       config.GITHUB_REPOSITORY,
       signozPublicUrl(config),
       params.commitSha,
+      async ({ traceId, committedAt }) => {
+        const anchor = committedAt ? Date.parse(committedAt) : Date.now();
+        const dayMs = 24 * 60 * 60 * 1_000;
+        try {
+          const session = await signoz.fetchAiSessionPrompts({
+            traceId,
+            serviceName: config.CLAUDE_OTEL_SERVICE_NAME,
+            startMs: Math.max(0, anchor - dayMs),
+            endMs: anchor + dayMs,
+          });
+          return { ...session, promptsRecorded: session.prompts.length > 0 };
+        } catch (error) {
+          // A receipt whose evidence chain is intact must not 500 because the
+          // trace store is briefly unavailable, so the session reads as
+          // unanswered rather than as a session that recorded nothing.
+          if (error instanceof SignozIntegrationError) {
+            request.log.warn({ err: error, traceId }, "ai session prompts unavailable");
+            return null;
+          }
+          throw error;
+        }
+      },
     );
     if (!receipt) {
       return reply.status(404).send({ error: "not_found", requestId: request.id });
