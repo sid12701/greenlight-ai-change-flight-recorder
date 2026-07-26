@@ -214,7 +214,7 @@ export async function getReceipt(
    * answer the question.
    */
   fetchAiSession?: (
-    context: { traceId: string; committedAt: string | null },
+    context: { traceId: string; spanId: string; committedAt: string | null },
   ) => Promise<ChangeReceipt["aiSession"]>,
 ): Promise<ChangeReceipt | null> {
   const change = await repos.getChangeBySha(commitSha);
@@ -298,9 +298,10 @@ export async function getReceipt(
   // the receipt has not checked, and showing prompts from it would present
   // unconfirmed provenance as the session's own words.
   const aiSession = fetchAiSession && change.ai_verification_state === "verified" &&
-      change.ai_trace_id
+      change.ai_trace_id && change.ai_span_id
     ? await fetchAiSession({
       traceId: change.ai_trace_id,
+      spanId: change.ai_span_id,
       committedAt: change.committed_at,
     })
     : null;

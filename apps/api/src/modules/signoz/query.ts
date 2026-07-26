@@ -204,21 +204,57 @@ export function buildTraceVerificationRequest(input: {
 }
 
 /**
- * Reads the prompts recorded by the coding session that produced a change.
+ * Finds which coding session owns a given span.
  *
- * Scoped to one trace so a receipt can only ever show the session it names.
- * The prompt lives on its own spans rather than on the span the commit trailer
- * points at, so this asks for every span in the trace carrying a `user_prompt`
- * attribute and lets the caller order them.
+ * A trace is not one session. Claude Code propagates trace context into the
+ * commands it runs, so a session started from inside another session joins its
+ * parent's trace, and one trace can carry spans from several sessions. The
+ * commit trailer names a span, and that span's session is the only one that
+ * can be said to have produced the commit.
+ */
+export function buildSpanSessionRequest(input: {
+  traceId: string;
+  spanId: string;
+  startMs: number;
+  endMs: number;
+}): QueryRangeRequest {
+  const traceId = TraceIdSchema.parse(input.traceId).toLowerCase();
+  const spanId = SpanIdSchema.parse(input.spanId).toLowerCase();
+  if (input.endMs <= input.startMs) {
+    throw new SignozQueryError("Session lookup window end must be after start");
+  }
+  return request("raw", input.startMs, input.endMs, [
+    {
+      name: "A",
+      signal: "traces",
+      disabled: false,
+      filter: {
+        expression: `${equalsFilter("trace_id", traceId)} AND ${
+          equalsFilter("span_id", spanId)
+        }`,
+      },
+      selectFields: [{ name: "session.id" }],
+      limit: 1,
+    },
+  ]);
+}
+
+/**
+ * Reads the prompts recorded by one coding session.
+ *
+ * Scoped by session rather than by trace: scoping to the trace would let a
+ * sibling session's prompts appear on a receipt as though they had explained
+ * the change, which is worse than showing none at all. The prompts live on
+ * their own spans rather than on the span the trailer points at, so this asks
+ * for every span carrying a `user_prompt` attribute and orders them.
  */
 export function buildAiSessionPromptsRequest(input: {
-  traceId: string;
+  sessionId: string;
   serviceName: string;
   startMs: number;
   endMs: number;
   limit: number;
 }): QueryRangeRequest {
-  const traceId = TraceIdSchema.parse(input.traceId).toLowerCase();
   if (input.endMs <= input.startMs) {
     throw new SignozQueryError("Prompt query window end must be after start");
   }
@@ -229,7 +265,7 @@ export function buildAiSessionPromptsRequest(input: {
       disabled: false,
       filter: {
         expression: [
-          equalsFilter("trace_id", traceId),
+          equalsFilter("session.id", input.sessionId),
           equalsFilter("service.name", input.serviceName),
           "user_prompt EXISTS",
         ].join(" AND "),

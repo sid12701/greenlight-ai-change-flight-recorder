@@ -14,6 +14,7 @@ import {
   buildAiSessionPromptsRequest,
   buildCredentialProbeRequest,
   buildSlowTraceRequest,
+  buildSpanSessionRequest,
   buildTraceVerificationRequest,
   buildWindowMetricsRequest,
   nanosecondsToMilliseconds,
@@ -252,27 +253,36 @@ export class SignozClient {
    */
   async fetchAiSessionPrompts(input: {
     traceId: string;
+    spanId: string;
     serviceName: string;
     startMs: number;
     endMs: number;
     limit?: number;
   }): Promise<{ sessionId: string | null; prompts: Array<{ at: string; text: string }> }> {
-    const payload = await this.queryRange(buildAiSessionPromptsRequest({
+    // Resolve the session from the span the commit names before reading any
+    // prompt. Sessions nest, so the trace alone does not identify one.
+    const ownerPayload = await this.queryRange(buildSpanSessionRequest({
       traceId: input.traceId,
+      spanId: input.spanId,
+      startMs: input.startMs,
+      endMs: input.endMs,
+    }));
+    const owner = readRawRows(ownerPayload, "A")[0]?.["session.id"];
+    if (typeof owner !== "string" || owner.length === 0) {
+      return { sessionId: null, prompts: [] };
+    }
+
+    const payload = await this.queryRange(buildAiSessionPromptsRequest({
+      sessionId: owner,
       serviceName: input.serviceName,
       startMs: input.startMs,
       endMs: input.endMs,
       limit: input.limit ?? 50,
     }));
-    const rows = readRawRows(payload, "A");
     const prompts: Array<{ at: string; text: string }> = [];
-    let sessionId: string | null = null;
-    for (const row of rows) {
+    for (const row of readRawRows(payload, "A")) {
       const text = row.user_prompt;
       const at = row.timestamp;
-      if (sessionId === null && typeof row["session.id"] === "string") {
-        sessionId = row["session.id"];
-      }
       // `<REDACTED>` is what Claude Code writes when prompt export is off. It
       // is a placeholder, not a prompt, and presenting it as one would imply
       // the session recorded something it deliberately did not.
@@ -281,7 +291,9 @@ export class SignozClient {
       }
       prompts.push({ at: typeof at === "string" ? at : "", text });
     }
-    return { sessionId, prompts };
+    // The session is named by the span the commit points at, so it is reported
+    // even when that session recorded no prompt text.
+    return { sessionId: owner, prompts };
   }
 
   /**

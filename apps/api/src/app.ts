@@ -309,12 +309,13 @@ export async function buildServer(config: AppConfig, dependencies: ServerDepende
       config.GITHUB_REPOSITORY,
       signozPublicUrl(config),
       params.commitSha,
-      async ({ traceId, committedAt }) => {
+      async ({ traceId, spanId, committedAt }) => {
         const anchor = committedAt ? Date.parse(committedAt) : Date.now();
         const dayMs = 24 * 60 * 60 * 1_000;
         try {
           const session = await signoz.fetchAiSessionPrompts({
             traceId,
+            spanId,
             serviceName: config.CLAUDE_OTEL_SERVICE_NAME,
             startMs: Math.max(0, anchor - dayMs),
             endMs: anchor + dayMs,
