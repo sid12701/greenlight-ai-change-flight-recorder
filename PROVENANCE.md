@@ -25,11 +25,17 @@ The following are GreenLight work:
 
 ## Claude-to-commit linkage
 
-No commit in the recorded chain carries a resolvable Claude Code session span,
-because the recorded commits were not authored in a session exporting telemetry
-to SigNoz. Receipts report that link as `missing` rather than implying one.
-[`docs/AI_LINK.md`](docs/AI_LINK.md) is the procedure for producing a verified
-link, and `npm run ai-link:verify` reports which of the four links is unarmed.
+Commit `b24bf30` was authored inside a Claude Code session exporting telemetry to
+SigNoz. Its `AI-Traceparent` trailer names span `95cf03c6c3e1413b` in trace
+`86b83e0039724d54b250693de0e7cba7`, that exact span resolves in SigNoz, and the
+receipt reads `AI link: verified`.
+
+The three commits of the earlier recorded chain (`6f458c9`, `2fa6e28`,
+`c65cd73`) predate that procedure and carry no trailer. Their receipts report the
+link as `missing` rather than implying one.
+
+[`docs/AI_LINK.md`](docs/AI_LINK.md) is the procedure, and
+`npm run ai-link:verify` reports which of the four links is armed.
 
 ## AI assistance
 

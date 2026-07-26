@@ -63,6 +63,7 @@ about GreenLight, so a detected regression is not one written to be detected.
 | Logs join to traces by commit | log filter `commit_sha` | resolves to its span |
 | Alerts fire and resolve | SigNoz Alerts page under load | p95 rule `inactive` → `firing` on the candidate, `inactive` on the revert |
 | MCP answered independently | `npm run mcp:verify` | 3 traces, all resolve; fails loudly without credentials |
+| An AI session links to its commit | receipt for `b24bf30` | `AI link: verified` — the trailer's span resolves in SigNoz |
 | The AI-link chain is diagnosable | `npm run ai-link:verify` | reports each of the four links separately |
 | The stack is pinned, not floating | `bash scripts/signoz-runtime-verify.sh` | 6 images matched by digest |
 
@@ -420,14 +421,18 @@ Every receipt carries this, and it is load-bearing:
 > Deployment correlation is evidence of temporal and version association, not
 > proof that every observed failure was caused by the commit.
 
-One limitation is stated rather than hidden:
+The AI link is reported per commit, not assumed:
 
-- AI verification reads `missing` for the recorded commits. Marking a change
-  `verified` requires a Claude Code session exporting telemetry to SigNoz so the
-  exact span resolves. The recorded commits were not authored in such a session,
-  and the receipt reports that rather than implying a link.
-  [`docs/AI_LINK.md`](docs/AI_LINK.md) is the procedure for producing one, and
-  `npm run ai-link:verify` reports which of the four links is not yet armed.
+- `b24bf30` was authored inside a Claude Code session exporting telemetry to
+  SigNoz, so its receipt reads **`AI link: verified`** and carries a resolvable
+  `Verified Claude parent span` evidence link. The commit's trailer names span
+  `95cf03c6c3e1413b` in trace `86b83e00…`, and that exact span resolves.
+- The three commits of the earlier recorded chain (`6f458c9`, `2fa6e28`,
+  `c65cd73`) predate that procedure, carry no trailer, and read `missing`. The
+  receipt says so rather than implying a link.
+
+[`docs/AI_LINK.md`](docs/AI_LINK.md) is the procedure, and
+`npm run ai-link:verify` reports which of the four links is armed.
 
 An earlier version of the demo injected a PostgreSQL outage inside the
 candidate's measured window, and the verdict fired on the resulting error rate
@@ -437,8 +442,16 @@ else was done to the service while it was being measured.
 
 ## Submission
 
-Track 3 — Build Your Own. Inspired by the deployment-guardian problem in
-[SigNoz issue #11657](https://github.com/SigNoz/signoz/issues/11657).
+**Track 3 — Build Your Own.** GreenLight bridges a source SigNoz does not
+support natively: GitHub Actions exports no OpenTelemetry, so a workflow run is
+REST metadata rather than spans. GreenLight reconstructs each run as a trace —
+one root span per run, one child per job — and ships it over OTLP as service
+`greenlight-ci`, which is what lets a CI run be queried beside the request traces
+of the version it approved. That is SigNoz's own Track 3 idea
+[#11670 — *Novel integration*](https://github.com/SigNoz/signoz/issues/11670);
+the problem it solves is
+[#11657 — *Deploy guardian*](https://github.com/SigNoz/signoz/issues/11657).
+
 See [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 
 Further reading: [AI-session link](docs/AI_LINK.md),
