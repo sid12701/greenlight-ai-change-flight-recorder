@@ -78,7 +78,7 @@ describeLive("signoz query contract (live)", () => {
       maxAttempts: 3,
     });
     await expect(rejecting.queryWindow({
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       serviceVersion: "0000000000000000000000000000000000000000",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
@@ -143,7 +143,7 @@ describeLive("reconstructed CI trace export (live)", () => {
     const results = await syncWorkflowRuns({
       repos,
       github,
-      repository: "demo/lms",
+      repository: "demo/workload",
       runIds: [run.id],
       primaryWorkflowName: run.name,
       defaultBranch: "main",

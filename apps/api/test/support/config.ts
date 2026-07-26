@@ -13,12 +13,16 @@ import { AppConfigSchema, type AppConfig } from "../../src/config.js";
 export function testConfig(overrides: Record<string, string> = {}): AppConfig {
   return AppConfigSchema.parse({
     GREENLIGHT_ENV: "test",
+    // Request logs are not the subject of any test, and at `info` they bury the
+    // reporter's output under a JSON record per request. A test that needs them
+    // asks for them.
+    GREENLIGHT_LOG_LEVEL: "fatal",
     GREENLIGHT_ADMIN_TOKEN: "test-admin-token-0123456789",
     GITHUB_TOKEN: "test-github-token",
-    GITHUB_REPOSITORY: "demo/lms",
+    GITHUB_REPOSITORY: "demo/workload",
     SIGNOZ_API_KEY: "test-signoz-key",
     GREENLIGHT_ALLOWED_ORIGINS: "http://127.0.0.1:4173",
-    GREENLIGHT_HEALTH_ALLOWED_ORIGINS: "http://lms.test:9081",
+    GREENLIGHT_HEALTH_ALLOWED_ORIGINS: "http://workload.test:9081",
     ...overrides,
   });
 }

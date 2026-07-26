@@ -27,7 +27,7 @@ describe("ci trace synthesizer", () => {
     const run = buildNormalizedRunFromFixture(fixture);
     const result = await synthesizeCiTrace({
       run,
-      repository: "demo/lms",
+      repository: "demo/workload",
       reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
     });
 
@@ -50,12 +50,12 @@ describe("ci trace synthesizer", () => {
       async () => [
         await synthesizeCiTrace({
           run,
-          repository: "demo/lms",
+          repository: "demo/workload",
           reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
         }),
         await synthesizeCiTrace({
           run,
-          repository: "demo/lms",
+          repository: "demo/workload",
           reconstructionAtMs: Date.parse("2026-07-23T10:07:00Z"),
         }),
       ],
@@ -83,7 +83,7 @@ describe("ci trace synthesizer", () => {
     };
     const result = await synthesizeCiTrace({
       run,
-      repository: "demo/lms",
+      repository: "demo/workload",
       reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
     }, exporter);
 
@@ -102,7 +102,7 @@ describe("ci trace synthesizer", () => {
     const run = buildNormalizedRunFromFixture(failed);
     const result = await synthesizeCiTrace({
       run,
-      repository: "demo/lms",
+      repository: "demo/workload",
       reconstructionAtMs: Date.parse("2026-07-23T11:05:00Z"),
     });
     expect(result.traceId).toBeTruthy();
@@ -118,7 +118,7 @@ describe("ci trace synthesizer", () => {
     };
     const result = await synthesizeCiTrace({
       run,
-      repository: "demo/lms",
+      repository: "demo/workload",
       reconstructionAtMs: Date.parse("2026-07-23T10:06:00Z"),
       aiSpanContext: aiContext,
       includeAiLink: true,

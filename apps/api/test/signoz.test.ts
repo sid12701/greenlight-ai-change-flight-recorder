@@ -14,7 +14,7 @@ import {
 } from "../src/modules/signoz/query.js";
 
 const WINDOW = {
-  serviceName: "lms-backend",
+  serviceName: "blnk-loan-workload",
   serviceVersion: "c6618e1621ebc1765564446bac68f71293eb79be",
   environmentName: "hackathon-demo",
   route: "/api/v1/internal/home/overview",
@@ -74,7 +74,7 @@ describe("signoz v5 request contract", () => {
       "p95(duration_nano)",
     ]);
     expect(totals.spec.filter?.expression).toBe(
-      "service.name = 'lms-backend' AND " +
+      "service.name = 'blnk-loan-workload' AND " +
       "service.version = 'c6618e1621ebc1765564446bac68f71293eb79be' AND " +
       "deployment.environment.name = 'hackathon-demo' AND " +
       "http.route = '/api/v1/internal/home/overview'",

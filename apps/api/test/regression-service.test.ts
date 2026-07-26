@@ -24,7 +24,7 @@ describe("deterministic regression service", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     const versions = {
@@ -62,7 +62,7 @@ describe("deterministic regression service", () => {
       await repos.insertDeployment({
         id,
         change_id: changeId,
-        service_name: "lms-backend",
+        service_name: "blnk-loan-workload",
         environment_name: "hackathon-demo",
         role,
         status: "succeeded",
@@ -134,7 +134,7 @@ describe("deterministic regression service", () => {
     const repos = Repositories.create(database.path);
     const config = testConfig({ GREENLIGHT_DATABASE_PATH: database.path });
     await repos.upsertRepository({
-      id: "repo_1", provider: "github", owner: "demo", name: "lms", default_branch: "main",
+      id: "repo_1", provider: "github", owner: "demo", name: "workload", default_branch: "main",
     });
     for (const [id, sha] of [["base", "a".repeat(40)], ["bad", "b".repeat(40)]]) {
       await repos.upsertChange({
@@ -146,13 +146,13 @@ describe("deterministic regression service", () => {
       });
     }
     await repos.insertDeployment({
-      id: "dep_base", change_id: "chg_base", service_name: "lms-backend",
+      id: "dep_base", change_id: "chg_base", service_name: "blnk-loan-workload",
       environment_name: "hackathon-demo", role: "baseline", status: "succeeded",
       deployed_at: "2026-07-23T10:00:00.000Z", readiness_at: "2026-07-23T10:00:00.000Z",
       version_state: "verified", emitted_trace_id: null, created_at: "2026-07-23T10:00:00.000Z",
     });
     await repos.insertDeployment({
-      id: "dep_bad", change_id: "chg_bad", service_name: "lms-backend",
+      id: "dep_bad", change_id: "chg_bad", service_name: "blnk-loan-workload",
       environment_name: "hackathon-demo", role: "candidate", status: "succeeded",
       deployed_at: "2026-07-23T12:00:00.000Z", readiness_at: "2026-07-23T12:00:00.000Z",
       version_state: "verified", emitted_trace_id: null, created_at: "2026-07-23T12:00:00.000Z",
@@ -208,7 +208,7 @@ describe("deterministic regression service", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     const versions = { baseline: "a".repeat(40), candidate: "b".repeat(40) };
@@ -240,7 +240,7 @@ describe("deterministic regression service", () => {
       await repos.insertDeployment({
         id,
         change_id: changeId,
-        service_name: "lms-backend",
+        service_name: "blnk-loan-workload",
         environment_name: "hackathon-demo",
         role,
         status: "succeeded",

@@ -41,7 +41,7 @@ describe("github sync", () => {
     const results = await syncWorkflowRuns({
       repos,
       github,
-      repository: "demo/lms",
+      repository: "demo/workload",
       runIds: [fixture.workflowRun.id],
       primaryWorkflowName: "Backend CI",
       verifyExport: async () => true,
@@ -90,7 +90,7 @@ describe("github sync", () => {
       await syncWorkflowRuns({
         repos,
         github,
-        repository: "demo/lms",
+        repository: "demo/workload",
         runIds: [fixture.workflowRun.id],
         primaryWorkflowName: "Backend CI",
         verifyExport: async () => true,
@@ -116,7 +116,7 @@ describe("github sync", () => {
         ensureChangeFromCommit({
           repos,
           github,
-          repository: "demo/lms",
+          repository: "demo/workload",
           commitSha: "f".repeat(40),
         })),
     ).rejects.toThrow("GitHub unavailable");
@@ -150,7 +150,7 @@ describe("github sync", () => {
     const result = await syncWorkflowRuns({
       repos,
       github,
-      repository: "demo/lms",
+      repository: "demo/workload",
       runIds: [fixture.workflowRun.id, frontendRun.id],
       primaryWorkflowName: "Backend CI",
       verifyExport: async (traceId) => {

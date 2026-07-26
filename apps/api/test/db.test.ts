@@ -74,7 +74,7 @@ describe("database migrations and repositories", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     await repos.upsertChange({
@@ -108,7 +108,7 @@ describe("database migrations and repositories", () => {
       completed_at: "2026-07-23T00:05:00.000Z",
       duration_ms: 300_000,
       slowest_step: "Run tests",
-      html_url: "https://github.com/demo/lms/actions/runs/1001",
+      html_url: "https://github.com/demo/workload/actions/runs/1001",
       is_primary: 1,
       emitted_trace_id: null,
       synced_at: "2026-07-23T00:06:00.000Z",
@@ -126,7 +126,7 @@ describe("database migrations and repositories", () => {
         conclusion: "success",
         started_at: "2026-07-23T00:00:00.000Z",
         completed_at: "2026-07-23T00:04:00.000Z",
-        html_url: "https://github.com/demo/lms/actions/runs/1002",
+        html_url: "https://github.com/demo/workload/actions/runs/1002",
         is_primary: 1,
         emitted_trace_id: null,
         synced_at: "2026-07-23T00:06:00.000Z",
@@ -139,7 +139,7 @@ describe("database migrations and repositories", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     await repos.upsertChange({
@@ -165,7 +165,7 @@ describe("database migrations and repositories", () => {
     await repos.insertDeployment({
       id: "dep_base",
       change_id: "chg_1",
-      service_name: "lms-backend",
+      service_name: "blnk-loan-workload",
       environment_name: "hackathon-demo",
       role: "baseline",
       status: "succeeded",
@@ -177,7 +177,7 @@ describe("database migrations and repositories", () => {
     await expect(repos.insertDeployment({
         id: "dep_base_2",
         change_id: "chg_1",
-        service_name: "lms-backend",
+        service_name: "blnk-loan-workload",
         environment_name: "hackathon-demo",
         role: "baseline",
         status: "succeeded",
@@ -193,7 +193,7 @@ describe("database migrations and repositories", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
 
@@ -223,7 +223,7 @@ describe("database migrations and repositories", () => {
     await repos.enqueueJob({
       id: "job_result_test",
       kind: "github_sync_latest",
-      payload_json: JSON.stringify({ repository: "demo/lms" }),
+      payload_json: JSON.stringify({ repository: "demo/workload" }),
     });
     const claimed = await repos.claimNextJob(new Date().toISOString());
     expect(claimed).toMatchObject({ id: "job_result_test", state: "running", attempts: 1 });

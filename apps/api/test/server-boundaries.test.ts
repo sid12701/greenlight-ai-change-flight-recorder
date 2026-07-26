@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadConfig } from "../src/config.js";
 import { Repositories } from "../src/db/repositories/index.js";
 import { buildServer } from "../src/app.js";
+import { testConfig } from "./support/config.js";
 
 describe("HTTP boundaries", () => {
   const cleanups: Array<() => Promise<void> | void> = [];
@@ -17,8 +17,7 @@ describe("HTTP boundaries", () => {
   async function setup() {
     const directory = mkdtempSync(join(tmpdir(), "greenlight-http-"));
     const databasePath = join(directory, "test.db");
-    const config = loadConfig({
-      GREENLIGHT_ENV: "test",
+    const config = testConfig({
       GREENLIGHT_DATABASE_PATH: databasePath,
       GREENLIGHT_ADMIN_TOKEN: "admin-token-with-safe-length",
       GREENLIGHT_API_KEYS: JSON.stringify([
@@ -26,9 +25,6 @@ describe("HTTP boundaries", () => {
       ]),
       GREENLIGHT_REQUIRE_READ_AUTH: "true",
       GREENLIGHT_ALLOWED_ORIGINS: "http://allowed.test",
-      GITHUB_TOKEN: "github-test-token",
-      GITHUB_REPOSITORY: "demo/lms",
-      SIGNOZ_API_KEY: "signoz-test-token",
     });
     const app = await buildServer(config);
     cleanups.push(async () => {
@@ -69,7 +65,7 @@ describe("HTTP boundaries", () => {
       url: "/api/v1/deployments",
       headers: { authorization: "Bearer admin-token-with-safe-length" },
       payload: {
-        repository: "demo/lms",
+        repository: "demo/workload",
         commitSha: "short",
       },
     });
@@ -82,7 +78,7 @@ describe("HTTP boundaries", () => {
   it("accepts valid mutations as durable worker jobs and denies read-only keys", async () => {
     const { app } = await setup();
     const payload = {
-      repository: "demo/lms",
+      repository: "demo/workload",
       runIds: [123],
     };
     const denied = await app.inject({

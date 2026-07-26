@@ -28,7 +28,7 @@ describe("deployment routes", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     await repos.upsertChange({
@@ -60,9 +60,9 @@ describe("deployment routes", () => {
       method: "POST",
       url: "/api/v1/deployments",
       payload: {
-        repository: "demo/lms",
+        repository: "demo/workload",
         commitSha: "d".repeat(40),
-        serviceName: "lms-backend",
+        serviceName: "blnk-loan-workload",
         environmentName: "hackathon-demo",
         role: "candidate",
         status: "succeeded",
@@ -84,15 +84,15 @@ describe("deployment routes", () => {
       },
       async () => true,
       undefined,
-      { allowedHealthOrigins: ["http://lms.test:9081"] },
+      { allowedHealthOrigins: ["http://workload.test:9081"] },
     );
     const result = await service.recordDeployment({
-      repository: "demo/lms",
+      repository: "demo/workload",
       commitSha: "d".repeat(40),
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
-      healthUrl: "http://lms.test:9081/actuator/health",
+      healthUrl: "http://workload.test:9081/actuator/health",
       imageDigest: `sha256:${"a".repeat(64)}`,
       idempotencyKey: "deploy-test-baseline",
       provider: "test",
@@ -101,15 +101,15 @@ describe("deployment routes", () => {
       deployedAt: "2026-07-23T12:00:00.000Z",
     });
     expect(result.deploymentId).toContain("dep_");
-    expect(checkedUrl).toBe("http://lms.test:9081/actuator/health");
+    expect(checkedUrl).toBe("http://workload.test:9081/actuator/health");
 
     const replay = await service.recordDeployment({
-      repository: "demo/lms",
+      repository: "demo/workload",
       commitSha: "d".repeat(40),
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
-      healthUrl: "http://lms.test:9081/actuator/health",
+      healthUrl: "http://workload.test:9081/actuator/health",
       imageDigest: `sha256:${"a".repeat(64)}`,
       idempotencyKey: "deploy-test-baseline",
       provider: "test",
@@ -130,16 +130,16 @@ describe("deployment routes", () => {
       undefined,
       {
         versionVisibilityTimeoutMs: 10,
-        allowedHealthOrigins: ["http://lms.test:9081"],
+        allowedHealthOrigins: ["http://workload.test:9081"],
       },
     );
     await expect(service.recordDeployment({
-      repository: "demo/lms",
+      repository: "demo/workload",
       commitSha: "d".repeat(40),
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
-      healthUrl: "http://lms.test:9081/actuator/health",
+      healthUrl: "http://workload.test:9081/actuator/health",
       imageDigest: `sha256:${"a".repeat(64)}`,
       idempotencyKey: "deploy-unverified-version",
       provider: "test",
@@ -165,9 +165,9 @@ describe("deployment routes", () => {
     );
 
     await expect(service.recordDeployment({
-      repository: "demo/lms",
+      repository: "demo/workload",
       commitSha: "d".repeat(40),
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
       healthUrl: "http://169.254.169.254/latest/meta-data",
@@ -199,7 +199,7 @@ describe("deployment routes", () => {
       async () => true,
       undefined,
       {
-        allowedHealthOrigins: ["http://lms.test:9081"],
+        allowedHealthOrigins: ["http://workload.test:9081"],
         exporterFactory: () => exporter,
         verifyTrace: async (traceId, spanCount) => {
           verifiedTraceId = traceId;
@@ -210,12 +210,12 @@ describe("deployment routes", () => {
     );
 
     const result = await service.recordDeployment({
-      repository: "demo/lms",
+      repository: "demo/workload",
       commitSha: "d".repeat(40),
-      serviceName: "lms-backend",
+      serviceName: "blnk-loan-workload",
       environmentName: "hackathon-demo",
       route: "/api/v1/internal/home/overview",
-      healthUrl: "http://lms.test:9081/actuator/health",
+      healthUrl: "http://workload.test:9081/actuator/health",
       imageDigest: `sha256:${"b".repeat(64)}`,
       idempotencyKey: "deploy-trace-verification",
       provider: "test",
@@ -236,7 +236,7 @@ describe("deployment routes", () => {
     // Deployment-impact queries filter on the workload's service name,
     // version and environment; a marker emitted under the worker's identity
     // could never be correlated with the telemetry it marks.
-    expect(spans[0].resource.attributes["service.name"]).toBe("lms-backend");
+    expect(spans[0].resource.attributes["service.name"]).toBe("blnk-loan-workload");
     expect(spans[0].resource.attributes["service.version"]).toBe("d".repeat(40));
     expect(spans[0].resource.attributes["deployment.environment.name"]).toBe("hackathon-demo");
   });

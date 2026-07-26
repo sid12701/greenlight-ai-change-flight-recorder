@@ -16,7 +16,7 @@ describe("repository durability", () => {
       id: "repo_1",
       provider: "github",
       owner: "demo",
-      name: "lms",
+      name: "workload",
       default_branch: "main",
     });
     return repos;
@@ -48,7 +48,7 @@ describe("repository durability", () => {
     await repos.insertDeployment({
       id,
       change_id: changeId,
-      service_name: "lms-backend",
+      service_name: "blnk-loan-workload",
       environment_name: "hackathon-demo",
       role,
       status: "succeeded",
@@ -263,7 +263,7 @@ describe("repository durability", () => {
     await repos.insertDeployment({
       id: "dep_other_env",
       change_id: "chg_a",
-      service_name: "lms-backend",
+      service_name: "blnk-loan-workload",
       environment_name: "staging",
       role: "baseline",
       status: "succeeded",
@@ -276,7 +276,7 @@ describe("repository durability", () => {
       created_at: NOW,
     });
 
-    const scoped = await repos.listBaselineDeployments("lms-backend", "hackathon-demo");
+    const scoped = await repos.listBaselineDeployments("blnk-loan-workload", "hackathon-demo");
     expect(scoped.map((row) => row.id)).toEqual(["dep_a"]);
     await repos.close();
   });

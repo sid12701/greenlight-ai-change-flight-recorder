@@ -4,7 +4,7 @@ import { loadConfig, redactSecrets } from "../src/config.js";
 const required = {
   GREENLIGHT_ADMIN_TOKEN: "strong-admin-token-value",
   GITHUB_TOKEN: "strong-github-token-value",
-  GITHUB_REPOSITORY: "demo/lms",
+  GITHUB_REPOSITORY: "demo/workload",
   SIGNOZ_API_KEY: "strong-signoz-token-value",
 };
 
@@ -66,7 +66,7 @@ describe("configuration safety", () => {
     })).toThrow(/Invalid configuration/);
     expect(() => loadConfig({
       ...required,
-      GREENLIGHT_HEALTH_ALLOWED_ORIGINS: "https://lms.example.test/health",
+      GREENLIGHT_HEALTH_ALLOWED_ORIGINS: "https://workload.example.test/health",
     })).toThrow(/Invalid configuration/);
   });
 });

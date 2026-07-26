@@ -59,7 +59,7 @@ describe("github normalization", () => {
 
     const client = new GitHubClient({
       token: "test-token",
-      repository: "demo/lms",
+      repository: "demo/workload",
       fetchImpl,
     });
 
@@ -115,7 +115,7 @@ describe("github normalization", () => {
     };
     const client = new GitHubClient({
       token: "test-token",
-      repository: "demo/lms",
+      repository: "demo/workload",
       fetchImpl,
       sleepImpl: async () => {},
     });

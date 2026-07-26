@@ -4,7 +4,7 @@ import { assembleReceipt } from "../src/modules/receipts/assembler.js";
 describe("receipt assembler", () => {
   it("assembles linked, regressed, and recovered states without duplicate evidence URLs", () => {
     const receipt = assembleReceipt({
-      repository: "demo/lms",
+      repository: "demo/workload",
       signozUrl: "http://localhost:8080",
       change: {
         id: "chg_1",
@@ -38,7 +38,7 @@ describe("receipt assembler", () => {
           completed_at: "2026-07-23T10:05:00.000Z",
           duration_ms: 300_000,
           slowest_step: "Run tests",
-          html_url: "https://github.com/demo/lms/actions/runs/100",
+          html_url: "https://github.com/demo/workload/actions/runs/100",
           is_primary: 1,
           emitted_trace_id: "feedfacefeedfacefeedfacefeedface",
           export_state: "verified",
@@ -53,7 +53,7 @@ describe("receipt assembler", () => {
           conclusion: "success",
           started_at: "2026-07-23T10:00:00.000Z",
           completed_at: "2026-07-23T10:03:00.000Z",
-          html_url: "https://github.com/demo/lms/actions/runs/200",
+          html_url: "https://github.com/demo/workload/actions/runs/200",
           is_primary: 0,
           emitted_trace_id: null,
           synced_at: "2026-07-23T10:06:00.000Z",
@@ -63,7 +63,7 @@ describe("receipt assembler", () => {
         {
           id: "dep_bad",
           change_id: "chg_1",
-          service_name: "lms-backend",
+          service_name: "blnk-loan-workload",
           environment_name: "hackathon-demo",
           role: "candidate",
           status: "succeeded",

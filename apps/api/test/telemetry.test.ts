@@ -9,7 +9,7 @@ import {
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer } from "../src/app.js";
-import { loadConfig } from "../src/config.js";
+import { testConfig } from "./support/config.js";
 import {
   buildResource,
   redactSpanAttributes,
@@ -85,14 +85,7 @@ describe("route attribution", () => {
     trace.setGlobalTracerProvider(provider);
 
     const directory = mkdtempSync(join(tmpdir(), "greenlight-route-"));
-    const config = loadConfig({
-      GREENLIGHT_ENV: "test",
-      GREENLIGHT_DATABASE_PATH: join(directory, "test.db"),
-      GREENLIGHT_ADMIN_TOKEN: "admin-token-with-safe-length",
-      GITHUB_TOKEN: "github-test-token",
-      GITHUB_REPOSITORY: "demo/lms",
-      SIGNOZ_API_KEY: "signoz-test-token",
-    });
+    const config = testConfig({ GREENLIGHT_DATABASE_PATH: join(directory, "test.db") });
     const app = await buildServer(config);
 
     cleanups.push(async () => {

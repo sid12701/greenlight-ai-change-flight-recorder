@@ -45,7 +45,7 @@ describePostgres("repository contract on postgresql", () => {
 
   async function seedChange(id: string, sha: string) {
     await repos.upsertRepository({
-      id: "repo_1", provider: "github", owner: "demo", name: "lms", default_branch: "main",
+      id: "repo_1", provider: "github", owner: "demo", name: "workload", default_branch: "main",
     });
     await repos.upsertChange({
       id, repository_id: "repo_1", commit_sha: sha, short_sha: sha.slice(0, 7),
@@ -73,7 +73,7 @@ describePostgres("repository contract on postgresql", () => {
   it("enforces one succeeded baseline per service and environment", async () => {
     await seedChange("chg_base", "b".repeat(40));
     const baseline = (suffix: string) => ({
-      id: `dep_base_${suffix}`, change_id: "chg_base", service_name: "lms-backend",
+      id: `dep_base_${suffix}`, change_id: "chg_base", service_name: "blnk-loan-workload",
       environment_name: "hackathon-demo", role: "baseline" as const,
       status: "succeeded" as const, deployed_at: NOW, emitted_trace_id: null,
       provider: "test", idempotency_key: `key_${suffix}`, readiness_at: NOW,

@@ -31,7 +31,7 @@ describe("receipt page", () => {
       aiVerificationState: "verified" as const,
       aiTraceparent: null,
       aiSpanContext: null,
-      githubUrl: "https://github.com/demo/lms/commit/a",
+      githubUrl: "https://github.com/demo/workload/commit/a",
       changedFilesCount: 1,
       additions: 1,
       deletions: 0,
@@ -42,7 +42,7 @@ describe("receipt page", () => {
       conclusion: "success",
       durationMs: 1000,
       slowestStep: "Run tests",
-      htmlUrl: "https://github.com/demo/lms/actions/runs/1",
+      htmlUrl: "https://github.com/demo/workload/actions/runs/1",
       signozTraceUrl: "http://localhost:8080/trace/abc",
       exportState: "verified" as const,
       isReconstructed: true as const,
@@ -202,7 +202,7 @@ describe("receipt page", () => {
     render(<ReceiptPageView receipt={{
       ...receipt,
       deployment: {
-        id: "dep_1", serviceName: "lms-backend", environmentName: "hackathon-demo",
+        id: "dep_1", serviceName: "blnk-loan-workload", environmentName: "hackathon-demo",
         version: null, role: "candidate", status: "succeeded",
         deployedAt: "2026-07-23T11:00:00.000Z", imageDigest: null,
         versionState: "pending" as const, traceState: "failed" as const,
