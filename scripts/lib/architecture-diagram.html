@@ -1,0 +1,136 @@
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1920px;height:1360px;background:#05090b;
+       font-family:"Inter",-apple-system,system-ui,sans-serif;overflow:hidden}
+</style>
+<div id="root"></div>
+<script>
+const L = [
+  {id:"claude", x:212,  w:238, name:"Claude Code",  sub:"coding session",         tone:"dim"},
+  {id:"gh",     x:570,  w:238, name:"GitHub",       sub:"commit + Actions run",   tone:"dim"},
+  {id:"gl",     x:962,  w:266, name:"GreenLight",   sub:"API · worker · receipt", tone:"green"},
+  {id:"blnk",   x:1358, w:238, name:"Blnk v0.15.1", sub:"third-party workload",   tone:"dim"},
+  {id:"sig",    x:1742, w:236, name:"SigNoz",       sub:"self-hosted · v0.134.0", tone:"blue"},
+];
+const X = Object.fromEntries(L.map(l=>[l.id,l.x]));
+
+const PHASES = [
+  {label:"1 · RECORD THE CHANGE",  n:3},
+  {label:"2 · DEPLOY AND OBSERVE", n:3},
+  {label:"3 · MEASURE AND DECIDE", n:5},
+];
+
+const M = [
+  {a:"claude",b:"gh", c:"mute", dash:true, t:"AI-Traceparent git trailer",
+   s:"optional — reads “not linked” in the recorded run"},
+  {a:"gh",  b:"gl",  c:"green", t:"commit, branch and CI run metadata",
+   s:"GitHub REST — the run that approved this exact SHA"},
+  {a:"gl",  b:"sig", c:"green", star:true, t:"CI run reconstructed as OpenTelemetry spans",
+   s:"GitHub Actions is not a native SigNoz source — this is the bridge"},
+
+  {a:"gl",  b:"blnk",c:"green", t:"deploy the commit as an immutable service.version",
+   s:"same image digest — only the configuration differs"},
+  {a:"blnk",b:"sig", c:"blue",  t:"OTLP request traces",
+   s:"service.version = commit SHA · http.route = /balances"},
+  {a:"gl",  b:"sig", c:"blue",  t:"OTLP traces, metrics and logs for GreenLight itself",
+   s:"logs carry commit_sha · five custom greenlight.* instruments"},
+
+  {a:"gl",  b:"sig", c:"pink",  t:"Query Builder v5 — count, p90, p95, error rate",
+   s:"one query per window, scoped to a single immutable version"},
+  {a:"sig", b:"gl",  c:"pink", ret:true, t:"1.44 ms baseline  →  10.45 ms candidate",
+   s:"257 and 260 spans — both above the 200-span floor"},
+  {a:"gl",  b:"sig", c:"pink",  t:"SigNoz MCP — the same question, agent-native",
+   s:"streamable HTTP, with no direct-query fallback"},
+  {a:"sig", b:"gl",  c:"pink", ret:true, t:"corroborating p95 pair + three slowest traces",
+   s:"every cited trace ID must still resolve, or the check fails"},
+  {a:"sig", b:"gl",  c:"pink", ret:true, t:"p95 alert rule fires, then resolves",
+   s:"version-agnostic — it follows whatever is deployed now"},
+];
+
+const VERDICT = {t:"verdict: regressed · recovery verified · evidence receipt",
+                 s:"correlation, never causation — and missing evidence stays visibly missing"};
+
+const STROKE = {green:"#34d399",blue:"#60a5fa",pink:"#f472b6",mute:"#6b7f88"};
+
+// ── layout ────────────────────────────────────────────────────────────────
+const BAND_TOP = 212, HEAD = 96, STEP = 66, PAD = 34, GAP = 18;
+const y = [], bands = [];
+let cursor = BAND_TOP, k = 0;
+PHASES.forEach(p=>{
+  const top = cursor, first = top + HEAD;          // HEAD clears the phase label
+  for(let i=0;i<p.n;i++) y[k++] = first + i*STEP;
+  const h = HEAD + (p.n-1)*STEP + PAD;
+  bands.push({top,h,label:p.label});
+  cursor = top + h + GAP;
+});
+const verdictY = cursor + 30;
+const lifeEnd  = verdictY + 30;
+
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+let svg = `<svg width="1920" height="1360" viewBox="0 0 1920 1360"><defs>`;
+for(const [kk,v] of Object.entries(STROKE))
+  svg += `<marker id="a${kk}" markerWidth="11" markerHeight="9" refX="10.5" refY="4.5" orient="auto">
+          <path d="M0,0 L11,4.5 L0,9 z" fill="${v}"/></marker>`;
+svg += `</defs><rect width="1920" height="1360" fill="#05090b"/>`;
+
+svg += `
+<text x="70" y="68"  font-size="41" font-weight="800" fill="#eef4f6" letter-spacing="-.7">GreenLight — how one change becomes evidence</text>
+<text x="70" y="99"  font-size="19" fill="#8397a0">Every arrow is a real call in the recorded run. Time runs downward; no arrow skips a step.</text>
+<rect x="1560" y="42" width="292" height="34" rx="17" fill="#34d399"/>
+<text x="1706" y="64" font-size="14" font-weight="800" fill="#08160f" letter-spacing="1" text-anchor="middle">TRACK 3 · BUILD YOUR OWN</text>`;
+
+bands.forEach(b=>{
+  svg += `<rect x="62" y="${b.top}" width="1796" height="${b.h}" rx="14" fill="#0a1116" stroke="#18242b"/>
+          <text x="88" y="${b.top+27}" font-size="13" font-weight="800" letter-spacing="1.8" fill="#5d7079">${b.label}</text>`;
+});
+
+const BOX_TOP = 116, BOX_H = 76;
+L.forEach(l=>{
+  const t = l.tone==="green" ? {bg:"#0f2019",bd:"#34d399",fg:"#5eead4",lw:1.7,line:"#2a4d41",lwid:2.6,dash:""}
+          : l.tone==="blue"  ? {bg:"#111a2b",bd:"#60a5fa",fg:"#93c5fd",lw:1.7,line:"#2b3f5e",lwid:2.6,dash:""}
+          :                    {bg:"#101a20",bd:"#26343d",fg:"#eef4f6",lw:1,  line:"#1c2830",lwid:2, dash:'stroke-dasharray="5 6"'};
+  svg += `
+  <rect x="${l.x-l.w/2}" y="${BOX_TOP}" width="${l.w}" height="${BOX_H}" rx="12" fill="${t.bg}" stroke="${t.bd}" stroke-width="${t.lw}"/>
+  <text x="${l.x}" y="${BOX_TOP+32}" font-size="19" font-weight="700" fill="${t.fg}" text-anchor="middle">${esc(l.name)}</text>
+  <text x="${l.x}" y="${BOX_TOP+55}" font-size="13.5" fill="#7f939c" text-anchor="middle">${esc(l.sub)}</text>
+  <line x1="${l.x}" y1="${BOX_TOP+BOX_H}" x2="${l.x}" y2="${lifeEnd}" stroke="${t.line}" stroke-width="${t.lwid}" ${t.dash}/>`;
+});
+
+M.forEach((m,i)=>{
+  const yy=y[i], x1=X[m.a], x2=X[m.b], dir = x2>x1?1:-1;
+  const sx = x1+dir*6, ex = x2-dir*9;
+  const col = STROKE[m.c];
+  const w   = m.c==="mute" ? 2 : (m.star ? 3.2 : 2.4);
+  const dash= m.dash ? 'stroke-dasharray="7 6"' : (m.ret ? 'stroke-dasharray="9 5"' : "");
+  const lo  = Math.min(sx,ex), hi = Math.max(sx,ex);
+
+  if(m.star) svg += `<rect x="${lo-12}" y="${yy-46}" width="${hi-lo+24}" height="60" rx="10" fill="#34d3990f" stroke="#34d39947"/>`;
+
+  svg += `<line x1="${sx}" y1="${yy}" x2="${ex}" y2="${yy}" stroke="${col}" stroke-width="${w}" ${dash} marker-end="url(#a${m.c})"/>`;
+
+  const tx = lo + 4;                       // both labels always sit ABOVE the line
+  svg += `<text x="${tx}" y="${yy-27}" font-size="17" font-weight="600" fill="${m.c==="mute"?"#9fb0b8":"#dce6ea"}">
+            <tspan font-size="12.5" font-weight="800" fill="#5d7079">${String(i+1).padStart(2,"0")}</tspan>
+            <tspan dx="12">${esc(m.t)}</tspan>${m.star?'<tspan dx="8" fill="#34d399">★</tspan>':''}</text>`;
+  svg += `<text x="${tx+26}" y="${yy-8}" font-size="13.5" fill="#7f939c">${esc(m.s)}</text>`;
+});
+
+const gx = X.gl;
+svg += `
+<path d="M${gx} ${verdictY-16} h62 a11 11 0 0 1 11 11 v12 a11 11 0 0 1 -11 11 h-56"
+      fill="none" stroke="#f472b6" stroke-width="2.4" marker-end="url(#apink)"/>
+<text x="${gx+100}" y="${verdictY+1}"  font-size="17.5" font-weight="700" fill="#f9a8d4">${esc(VERDICT.t)}</text>
+<text x="${gx+100}" y="${verdictY+25}" font-size="13.5" fill="#7f939c">${esc(VERDICT.s)}</text>`;
+
+svg += `<line x1="62" y1="${lifeEnd+38}" x2="1858" y2="${lifeEnd+38}" stroke="#18242b"/>`;
+let lx0 = 70, ly = lifeEnd + 72;
+[["#34d399","change and control flow"],["#60a5fa","OpenTelemetry ingest"],
+ ["#f472b6","SigNoz evidence returned"],["#6b7f88","optional / not observed"]].forEach(([c,t])=>{
+  svg += `<line x1="${lx0}" y1="${ly-5}" x2="${lx0+34}" y2="${ly-5}" stroke="${c}" stroke-width="3"/>
+          <text x="${lx0+46}" y="${ly}" font-size="14.5" fill="#8397a0">${t}</text>`;
+  lx0 += 46 + t.length*7.6 + 44;
+});
+svg += `<text x="1858" y="${ly}" font-size="14.5" fill="#5d7079" text-anchor="end">Blnk is Apache-2.0 and knows nothing about GreenLight.</text>`;
+svg += `</svg>`;
+document.getElementById("root").innerHTML = svg;
+</script>

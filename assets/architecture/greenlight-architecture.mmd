@@ -1,47 +1,30 @@
-flowchart LR
-  subgraph "Change sources"
-    AI["Claude Code session<br/>(optional; not linked in recorded run)"]
-    GH["GitHub commit<br/>and Actions run"]
-  end
+%% Source of truth for the rendered greenlight-architecture.png / .svg.
+%% The rendered form is produced by scripts/build-architecture-diagram.mjs;
+%% this file is the same sequence in Mermaid so the diagram can be read,
+%% diffed and re-rendered without the custom renderer.
+sequenceDiagram
+    autonumber
+    participant C  as Claude Code<br/>coding session
+    participant G  as GitHub<br/>commit + Actions run
+    participant GL as GreenLight<br/>API · worker · receipt
+    participant B  as Blnk v0.15.1<br/>third-party workload
+    participant S  as SigNoz<br/>self-hosted · v0.134.0
 
-  subgraph "GreenLight"
-    WEB["React web UI"]
-    API["Fastify API"]
-    WORKER["Background worker"]
-    GLDB[("GreenLight PostgreSQL")]
-  end
+    Note over C,S: 1 — RECORD THE CHANGE
+    C-->>G: AI-Traceparent git trailer<br/>optional — reads "not linked" in the recorded run
+    G->>GL: commit, branch and CI run metadata<br/>GitHub REST — the run that approved this exact SHA
+    GL->>S: ★ CI run reconstructed as OpenTelemetry spans<br/>GitHub Actions is not a native SigNoz source — this is the bridge
 
-  subgraph "Monitored workload"
-    BLNK["Blnk v0.15.1<br/>service.version = commit SHA"]
-    BLNKDB[("Blnk PostgreSQL")]
-    REDIS[("Blnk Redis")]
-  end
+    Note over C,S: 2 — DEPLOY AND OBSERVE
+    GL->>B: deploy the commit as an immutable service.version<br/>same image digest — only the configuration differs
+    B->>S: OTLP request traces<br/>service.version = commit SHA · http.route = /balances
+    GL->>S: OTLP traces, metrics and logs for GreenLight itself<br/>logs carry commit_sha · five custom greenlight.* instruments
 
-  subgraph "Observability"
-    OTEL["OpenTelemetry Collector"]
-    SIGNOZ["Self-hosted SigNoz<br/>traces · metrics · logs"]
-    MCP["SigNoz MCP server"]
-    ALERT["Alert history<br/>and webhook channel"]
-  end
+    Note over C,S: 3 — MEASURE AND DECIDE
+    GL->>S: Query Builder v5 — count, p90, p95, error rate<br/>one query per window, scoped to a single immutable version
+    S-->>GL: 1.44 ms baseline → 10.45 ms candidate<br/>257 and 260 spans — both above the 200-span floor
+    GL->>S: SigNoz MCP — the same question, agent-native<br/>streamable HTTP, with no direct-query fallback
+    S-->>GL: corroborating p95 pair + three slowest traces<br/>every cited trace ID must still resolve, or the check fails
+    S-->>GL: p95 alert rule fires, then resolves<br/>version-agnostic — it follows whatever is deployed now
 
-  AI -.->|"AI-Traceparent trailer"| GH
-  GH -->|"REST metadata and CI timing"| WORKER
-  WEB -->|"receipt and health requests"| API
-  API <--> GLDB
-  WORKER <--> GLDB
-  WORKER -->|"deploy immutable version"| BLNK
-  BLNK --> BLNKDB
-  BLNK --> REDIS
-
-  API -->|"OTLP traces, metrics, logs"| OTEL
-  WORKER -->|"OTLP traces, metrics, logs"| OTEL
-  BLNK -->|"OTLP request traces"| OTEL
-  WORKER -->|"reconstructed CI spans"| OTEL
-  OTEL ==> SIGNOZ
-
-  API -->|"Query Builder v5"| SIGNOZ
-  API -->|"agent investigation"| MCP
-  MCP --> SIGNOZ
-  SIGNOZ -->|"dashboard, trace, log evidence"| API
-  SIGNOZ --> ALERT
-  ALERT -.->|"authenticated webhook<br/>(delivery not yet observed)"| API
+    GL->>GL: verdict: regressed · recovery verified · evidence receipt<br/>correlation, never causation — missing evidence stays visibly missing
