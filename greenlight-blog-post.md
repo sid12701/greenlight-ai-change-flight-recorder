@@ -13,9 +13,9 @@ Track 3: Build Your Own.
 
 - [Source code and reproducible setup](https://github.com/sid12701/greenlight-ai-change-flight-recorder)
 - [Watch the 2:25 demo video on YouTube](https://www.youtube.com/watch?v=QiWLpvP3vXc)
-- [Download the H.264/AAC demo file](signoz-hackathon-end-to-end-demo.mp4)
+- [Download the H.264/AAC demo file](https://github.com/sid12701/greenlight-ai-change-flight-recorder/raw/refs/heads/main/signoz-hackathon-end-to-end-demo.mp4)
 
-![GreenLight overview](assets/screenshots/greenlight-overview.jpg)
+![GreenLight overview](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/greenlight-overview.jpg)
 
 ## The problem
 
@@ -61,7 +61,7 @@ p95 moved from **1.44 ms to 10.45 ms**. A later revert,
 [`c65cd73`](https://github.com/sid12701/greenlight-ai-change-flight-recorder/commit/c65cd730b405b88c6d83a7b0f7d7c024f98e1dcd),
 measured **2.1 ms**, so recovery was observed rather than assumed.
 
-![Regression receipt showing the 7.3x p95 change](assets/screenshots/greenlight-regression-receipt.jpg)
+![Regression receipt showing the 7.3x p95 change](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/greenlight-regression-receipt.jpg)
 
 ## The workflow
 
@@ -86,7 +86,7 @@ That makes overlapping deployments, rollbacks, and delayed evaluation
 unambiguous. The baseline can have been frozen hours earlier; it still refers to
 one immutable version.
 
-![GreenLight architecture](assets/architecture/greenlight-architecture.png)
+![GreenLight architecture](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/architecture/greenlight-architecture.png)
 
 The product consists of a React interface, a Fastify API, a PostgreSQL-backed
 worker, and a third-party monitored workload:
@@ -124,7 +124,7 @@ routes: this 7.3× regression would have needed to become a 174× regression
 before qualifying. Every stored verdict records its policy version so an old
 receipt still explains the rules that decided it.
 
-![Measured impact and recovery](assets/screenshots/greenlight-regression-impact.jpg)
+![Measured impact and recovery](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/greenlight-regression-impact.jpg)
 
 ### Dashboards make versions comparable
 
@@ -134,7 +134,7 @@ baseline, candidate, and recovery appear as distinct series. An empty error
 panel is meaningful in this run: the measured candidate window had zero errors;
 latency alone caused the verdict.
 
-![SigNoz Deployment Impact dashboard](assets/screenshots/signoz-deployment-impact-dashboard.jpg)
+![SigNoz Deployment Impact dashboard](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/signoz-deployment-impact-dashboard.jpg)
 
 ### Links resolve to real traces
 
@@ -143,7 +143,7 @@ published commit, CI, trace, deployment, and source link. One cited slow request
 resolves in SigNoz as an 83 ms `/balances` trace with two spans, zero errors, and
 a 78.77 ms `GetAllBalances` child span.
 
-![A slow Blnk trace in SigNoz](assets/screenshots/signoz-slow-trace.jpg)
+![A slow Blnk trace in SigNoz](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/signoz-slow-trace.jpg)
 
 ### Alerts follow the deployed service
 
@@ -158,7 +158,7 @@ authenticated GreenLight webhook receiver is independently verified, but
 SigNoz-to-receiver delivery was not observed during the rehearsal. The
 submission does not claim that it was.
 
-![Observed p95 alert history](assets/screenshots/signoz-p95-alert-history.jpg)
+![Observed p95 alert history](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/signoz-p95-alert-history.jpg)
 
 ### Logs preserve the commit join
 
@@ -168,7 +168,7 @@ commit, not a queue job ID. Filtering on the recovery SHA exposes retries, a
 permanent failure, and the later successful job without guessing from
 timestamps.
 
-![Commit-correlated worker logs](assets/screenshots/signoz-correlated-logs.jpg)
+![Commit-correlated worker logs](https://raw.githubusercontent.com/sid12701/greenlight-ai-change-flight-recorder/main/assets/screenshots/signoz-correlated-logs.jpg)
 
 ### MCP gives an agent-native investigation path
 
